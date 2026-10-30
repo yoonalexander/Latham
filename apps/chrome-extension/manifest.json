@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Latham Development Scaffold",
+  "version": "0.0.0",
+  "description": "Inactive scaffold. Site permissions and runtime scripts are not implemented.",
+  "action": {
+    "default_title": "Latham (scaffold)"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@latham/actions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Authorized action execution and effect-specific result verification."
+}

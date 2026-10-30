@@ -1,0 +1,7 @@
+{
+  "name": "@latham/observations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Snapshot identity, scope checks, minimization and redaction."
+}

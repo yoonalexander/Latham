@@ -1,12 +1,14 @@
 # Latham Roadmap
 
 **Updated:** October 30, 2026\
-**Status:** Planned; no implementation milestones are marked complete.\
+**Status:** Phase 0 repository scaffold created; no functional milestones are accepted.\
 **Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.3.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
 This roadmap covers the whole project, including later ambitions. It has acceptance gates rather than promised dates. “Public release” means a user-facing build, not a decision that the source must be public. Distribution licensing, contribution terms, and any later private/commercial release are separate decisions. The design document owns execution/privacy contracts; this roadmap owns sequence. When a milestone changes, update both without marking unverified work complete.
+
+The npm workspaces, source placeholders, reserved helper/test directories, and documentation now exist. The Electron UI, fixture action pipeline, provider integrations, browser automation, and acceptance harness are not implemented. All functional checkboxes below remain open.
 
 ## Decisions already made
 

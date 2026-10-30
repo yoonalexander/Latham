@@ -1,0 +1,7 @@
+{
+  "name": "@latham/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Session routing, local policy, action queue and cancellation ownership."
+}

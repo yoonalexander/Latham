@@ -1,0 +1,7 @@
+{
+  "name": "@latham/planner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional bounded multi-step goal planning over approved tools."
+}
