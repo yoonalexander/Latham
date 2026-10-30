@@ -1,11 +1,17 @@
-import { app, BrowserWindow, WebContentsView, ipcMain, protocol, session, globalShortcut, Tray, Menu, nativeImage, type IpcMainEvent, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, WebContentsView, ipcMain, protocol, session, globalShortcut, Tray, Menu, nativeImage, safeStorage, type IpcMainEvent, type IpcMainInvokeEvent } from "electron";
 import { readFile } from "node:fs/promises";
 import { mkdirSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { join, resolve } from "node:path";
 import { parseSettings, parseBounds, type DesktopState } from "@latham/contracts";
 import { Controller } from "@latham/core";
 import { LocalFixtureExecutor } from "./fixture-executor";
 import { Storage } from "./storage";
+import { ProviderStore } from "./provider-store";
+import { Voice } from "./voice";
+import { ChromeBridge, extensionId } from "./native-bridge";
+import { installHost, launchChrome } from "./host-install";
+import type { SetupState } from "../../../../packages/contracts/src/setup";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "latham", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName("Latham");
@@ -41,8 +47,10 @@ async function boot(): Promise<void> {
       return new Response(new Uint8Array(await readFile(join(__dirname, route[0]!))), { headers: { "content-type": route[1]!, "x-content-type-options": "nosniff" } });
     } catch { return new Response("Unavailable", { status: 404 }); }
   });
-  localSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
-  localSession.setPermissionCheckHandler(() => false);
+  let voice: Voice;
+  const microphoneAllowed = (contents: Electron.WebContents | null): boolean => !!win && contents === win.webContents && contents.getURL() === "latham://app/index.html" && voice?.status === "recording";
+  localSession.setPermissionRequestHandler((contents, permission, callback, details) => callback(microphoneAllowed(contents) && permission === "media" && details.isMainFrame && "mediaTypes" in details && details.mediaTypes.length > 0 && details.mediaTypes.every(type => type === "audio")));
+  localSession.setPermissionCheckHandler((contents, permission, origin, details) => microphoneAllowed(contents) && permission === "media" && origin === "latham://app" && details.mediaType === "audio");
   localSession.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !routes.has(details.url) }));
   win = new BrowserWindow({ width: 1220, height: 940, minWidth: 1000, minHeight: 780, show: false, backgroundColor: "#f3f6f2",
     webPreferences: { preload: join(__dirname, "preload.cjs"), session: localSession, nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, spellcheck: false } });
@@ -65,10 +73,35 @@ async function boot(): Promise<void> {
   const guard = (event: IpcMainEvent | IpcMainInvokeEvent): void => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame || event.senderFrame.url !== "latham://app/index.html") throw new Error("forbidden_sender");
   };
+  const providerStore = new ProviderStore(app.getPath("userData"), safeStorage);
+  const setupState = (): SetupState => ({ settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId });
+  const setupSend = (): void => { if (voice && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState()); };
+  voice = new Voice(providerStore, setupSend);
+  const chrome = new ChromeBridge(providerStore, setupSend);
+  await chrome.start();
+  const hostDirectory = join(app.getPath("userData"), "native");
+  chrome.writeConfig(hostDirectory);
+  const stopAll = (): void => { controller.stop(); voice.cancel(); chrome.pause(); };
+  ipcMain.handle("setup:state", event => { guard(event); return setupState(); });
+  ipcMain.handle("setup:save", (event, input: unknown) => { guard(event); voice.save(input); });
+  ipcMain.handle("setup:key", (event, input: unknown) => { guard(event); voice.cancel(); providerStore.setKey(input); setupSend(); });
+  ipcMain.handle("setup:remove-key", event => { guard(event); voice.cancel(); providerStore.removeKey(); setupSend(); });
+  ipcMain.handle("setup:import-key", async event => { guard(event); voice.cancel(); if (app.isPackaged) throw new Error("development_only"); const values = parseEnv(await readFile(resolve(".env.local"), "utf8")); providerStore.setKey(values.GEMINI_API_KEY); setupSend(); });
+  ipcMain.handle("setup:test", event => { guard(event); return voice.test(); });
+  ipcMain.handle("setup:begin", event => { guard(event); return voice.begin(); });
+  ipcMain.handle("setup:finish", (event, id: unknown, pcm: unknown) => { guard(event); return voice.finish(id, pcm); });
+  ipcMain.handle("setup:cancel", event => { guard(event); voice.cancel(); });
+  ipcMain.handle("setup:clear-transcript", event => { guard(event); voice.cancel(); });
+  ipcMain.handle("setup:chrome-resume", event => { guard(event); chrome.resume(); });
+  ipcMain.handle("setup:reconcile-chrome", event => { guard(event); chrome.reconcile(); });
+  ipcMain.handle("setup:chrome-run", (event, command: unknown) => { guard(event); return chrome.run(command); });
+  ipcMain.handle("setup:revoke", (event, origin: unknown) => { guard(event); chrome.revoke(origin); });
+  ipcMain.handle("setup:install-host", event => { guard(event); stopAll(); installHost(hostDirectory, join(__dirname, "native/Latham.NativeHost.exe")); chrome.writeConfig(hostDirectory); });
+  ipcMain.handle("setup:launch-chrome", event => { guard(event); launchChrome(); });
   ipcMain.handle("latham:state", event => { guard(event); return state(); });
   ipcMain.handle("latham:run", (event, command: unknown) => { guard(event); if (resetting) throw new Error("executor_unavailable"); return controller.run(command); });
   ipcMain.handle("latham:resume", event => { guard(event); if (resetting) throw new Error("executor_unavailable"); controller.resume(); });
-  ipcMain.handle("latham:stop", event => { guard(event); controller.stop(); });
+  ipcMain.handle("latham:stop", event => { guard(event); stopAll(); });
   ipcMain.handle("latham:settings", (event, input: unknown) => {
     guard(event);
     const settings = parseSettings(input), changed = settings.fixtureAllowed !== storage.settings.fixtureAllowed;
@@ -98,16 +131,17 @@ async function boot(): Promise<void> {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Show Latham", click: () => win.show() },
     { label: "Start fixture session", click: () => controller.resume() },
-    { label: "Pause / Stop", click: () => controller.stop() },
+    { label: "Pause / Stop", click: stopAll },
     { type: "separator" }, { label: "Quit Latham", click: () => app.quit() }
   ]));
   tray.on("click", () => win.show());
-  stopShortcutRegistered = globalShortcut.register(shortcut, () => controller.stop());
+  stopShortcutRegistered = globalShortcut.register(shortcut, stopAll);
   Menu.setApplicationMenu(null);
   win.on("close", event => { if (!quitting) { event.preventDefault(); win.hide(); } });
+  win.on("hide", stopAll);
   win.on("closed", () => { if (!fixture.webContents.isDestroyed()) fixture.webContents.close(); });
   fixture.webContents.on("render-process-gone", () => { controller.resetExecutor(); });
-  app.on("before-quit", () => { quitting = true; controller.stop(); });
+  app.on("before-quit", () => { quitting = true; stopAll(); chrome.close(); });
   await fixture.webContents.loadURL("latham://fixture/index.html");
   await win.loadURL("latham://app/index.html");
   win.show();

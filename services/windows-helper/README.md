@@ -1,9 +1,12 @@
 # Windows helper
 
-Reserved for the current-user, non-elevated native messaging/launch/focus host.
-General Windows UI Automation and desktop-app input begin in Phase 3, after the
-Chrome MVP. This directory has no .NET project or executable yet.
+`NativeHost.cs` is Latham's independently written, non-elevated native-messaging
+framing relay. It checks Chrome's extension-origin argument, reads a protected
+current-user connection config, and relays bounded JSON frames between stdio
+and the desktop application's duplex named pipe. It exposes no shell or UIA API.
 
-Select a supported .NET SDK when implementing the helper. Keep the control path
-responsive, validate IPC ownership and schemas, and preserve cancellation and
-unknown-effect semantics. This directory does not grant OS control.
+`scripts/build-host.mjs` uses Windows' .NET Framework compiler. The tested
+runtime is Framework 4.8; asynchronous pipe handles are required for concurrent
+read/write without blocking replies. See [setup](../../docs/phase1.md).
+The future general Windows UI Automation worker remains Phase 3 and may use
+.NET 8+ independently of this small bootstrap relay.

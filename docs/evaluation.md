@@ -1,4 +1,58 @@
-# Phase 0 evaluation and acceptance
+# Evaluation and acceptance
+
+## Phase 1 evidence — October 30, 2026
+
+Implemented setup and its reproducible commands are in [phase1.md](phase1.md).
+The offline suite now has 36 unit/boundary cases and six integration flows
+(four fixture flows plus real MV3/native-host tab controls and fake-device
+microphone permission/capture boundaries). Run `npm run setup:browser` before
+the integration suite. Close other Latham instances so the physical hotkey can
+register; concurrent acceptance instances deliberately contend for that key.
+
+Live provider evaluation used the public whisper.cpp `samples/jfk.wav` and
+synthetic unique/ambiguous/missing candidate fixtures. Both Gemini
+`gemini-3.1-flash-lite` and the local configuration produced usable final
+transcripts and passed all three application-level candidate cases. The real
+desktop flow also passed both routes, DPAPI ciphertext inspection, saved-key
+reuse across restart, final-once preview and paused restart. No personal audio
+or page contents were used in these provider checks.
+
+| Route | Speech elapsed | Candidate elapsed (unique / ambiguous / missing) |
+|---|---|---|
+| whisper.cpp tiny.en + Ollama Qwen2.5 1.5B | 9.214 s | 9.481 / 8.245 / 7.990 s |
+| Gemini 3.1 Flash-Lite | 3.329 s | 0.559 / 0.760 / 0.821 s |
+
+These are individual runs under concurrent browser-test load on an i7-1065G7,
+8 logical processors and 16 GB RAM, without discrete GPU use. Earlier isolated
+speech runs took roughly 1.9–4.8 s. They are setup measurements, not latency
+percentiles or a representative speech-accuracy benchmark. The local 0.5B
+candidate missed a valid target; larger models still chose between duplicate
+labels. Local indistinguishability checks therefore force abstention
+independently of model output. One cloud comparison encountered a provider
+availability error; no automatic retry or local-to-cloud fallback occurred.
+
+Reports are ignored `.test-artifacts/provider-evaluation.json`,
+`app-provider-acceptance.json`, `e2e-results.json`, and the interactive
+`permission-acceptance.json` when that flow passes. Native integration caught
+and fixed a synchronous duplex-pipe deadlock; the host now uses asynchronous
+pipe handles. Tests verify actual returned tab identity/active state, not only
+mocked Chrome responses. Navigation remains honestly reported as dispatched.
+
+Interactive permission and physical-stop acceptance passed in a fresh visible
+Chrome-for-Testing profile. The user approved Google Search; the authorized
+native UI check approved YouTube. Assertions passed remembered restart without
+reprompt, unapproved-origin denial, browser-side and Latham-side revoke,
+disconnect/reconnect without replay, retained grants while paused, and physical
+Ctrl+Alt+. changing an active Chrome session to a confirmed paused fence. The
+new-site negative test serves synthetic content under a routed origin, avoiding
+external DNS as a test dependency. No personal browser profile was used.
+
+Native composed-window review also found and corrected fixture/setup overlap;
+scrolling away now hides the separate fixture view. Real microphone recognition across speakers/noise,
+stable-Chrome installation, additional languages/hardware, broad site tasks,
+installer/signing and production distribution remain Phase 2 release work.
+
+## Historical Phase 0 acceptance
 
 **Result:** Phase 0 foundation accepted on October 30, 2026, after the checks
 below. This is not acceptance of the Chrome MVP or later milestones.
@@ -11,11 +65,11 @@ npm run setup:electron
 npm run evaluate
 ```
 
-The evaluation command typechecks, runs contract/policy/storage tests, builds
-the app and runs the actual Electron acceptance flows. It does not require
-Playwright browser downloads: tests use the pinned Electron runtime.
-Development setup may download dependencies/runtime binaries; the app itself
-has no connected external provider or website.
+At Phase 0, the evaluation command typechecked, ran contract/policy/storage tests, built
+the app and ran actual Electron acceptance flows. That Phase 0-only suite
+needed no separate test browser; the current suite also needs `setup:browser`.
+Development setup could download dependencies/runtime binaries; that Phase 0
+build had no connected external provider or website.
 
 Tested environment: Windows, Node.js 22.13.0, npm 10.9.2, TypeScript 7.0.2,
 Electron 45.2.0, Vitest 5.0.5, Playwright 1.64.1. Exact packages are locked.

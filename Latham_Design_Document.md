@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.4\
+**Version:** 1.5\
 **Date:** October 30, 2026\
-**Status:** Phase 0 local-fixture foundation accepted; Chrome MVP and later runtime acceptance pending\
+**Status:** Phase 0 accepted; Phase 1 voice/Chrome implementation and acceptance tracked in docs/evaluation.md; public Chrome MVP pending\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -162,7 +162,7 @@ Priority definitions: **P0** is required by the end of Phase 2 for the Chrome-fi
 | ID | Priority | Requirement | Acceptance condition |
 |---|---|---|---|
 | FR-01 | P0 | User can activate/pause capture with a global hotkey or tray. | Microphone state is unambiguous and changes immediately. |
-| FR-02 | P0 | Streaming speech-to-text produces partial and final transcript events. | Only a final transcript from the active turn can dispatch an action; duplicate or late events are ignored. |
+| FR-02 | P0 | Speech-to-text produces an owned final utterance; streaming partials are an optional latency improvement. | Only a final transcript from the active turn can be offered for dispatch; duplicate or late events are ignored. Phase 1 requires explicit transcript review/run. |
 | FR-03 | P0 | Router separates command, dictation, clarification, and non-command speech. | Unknown or incomplete instructions do not trigger speculative actions. |
 | FR-04 | P0 | Deterministic common commands: allowlisted Chrome launch, tab navigation, scrolling, basic shortcuts. | Actions use known local profiles without a remote decision call when parameters are unambiguous; unknown effects are blocked. |
 | FR-05 | P1, Phase 3 | Windows UI Automation adapter enumerates controls on supported desktop applications. | Native snapshots carry process/window identity and current control state; this adapter never circumvents browser-content denials. |
@@ -381,11 +381,11 @@ P0 guarantees hotkey/tray interruption in all active states without cloud access
 
 ### 6.1 Recognition strategy
 
-P0 offers two user-configured paths: a cloud provider using the user's API key, or local AI without a required paid provider key. The initial cloud speech adapter targets `gpt-live-transcribe`. It streams transcript deltas and final text when the audio turn is committed. The documented configuration uses a transcription session; its live model does not provide word-level confidence scores. Use client-side VAD or an explicit key release to delimit turns. Do not treat uncertain partial tokens as irreversible commands.
+P0 offers two user-configured paths: a cloud provider using the user's API key, or local AI without a required paid provider key. Phase 1 implements Google Gemini `gemini-3.1-flash-lite` for bounded audio transcription and target selection, following the user's choice of a Gemini free-tier key. Push-to-talk release is the local turn boundary; it sends one completed recording and displays one final transcript for explicit review/run. Audio is limited to 30 seconds; requests have a 60-second deadline. No partial transcript can authorize an action. Streaming deltas and local VAD are later latency improvements, not prerequisites for this bounded path.
 
 Reconcile provider item IDs with the local session/turn; local ASR adapters must produce equivalent locally owned turn/final events. Accept each final once. Reconnect, cancellation, and stream failure invalidate outstanding turn mappings. A late final must not enter a new dictation session or execute after a pause. An internet outage disables a cloud-only voice configuration; a validated local configuration continues supported local commands and can operate on loaded pages, but cannot load remote website content offline. Tray/hotkeys and typed local commands remain available in either configuration.
 
-A local ASR backend is part of the P0 local voice path, not a deferred promise inferred from installing Ollama. Select a maintained speech runtime/model through representative microphone tests, comparing accuracy, startup cost, memory/CPU load, language coverage, and domain vocabulary on the same evaluation dataset. Record its distribution/model terms and installation requirements before shipping. No exact local ASR or text model is selected by this document. Do not conflate an open-source model with a hosted API model identifier.
+A local ASR backend is part of the P0 local voice path, not a promise inferred from installing Ollama. Phase 1 selects whisper.cpp v1.8.2 Windows x64 CPU with Whisper tiny.en (English) and Ollama Qwen2.5 1.5B for the initial tested configuration. Terms, download sizes, hashes, hardware and measurements are recorded in [Phase 1 setup](docs/phase1.md) and [evaluation](docs/evaluation.md). Public-sample speech and a small candidate corpus establish internal setup evidence; representative microphone accuracy, resource budgets, vocabulary and minimum hardware still need Phase 2 release evaluation. Do not conflate open model weights with a hosted model identifier.
 
 ### 6.2 Mode selection and utterance routing
 
@@ -439,7 +439,7 @@ Onboarding first offers **Use my API key** or **Use local AI**. Configure speech
 | Tier 1: bounded decision | Select one of N observed targets, distinguish command/dictation | User-key cloud or local Ollama adapter chooses candidate IDs or abstains |
 | Tier 2: planning agent | Multi-step goals, complex navigation, recovery | Responses model chooses among approved tools, one step at a time |
 
-Tier 1 must include a `CLARIFY`/`NONE` choice. For the OpenAI Decisions API, use a `choice` question with enumerated candidate IDs, ideally limited to the most relevant targets, and treat returned confidence as a **ranking signal**, not an automatic safety guarantee. Calibrate any threshold on labeled task examples. As of this document, the documented Decisions model is `gpt-6-luna`, but the provider interface must not depend on that identifier.
+Tier 1 must include a `CLARIFY`/`NONE` choice. Phase 1's Gemini/Ollama adapters use a strict candidate-ID enum plus reserved `ABSTAIN`, normalized to an internal null selection. Unknown IDs, extra fields, oversized output and incomplete/refused responses are rejected. Indistinguishable same-role labels force local abstention even if a model chooses one. Selection has no action authority and does not execute website controls in Phase 1. Other provider APIs remain references; no OpenAI key is required by the implemented route. Any future confidence value is a ranking signal requiring calibration, not a safety guarantee.
 
 ### 7.2 Selection example
 
@@ -533,7 +533,7 @@ Microsoft UI Automation coverage varies by application and developer implementat
 |---|---|---|
 | UI and tray | Electron + React + TypeScript | Disable Node integration in renderer; use context-isolated IPC. |
 | Orchestration | TypeScript | State machine, action queue, routing, provider adapters. |
-| Windows helper | C# / .NET 8+ when needed | Narrow P0 Chrome launch/focus/relay functions; general UIA/native-app execution in Phase 3. |
+| Windows helper | Own C# .NET Framework relay in Phase 1; .NET 8+ considered for Phase 3 | Narrow stdio/named-pipe relay only; known Chrome launch stays in main. General UIA/native-app execution is Phase 3. |
 | Browser helper | Chrome extension, Manifest V3, native messaging | Remembered user-granted per-site optional hosts plus Latham scopes; required for browser content. |
 | Speech | User-key cloud adapter or validated local ASR | Both onboarding paths are P0; benchmark/select the local runtime/model before release. |
 | Bounded decision | User-key cloud adapter or local Ollama | Same validated target-choice contract; add other providers only when needed. |
@@ -702,7 +702,7 @@ For a research- or portfolio-quality evaluation, measure the same set of tasks u
 The following decisions define v1.3; remaining choices are called out explicitly:
 
 1. **Branding and foundation:** the product name is Latham, with an independent codebase and the reference policy in section 1.2. Choose its icon and visual identity after validating interaction design.
-2. **AI access:** user-supplied API keys or a validated local-AI configuration are P0. Initially target Ollama for local text decisions and select a separate local ASR backend through benchmarks. Exact default model, minimum hardware, and supported speech languages remain validation decisions. Latham-managed accounts/service are Phase 8 roadmap work.
+2. **AI access:** user-supplied API keys or a validated local-AI configuration are P0. Phase 1 implements Gemini and selects whisper.cpp tiny.en plus Ollama Qwen2.5 1.5B for an initial English/CPU setup. Proven minimum hardware, broader audio accuracy and additional languages remain validation work. Latham-managed accounts/service are Phase 8 roadmap work.
 3. **Browser IPC and grants:** native messaging plus explicitly approved, remembered per-site optional host permissions are the P0 baseline. Validate installation, persistence, reconnect, and revocation in Phase 1. Temporary activeTab access is optional; all-site/background access is not implied.
 4. **Activation:** push-to-talk is P0, with hotkey/tray cancellation. P1 hands-free requires the independent local stop detector; wake-word activation is separate from execution-time interruption.
 5. **Visual grounding:** benchmark local OCR/UI detection before paying for general screenshot reasoning.
@@ -760,6 +760,8 @@ These references inform the architecture. They do **not** establish that the unb
 Reference roles are distinct: jev-use informs the accessibility/decision loop; Capri informs Windows integration concepts and local-speech experiments; Clicky/HeyClicky informs resident-assistant UX and interaction concepts. All remain references under section 1.2. None establishes Latham's measured behavior, supplies authority to bypass permissions, or adds a mascot, persistent personality, or unattended workflows to P0.
 
 ## 16. Revision Notes
+
+**v1.5 — October 30, 2026:** Added push-to-talk/final preview, Gemini BYOK, separate local speech/decision setup, OS-protected keys, own MV3/native-messaging relay, remembered optional site consent, deterministic Chrome commands, acknowledged cancellation fences and uncertain-result recovery. Updated reference provider/runtime proposals to the implemented configuration. Website DOM actions, dictation and distribution remain Phase 2; desktop UIA remains Phase 3. See [setup](docs/phase1.md) and [evidence](docs/evaluation.md).
 
 **v1.4 — October 30, 2026:** Implemented and evaluated the Phase 0 local-fixture foundation: Electron/React shell, tray/settings, narrow sandboxed preload, typed commands, compiled fixture effect policy, snapshot/node revisions, epochs, serialized dispatch, cancellation/deadlines, expected-effect verification, metadata-only diagnostics, and regression/Electron evaluation. Phase 0 is accepted only at this local boundary; real Chrome permissions, speech/providers and native automation remain later milestones. See [evaluation evidence](docs/evaluation.md).
 

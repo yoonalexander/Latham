@@ -1,14 +1,14 @@
 # Latham Roadmap
 
 **Updated:** October 30, 2026\
-**Status:** Phase 0 local-fixture foundation complete; Phase 1 is next.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.4.
+**Status:** Phases 0–1 complete; Phase 2 Chrome MVP is next.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.5.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
 This roadmap covers the whole project, including later ambitions. It has acceptance gates rather than promised dates. “Public release” means a user-facing build, not a decision that the source must be public. Distribution licensing, contribution terms, and any later private/commercial release are separate decisions. The design document owns execution/privacy contracts; this roadmap owns sequence. When a milestone changes, update both without marking unverified work complete.
 
-The Electron shell/tray/settings, typed local-fixture action pipeline, policy/cancellation boundaries, fixture pages, and evaluation runner are implemented. Phase 0 acceptance evidence is recorded in [docs/evaluation.md](docs/evaluation.md): 26 contract/policy/storage cases, 4 Electron flows, native composed-window inspection and a physical stop-shortcut check. Speech, AI providers, real Chrome pairing/site access, and desktop automation remain unimplemented; all later phases stay open.
+The fixture foundation and Phase 1 voice/provider/Chrome setup are implemented. [Evaluation](docs/evaluation.md) records 36 boundary cases, six integration flows, live Gemini/local speech and decision fixtures, protected-key onboarding, real native messaging, remembered permission/revocation checks and physical Stop. [Setup](docs/phase1.md) records tested models/hardware and limits. Website DOM tasks/dictation and desktop automation remain later work.
 
 ## Decisions already made
 
@@ -61,17 +61,19 @@ Phases 0–3 are the immediate delivery order. Later phases are planned capabili
 
 **Goal:** a user can configure AI, grant site access, and invoke basic Chrome controls with voice.
 
-- [ ] Add microphone selection, push-to-talk, local utterance boundaries, transcript preview, and explicit permission/error states.
-- [ ] Implement one supported cloud-key configuration; protect keys through the OS-backed store and expose connection/quota errors.
-- [ ] Implement an Ollama adapter for local bounded target selection using schema-validated candidate IDs and an abstention path.
-- [ ] Benchmark/select a separate local ASR runtime/model and implement its final-turn/cancellation contract. Record model terms, download size, required setup, supported languages, and tested hardware.
-- [ ] Offer “Use my API key” and “Use local AI” onboarding. Show the chosen audio/context destinations, test each component, and prohibit silent cloud fallback from local mode.
-- [ ] Pair the MV3 extension through a registered native-messaging host. Keep any native launch/focus helper narrow; do not build general desktop automation yet.
-- [ ] Implement deterministic Chrome launch/tab/navigation commands and physical cancellation independent of provider/network state.
-- [ ] Request supported sites through explicit optional-host permission prompts in extension UI; save Latham consent and show the effective approved-site list.
-- [ ] Test approved-site revisit/restart, navigation to a new site, browser-side and Latham-side revoke, disconnect/reconnect, and Pause with permission still installed.
+- [x] Add microphone selection, push-to-talk, local utterance boundaries, transcript preview, and explicit permission/error states.
+- [x] Implement one supported cloud-key configuration; protect keys through the OS-backed store and expose connection/quota errors.
+- [x] Implement an Ollama adapter for local bounded target selection using schema-validated candidate IDs and an abstention path.
+- [x] Benchmark/select a separate local ASR runtime/model and implement its final-turn/cancellation contract. Record model terms, download size, required setup, supported languages, and tested hardware.
+- [x] Offer “Use my API key” and “Use local AI” onboarding. Show the chosen audio/context destinations, test each component, and prohibit silent cloud fallback from local mode.
+- [x] Pair the MV3 extension through a registered native-messaging host. Keep any native launch/focus helper narrow; do not build general desktop automation yet.
+- [x] Implement deterministic Chrome launch/tab/navigation commands and physical cancellation independent of provider/network state.
+- [x] Request supported sites through explicit optional-host permission prompts in extension UI; save Latham consent and show the effective approved-site list.
+- [x] Test approved-site revisit/restart, navigation to a new site, browser-side and Latham-side revoke, disconnect/reconnect, and Pause with permission still installed.
 
 **Gate:** both cloud-key and local speech paths produce usable final utterances; candidate-selection fixtures work through both decision routes. Known shortcuts avoid model selection. Local-only tests produce no cloud inference traffic. A remembered site does not prompt again unless effective permission was removed, and a missing/revoked grant never falls back around denial.
+
+**Accepted:** October 30, 2026, for the internal setup/navigation boundary. Gemini 3.1 Flash-Lite and whisper.cpp tiny.en/Ollama Qwen2.5 1.5B passed public-speech and synthetic-candidate checks; real native-host, permission restart/revoke and physical Stop checks passed. Transcripts require review/run. Navigation is reported as dispatched, not a verified loaded-page task. Broader microphone accuracy, stable-Chrome distribution and real-site operations remain Phase 2 gates.
 
 ## Phase 2 — Chrome MVP on a few chosen websites
 
@@ -195,8 +197,8 @@ Initial implementation candidates are **Google Search and YouTube search/navigat
 
 ## Open implementation choices
 
-The product direction above is settled. The exact local ASR/text models, minimum hardware and initial languages, final first-site list, icon/visual treatment, distribution license/contribution terms, and release-channel mechanics still need implementation evidence or a focused decision. These choices must not quietly change Chrome-first scope, desktop-app priority, remembered site consent, or the user-key/local access options.
+The product direction above is settled. Phase 1 selects an initial English/CPU local configuration. Proven minimum hardware, additional languages, the final first-site task list, icon/visual treatment, distribution license/contribution terms, and release-channel mechanics still need implementation evidence or a focused decision. These choices must not quietly change Chrome-first scope, desktop-app priority, remembered site consent, or the user-key/local access options.
 
 ## Next milestone
 
-Begin **Phase 1**: speech/provider setup and real Chrome connection. Keep the local-fixture regression suite green while adding those boundaries. No reference repository needs to be forked or imported.
+Begin **Phase 2**: scoped DOM snapshots, reviewed website actions and field-bound dictation on a few chosen sites. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.

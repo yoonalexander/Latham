@@ -1,8 +1,8 @@
 # @latham/speech
 
-Transcription, VAD and cloud/local speech provider adapters.
-
-Phase 1. Local ASR is separate from an Ollama text model; no capture or provider calls exist yet.
-
-The source entry point is an empty scaffold module. See the root design and
-roadmap before implementing this boundary.
+`src/providers.ts` implements bounded Gemini audio/target selection,
+whisper.cpp final-utterance ASR and loopback-only Ollama selection. It is bundled
+into the desktop main process; it is never imported by the renderer/extension.
+Capture and turn ownership live in the desktop application. Model output is a
+candidate ID or abstention, with no action authority. See
+[setup/evaluation](../../docs/phase1.md) for tested models and limits.

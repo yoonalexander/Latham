@@ -10,10 +10,12 @@ the [roadmap](../roadmap.md) defines sequence.
 | Phase 0 execution | Bundled local fixture only, no live-site/OS adapter | architecture.md |
 | UI | Electron/React command desk with tray and always-available Stop | apps/desktop |
 | Permissions | Fixture consent persists; every launch stays paused | core and main/storage |
-| AI access | Cloud user keys or local ASR/decisions; not connected in Phase 0 | Design 6.5 |
+| AI access | Gemini user key; whisper.cpp tiny.en plus Ollama Qwen2.5 1.5B locally | phase1.md |
 | Cancellation | Local controller fence; preserve in-flight uncertainty and require reset | core |
 | Logs | Off-by-default bounded metadata, no command/page values | storage and evaluation |
-| Website grants | Remember approved sites in real Chrome; future Phase 1–2 | Design 9.3 |
+| Website grants | Remembered optional Google/YouTube grants intersect Latham consent; start paused | phase1.md |
+| Native relay | Own C# .NET Framework stdio/duplex-pipe relay; general UIA remains Phase 3 | NativeHost.cs |
+| Final utterances | Bounded push-to-talk, preview, explicit dispatch; partial streaming remains optional | Design 6.1 |
 
 ## Phase 0 provenance and release checkpoint
 
@@ -29,5 +31,6 @@ advertising a licensed public release, distributing a packaged installer, or
 adding third-party/model material. The user's requested source commit/push
 does not imply a choice of license or completion of a legal review.
 
-Remaining implementation choices include local ASR/text models, tested minimum
-hardware/languages, the final first-site set, and later release mechanics.
+Remaining implementation choices include proven minimum hardware, additional
+speech languages, the final Phase 2 site-task set, and release mechanics. The
+small model corpus is setup evidence, not a general accuracy claim.

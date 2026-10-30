@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import type { DesktopBridge, DesktopState, Reason, Settings } from "@latham/contracts";
 import "./style.css";
+import { SetupPanel } from "./setup";
 declare global { interface Window { latham: DesktopBridge } }
 const reasons: Record<Reason, string> = {
   scope_denied: "Allow the local fixture before starting a session.",
@@ -35,11 +36,12 @@ function App() {
     if (!element) return;
     const update = (): void => {
       const rect = element.getBoundingClientRect();
+      if (rect.y < 0 || rect.bottom > window.innerHeight) { window.latham.setFixtureBounds({ x: 0, y: 0, width: 0, height: 0 }); return; }
       window.latham.setFixtureBounds({ x: Math.round(rect.x + 1), y: Math.round(rect.y + 1), width: Math.max(0, Math.floor(rect.width - 2)), height: Math.max(0, Math.floor(rect.height - 2)) });
     };
     const observer = new ResizeObserver(update);
-    observer.observe(element); window.addEventListener("resize", update); update();
-    return () => { observer.disconnect(); window.removeEventListener("resize", update); };
+    observer.observe(element); window.addEventListener("resize", update); window.addEventListener("scroll", update, true); update();
+    return () => { observer.disconnect(); window.removeEventListener("resize", update); window.removeEventListener("scroll", update, true); };
   }, []);
   const act = async (operation: () => Promise<unknown>): Promise<void> => {
     setError("");
@@ -57,7 +59,7 @@ function App() {
   const run = (event: FormEvent): void => { event.preventDefault(); void act(() => window.latham.run(command)); };
   const result = state?.lastResult;
   return <div className="app-shell">
-    <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>FOUNDATION</span></h1><p>A small step. A verified result.</p></div></div><div className="header-tools"><span className="local-badge">Local fixture only</span><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
+    <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>DEVELOPMENT</span></h1><p>A small step. A verified result.</p></div></div><div className="header-tools"><span className="local-badge">Voice · Chrome · local fixture</span><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
     <main className="workspace">
       <aside className="control-column">
         <section className="panel command-panel"><div className="section-kicker">01 / CONTROL</div><div className="section-title"><h2>Command desk</h2><span className={"status " + (state?.status ?? "paused")} role="status" data-testid="session-status">{state ? statusLabels[state.status] : "Loading"}</span></div>
@@ -73,7 +75,7 @@ function App() {
           <label className="check-row"><input type="checkbox" checked={state?.settings.diagnosticsEnabled ?? false} onChange={event => void settings({ diagnosticsEnabled: event.target.checked })} /><span>Save diagnostic metadata<small>Codes and timings only; never command text.</small></span></label>
           <button className="quiet" onClick={() => void act(() => window.latham.clearDiagnostics())}>Clear diagnostics</button>
         </section>
-        <p className="scope-note">PHASE 0 · No microphone, cloud model, live Chrome, or desktop automation. Closing the window keeps the tray available.</p>
+        <p className="scope-note">The fixture uses its own local permission. Voice and Chrome have separate setup below. Closing the window pauses all work and keeps the tray available.</p>
         {state && !state.stopShortcutRegistered && <p className="error" role="alert">Global stop shortcut unavailable. Use Stop or the tray menu.</p>}
         {error && <p className="error" role="alert">{error}</p>}
       </aside>
@@ -85,6 +87,7 @@ function App() {
         </div>
       </div>
     </main>
+    <SetupPanel />
   </div>;
 }
 createRoot(document.getElementById("root")!).render(<App />);

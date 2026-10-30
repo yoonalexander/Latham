@@ -1,6 +1,6 @@
-# Implemented Phase 0 architecture
+# Implemented architecture
 
-Status: local-fixture foundation implemented and evaluated.
+Status: local fixture plus Phase 1 voice/provider and Chrome setup.
 The [technical design](../Latham_Design_Document.md) defines broader contracts;
 the [roadmap](../roadmap.md) defines delivery order.
 
@@ -46,8 +46,32 @@ flowchart LR
 | desktop main | Concrete fixture transport, storage and guarded IPC |
 | desktop renderer/preload | Command desk, settings, status and narrow bridge |
 
-Speech, AI providers, real Chrome/native messaging, a native helper, visual
-grounding and planning are not connected in Phase 0.
+Visual grounding, DOM website actions, general native UIA and planning remain
+later phases. The diagram above describes the fixture path only.
+
+## Phase 1 ownership
+
+The renderer owns bounded audio capture and physical press/release. It sends
+PCM16 through named preload operations. Main owns turn IDs, abort/deadline
+signals, final transcripts, provider routing and Windows DPAPI key storage.
+Gemini requests originate only in main; local mode uses a trusted whisper.cpp
+child and fixed loopback Ollama endpoint, with no cloud fallback. Provider
+output is a validated candidate ID/abstention, never an authorized action.
+
+The Chrome MV3 worker owns optional host grants and actual tab API calls.
+Explicit popup gestures request access; main consent and Chrome grants are
+reconciled on connection/removal. The independently implemented C# host only
+frames stdio/duplex-pipe messages. Pairing checks the extension origin and a
+session token in a current-user-only config directory.
+
+Chrome execution has its own epoch and single outstanding request. Stop
+invalidates it locally, then the extension acknowledges the paused epoch.
+UI reports an unconfirmed fence until that acknowledgement arrives. Unknown
+in-flight effects block resume until the user inspects Chrome and clears the
+uncertain result. Disconnects never replay commands. All physical Stop entry
+points cancel fixture, speech and Chrome work together.
+
+See [protocol and data destinations](phase1.md) and [evaluation](evaluation.md).
 
 ## Execution and cancellation
 
@@ -59,7 +83,7 @@ invocation; the fixture rechecks document, node identity and control revision
 inside the same browser call that mutates the target.
 
 Stop invalidates queued/delayed work and aborts waiting operations. Its local
-fence is immediate because there is no separate native executor yet. Calls
+fixture fence is immediate because that path has no separate native executor. Calls
 already begun may still have effects; deadlines, lost replies and cancellation
 preserve dispatched/unknown states and do not trigger automatic retries.
 Unknown effects require reset to a freshly loaded fixture before another session.
