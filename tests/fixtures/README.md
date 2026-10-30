@@ -1,8 +1,13 @@
-# Controlled fixtures
+# Controlled browser fixture
 
-Reserved browser fixtures for text entry, search/filter controls, duplicate
-labels, page replacement, denied frames, and unknown/consequential effects.
+`browser.html` and `browser.ts` provide text/search fields, a checkbox, duplicate
+filter buttons, unknown/consequential controls, a simulated autosaving account
+field, a synthetic password, page/node replacement, and an untrusted instruction.
+`denied.html` is served from a different local host inside a sandboxed iframe.
 
-Add deterministic browser fixtures with the Phase 0 vertical slice. A native
-Windows fixture app belongs to Phase 3. No fixtures or acceptance evidence have
-been implemented by this layout scaffold.
+These pages are compiled into the Electron test surface. They are not an
+extension or a real website integration. All data and effects are synthetic.
+The native Windows fixture app belongs to Phase 3.
+
+The unsafe controls work when manually operated, allowing tests to establish
+that policy prevention happens before mutation rather than hiding inert controls.

@@ -3,5 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Deterministic routing and bounded cloud/local target selection."
+  "description": "Deterministic routing and bounded cloud/local target selection.",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@latham/contracts": "0.0.0"
+  }
 }

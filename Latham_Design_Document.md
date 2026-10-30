@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.3\
+**Version:** 1.4\
 **Date:** October 30, 2026\
-**Status:** Proposed architecture and MVP contracts; feasibility and runtime acceptance pending\
+**Status:** Phase 0 local-fixture foundation accepted; Chrome MVP and later runtime acceptance pending\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -760,6 +760,8 @@ These references inform the architecture. They do **not** establish that the unb
 Reference roles are distinct: jev-use informs the accessibility/decision loop; Capri informs Windows integration concepts and local-speech experiments; Clicky/HeyClicky informs resident-assistant UX and interaction concepts. All remain references under section 1.2. None establishes Latham's measured behavior, supplies authority to bypass permissions, or adds a mascot, persistent personality, or unattended workflows to P0.
 
 ## 16. Revision Notes
+
+**v1.4 — October 30, 2026:** Implemented and evaluated the Phase 0 local-fixture foundation: Electron/React shell, tray/settings, narrow sandboxed preload, typed commands, compiled fixture effect policy, snapshot/node revisions, epochs, serialized dispatch, cancellation/deadlines, expected-effect verification, metadata-only diagnostics, and regression/Electron evaluation. Phase 0 is accepted only at this local boundary; real Chrome permissions, speech/providers and native automation remain later milestones. See [evaluation evidence](docs/evaluation.md).
 
 **v1.3 — October 30, 2026:** Applied the user's product choices: Chrome-only first release, desktop apps as the next major milestone, a few supported websites before broad coverage, user-supplied cloud keys or local AI, and remembered per-site approval. Added the full [roadmap](roadmap.md), separated local ASR from Ollama text decisions, moved native UIA/dictation to Phase 3, required real-site and provider-route acceptance for the Chrome MVP, and aligned permission persistence/revocation. Corrected Apply-button tests to distinguish search filtering from blocked application submission, and made P0 secure-field exclusion unconditional. All milestones remain unimplemented until evidenced.
 

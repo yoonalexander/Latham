@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Independent voice-controlled computer assistant; repository scaffold.",
+  "description": "Independent voice-controlled computer assistant — Phase 0 local fixture foundation",
   "engines": {
     "node": ">=22"
   },
@@ -12,10 +12,25 @@
     "packages/*"
   ],
   "scripts": {
-    "check": "npm run typecheck",
-    "typecheck": "tsc --noEmit --project tsconfig.json"
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/start.mjs",
+    "dev": "npm run build && npm start",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "npm run build && npm run setup:electron && playwright test",
+    "evaluate": "npm run typecheck && npm test && npm run test:e2e",
+    "check": "npm run typecheck && npm test && npm run build",
+    "setup:electron": "node node_modules/electron/install.js"
   },
   "devDependencies": {
-    "typescript": "7.0.2"
-  }
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "electron": "45.2.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  },
+  "main": "dist/main.cjs"
 }

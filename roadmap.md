@@ -1,14 +1,14 @@
 # Latham Roadmap
 
 **Updated:** October 30, 2026\
-**Status:** Phase 0 repository scaffold created; no functional milestones are accepted.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.3.
+**Status:** Phase 0 local-fixture foundation complete; Phase 1 is next.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.4.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
 This roadmap covers the whole project, including later ambitions. It has acceptance gates rather than promised dates. “Public release” means a user-facing build, not a decision that the source must be public. Distribution licensing, contribution terms, and any later private/commercial release are separate decisions. The design document owns execution/privacy contracts; this roadmap owns sequence. When a milestone changes, update both without marking unverified work complete.
 
-The npm workspaces, source placeholders, reserved helper/test directories, and documentation now exist. The Electron UI, fixture action pipeline, provider integrations, browser automation, and acceptance harness are not implemented. All functional checkboxes below remain open.
+The Electron shell/tray/settings, typed local-fixture action pipeline, policy/cancellation boundaries, fixture pages, and evaluation runner are implemented. Phase 0 acceptance evidence is recorded in [docs/evaluation.md](docs/evaluation.md): 26 contract/policy/storage cases, 4 Electron flows, native composed-window inspection and a physical stop-shortcut check. Speech, AI providers, real Chrome pairing/site access, and desktop automation remain unimplemented; all later phases stay open.
 
 ## Decisions already made
 
@@ -45,15 +45,17 @@ Phases 0–3 are the immediate delivery order. Later phases are planned capabili
 
 **Goal:** a small, inspectable application that can execute a typed fixture action and report its real result.
 
-- [ ] Create the Electron/React/TypeScript shell, tray, settings, and state feedback.
-- [ ] Define typed proposals, controller-owned authorization, snapshot/context identity, permission/executor epochs, and result/unknown-dispatch states.
-- [ ] Implement one serialized action path, cancellation fences, priority stop control, and safe late-response handling.
-- [ ] Create browser fixtures for text entry, search/filter controls, duplicate labels, page replacement, denied frames, misleading buttons, and implicit consequential effects.
-- [ ] Establish the local effect-profile policy and minimum scoped observation/redaction rules.
-- [ ] Add inspectable metadata-only diagnostics and an evaluation runner. Keep raw audio, page content, and screenshots out of default persistent logs.
-- [ ] Set up dependency/provenance records and a review point for distribution/contribution terms before public code, external contributions, or a user-facing release.
+- [x] Create the Electron/React/TypeScript shell, tray, settings, and state feedback.
+- [x] Define typed proposals, controller-owned authorization, snapshot/context identity, permission/executor epochs, and result/unknown-dispatch states.
+- [x] Implement one serialized action path, cancellation fences, priority stop control, and safe late-response handling.
+- [x] Create browser fixtures for text entry, search/filter controls, duplicate labels, page replacement, denied frames, misleading buttons, and implicit consequential effects.
+- [x] Establish the local effect-profile policy and minimum scoped observation/redaction rules.
+- [x] Add inspectable metadata-only diagnostics and an evaluation runner. Keep raw audio, page content, and screenshots out of default persistent logs.
+- [x] Set up dependency/provenance records and a review point for distribution/contribution terms before public code, external contributions, or a user-facing release.
 
 **Gate:** fixture operations produce evidence-backed outcomes, unknown/excluded effects are blocked, and Stop/Pause prevents subsequent dispatch beyond the executor fence. Nothing requires a cloud call or desktop-app UIA to demonstrate this foundation.
+
+**Accepted:** October 30, 2026, for the local-fixture boundary only. Run `npm run evaluate` to reproduce the automated evidence. This does not establish real-site/native-app safety or complete the full P0 Chrome release.
 
 ## Phase 1 — Voice, user-supplied AI, and Chrome setup
 
@@ -197,4 +199,4 @@ The product direction above is settled. The exact local ASR/text models, minimum
 
 ## Next milestone
 
-Begin **Phase 0**. No repositories need to be forked, no reference code/assets need to be imported, and no later-phase infrastructure needs to be built to start validating the foundation.
+Begin **Phase 1**: speech/provider setup and real Chrome connection. Keep the local-fixture regression suite green while adding those boundaries. No reference repository needs to be forked or imported.

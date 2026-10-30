@@ -11,3 +11,6 @@ bin/
 obj/
 .vs/
 .DS_Store
+.test-artifacts/
+playwright-report/
+test-results/

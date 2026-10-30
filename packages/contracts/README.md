@@ -1,8 +1,10 @@
 # @latham/contracts
 
-Shared types and runtime validation at trust boundaries.
+Phase 0 types for fixture observations, proposals, local authorization,
+dispatch/result states, diagnostics and the desktop bridge. Runtime parsers
+validate command/settings/geometry inputs and observation records.
 
-Phase 0. No contracts or validators are implemented yet.
-
-The source entry point is an empty scaffold module. See the root design and
-roadmap before implementing this boundary.
+No model- or renderer-provided risk classification grants authority. The
+Phase 0 bridge accepts typed command strings and settings, not executable code
+or arbitrary target selectors. Broader browser/native contracts remain future
+work under the design and roadmap.

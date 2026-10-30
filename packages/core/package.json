@@ -3,5 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Session routing, local policy, action queue and cancellation ownership."
+  "description": "Session routing, local policy, action queue and cancellation ownership.",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@latham/contracts": "0.0.0",
+    "@latham/actions": "0.0.0",
+    "@latham/decisions": "0.0.0",
+    "@latham/observations": "0.0.0"
+  }
 }

@@ -1,7 +1,11 @@
-# Permission and adversarial regressions
+# Contract and policy regressions
 
-Reserved for scope/revocation, prompt-injection, stale-target, unknown-effect,
-cancellation, and credential/privacy regression cases. Add tests at the actual
-authorization and executor boundaries as those boundaries are implemented.
+Run `npm test` for the 26 Phase 0 cases covering denied observation, paused-session
+authority, effect blocks, ambiguity, IPC parsing, secure/hidden-value redaction,
+capture IDs, serialized actions, cancellation/revocation/reset, late observations,
+unknown dispatch, stale targets, old success markers, deadlines, storage and
+diagnostic minimization.
 
-This directory is not evidence that security tests or a security audit passed.
+These are scoped automated regressions, not a full repository security audit or
+evidence of real-site/native-app safety. Add cases at each actual trust boundary
+as later adapters are introduced.

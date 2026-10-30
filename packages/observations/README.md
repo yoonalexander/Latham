@@ -1,8 +1,12 @@
 # @latham/observations
 
-Snapshot identity, scope checks, minimization and redaction.
+Phase 0 fixture observation validation and capture normalization. Secure values
+and hidden controls are omitted; target IDs are capture-bound and contexts carry
+document identity plus permission/executor epochs.
 
-Phases 0–2. Chrome DOM first; native UIA starts in Phase 3. No page/screen capture is implemented yet.
+The fixture adapter reads only its root document. Denied iframe contents are not
+included. Raw values needed to verify allowed local edits remain transient in
+the controller; the renderer receives target labels/roles, not those values.
 
-The source entry point is an empty scaffold module. See the root design and
-roadmap before implementing this boundary.
+Real Chrome document/frame binding and broader sensitive-content policy are
+Phase 2 work. Windows UIA is Phase 3.

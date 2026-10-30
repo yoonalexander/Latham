@@ -3,5 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared types and runtime validation at trust boundaries."
+  "description": "Shared types and runtime validation at trust boundaries.",
+  "exports": "./src/index.ts"
 }

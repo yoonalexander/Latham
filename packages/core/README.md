@@ -1,8 +1,13 @@
 # @latham/core
 
-Session routing, local policy, action queue and cancellation ownership.
+Implemented Phase 0 controller: paused by default, explicit fixture scope,
+one serialized command path, per-turn cancellation, permission/executor
+epochs, operation deadlines, and a bounded metadata trail.
 
-Phase 0. No command routing or action dispatch is implemented yet.
+Observation is scope-gated. Every mutation uses a locally checked profile and
+fresh binding; verification failure or unknown dispatch requires reset.
+Stop/Pause invalidates queued and delayed work. An already begun adapter call
+may have effects and is reported separately rather than treated as rolled back.
 
-The source entry point is an empty scaffold module. See the root design and
-roadmap before implementing this boundary.
+The controller depends on a narrow executor interface and has no Electron,
+filesystem, microphone, cloud or arbitrary OS-execution dependency.

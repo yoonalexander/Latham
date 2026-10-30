@@ -1,41 +1,69 @@
-# Architecture
+# Implemented Phase 0 architecture
 
-Status: design summary; runtime wiring is not implemented.
-The [technical design](../Latham_Design_Document.md) owns detailed contracts;
-the [roadmap](../roadmap.md) owns delivery order.
+Status: local-fixture foundation implemented and evaluated.
+The [technical design](../Latham_Design_Document.md) defines broader contracts;
+the [roadmap](../roadmap.md) defines delivery order.
 
-## Process and package ownership
+```mermaid
+flowchart LR
+  UI[React command desk] --> Bridge[Named preload operations]
+  Bridge --> Main[Main-process controller]
+  Main --> Scope[Session and scope gate]
+  Scope --> Observe[Validate root-document snapshot]
+  Observe --> Route[Deterministic command and target]
+  Route --> Policy[Local effect profile]
+  Policy --> Fence[Cancellation and binding checks]
+  Fence --> Fixture[Sandboxed local fixture]
+  Fixture --> Verify[Observe expected effect]
+  Verify --> Main
+  Stop[Button / tray / global shortcut] --> Main
+```
 
-| Boundary | Owner | First relevant milestone |
-|---|---|---|
-| Application lifecycle, orchestration and provider calls | Desktop main process | Phase 0 foundation |
-| Narrow typed renderer bridge | Desktop preload | Phase 0 |
-| Status, controls and settings | Desktop renderer | Phase 0 |
-| Browser permissions and native messaging | Extension background | Phase 1 |
-| Scoped DOM observations/actions | Extension content scripts | Phase 2 |
-| Launch/focus relay when needed | Windows helper | Phase 1 |
-| General native UIA and targeted native input | Windows helper | Phase 3 |
-| Shared types and validation | contracts | Phase 0 |
-| Session state, policy, routing and cancellation | core | Phase 0 |
-| Transcription/VAD adapters | speech | Phase 1 |
-| Deterministic and cloud/local target selection | decisions | Phases 1–2 |
-| Snapshot identity, minimization and redaction | observations | Phases 0–2 |
-| Execution and effect-specific verification | actions | Phases 0–2 |
-| Optional bounded multi-step planning | planner | Phase 7 |
+## Process ownership
 
-## Intended action path
+- The main process owns settings, controller state, local authorization, the
+  executor, tray, and stop shortcut. Storage is isolated from the renderer.
+- The sandboxed, context-isolated preload exposes named commands, settings and
+  state subscription. IPC validates top-frame sender identity and payloads.
+  It does not expose generic channels, file access or code execution.
+- The React shell shows state, the last result, target summaries and a bounded
+  metadata trail. It sends command strings, never authorized action objects.
+- A separate WebContentsView displays the bundled fixture without a preload or
+  Node integration. A fixed custom protocol map serves bundled resources;
+  navigation, popup, network and permission requests are denied.
+- The browser partition is in-memory. Explicit settings and opted-in diagnostic
+  metadata are the application's persistent records.
 
-A final utterance or typed command becomes a typed proposal. The local controller
-checks session, scope, effect profile and target context before authorizing an
-executor call. The executor checks identity/epochs and cancellation immediately
-before mutation, then reports verified, failed, blocked, cancelled or unknown
-effects honestly. Scope is also checked before observation.
+## Module boundaries
 
-Provider outputs and webpage content never create grants or authority.
-The renderer, page scripts and models never receive unrestricted OS execution.
+| Module | Implemented responsibility |
+|---|---|
+| contracts | Typed states, requests/results and runtime boundary parsers |
+| core | Serial queue, session scope, epochs, deadlines and cancellation fence |
+| observations | Observation validation, redaction, identity/revisions |
+| decisions | Bounded deterministic fixture grammar and target selection |
+| actions | Reviewed fixture profiles and expected-effect assertions |
+| desktop main | Concrete fixture transport, storage and guarded IPC |
+| desktop renderer/preload | Command desk, settings, status and narrow bridge |
 
-## Scope of this scaffold
+Speech, AI providers, real Chrome/native messaging, a native helper, visual
+grounding and planning are not connected in Phase 0.
 
-Workspace manifests, empty source entry points and documentation exist.
-There is no action pipeline, IPC bridge, UI, provider adapter or cancellation
-implementation. Do not enable reference or experimental code to fill these gaps.
+## Execution and cancellation
+
+A command is scope-gated before observation. A capture receives unique target
+IDs, document identity and current permission/executor epochs. The local profile
+checks the target's known role/name and permitted effect. After the configured
+test delay, the controller rechecks cancellation immediately before adapter
+invocation; the fixture rechecks document, node identity and control revision
+inside the same browser call that mutates the target.
+
+Stop invalidates queued/delayed work and aborts waiting operations. Its local
+fence is immediate because there is no separate native executor yet. Calls
+already begun may still have effects; deadlines, lost replies and cancellation
+preserve dispatched/unknown states and do not trigger automatic retries.
+Unknown effects require reset to a freshly loaded fixture before another session.
+
+The two-step search reacquires state between filling the field and submitting
+the fixture query. Click verification requires a fresh expected result, not
+merely a pre-existing success label.

@@ -1,8 +1,12 @@
 # @latham/actions
 
-Authorized action execution and effect-specific result verification.
+Phase 0 reviewed fixture profiles and effect-specific verification. Allowed
+operations are bounded local draft/search edits, fixture read-query search,
+and known filter controls. Secure, consequential and unknown effects are blocked.
 
-Phases 0–2. Unknown effects stay blocked; cancellation is not rollback. No executors are implemented yet.
+Profiles are local code. Names, target keys and model confidence alone never
+authorize an arbitrary web action. Click verification requires a new expected
+fixture result, so an old success marker cannot masquerade as a fresh effect.
 
-The source entry point is an empty scaffold module. See the root design and
-roadmap before implementing this boundary.
+No real browser or native-app executor is included. The Electron fixture adapter
+rechecks document, node identity and control revision inside its dispatch call.

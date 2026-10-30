@@ -3,5 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Authorized action execution and effect-specific result verification."
+  "description": "Authorized action execution and effect-specific result verification.",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@latham/contracts": "0.0.0"
+  }
 }
