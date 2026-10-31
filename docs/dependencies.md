@@ -48,3 +48,9 @@ supervisor/MTA worker, native fixture and extension are Latham's own code. Phase
 WindowsBase assemblies; no new runtime/dependency download is required. The
 WinForms fixture is excluded from portable packages. No reference repository
 was forked or copied.
+
+Phase 4 adds no package or model download. Its own `SpeechDetector.cs` uses the
+Windows Framework 4.8 `System.Speech` assembly and an installed en-US desktop
+recognizer (`MS-1033-80-DESK` on the test machine). Windows components remain
+subject to Windows terms; they are not copied into the repository/package.
+The compiled Latham helper is bundled; missing installed recognizers fail closed.

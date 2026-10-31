@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.7\
+**Version:** 1.8\
 **Date:** October 31, 2026\
-**Status:** Phases 0–3 implemented for the documented 0.3 unsigned Windows developer preview; acceptance evidence in docs/evaluation.md; Phase 4 not started\
+**Status:** Phases 0–4 implemented for the documented 0.4 unsigned Windows developer preview; measured evidence and limits in docs/evaluation.md; Phase 5 not started\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -377,6 +377,17 @@ Tests assert no new mutation invocation after the executor fence, and no new con
 
 P0 guarantees hotkey/tray interruption in all active states without cloud access. Spoken “stop” is routed only during an active command capture. P1 hands-free additionally requires a small independent **local** detector for the reserved phrase “stop assistant,” active during transcription, planning, execution, and verification; it can only cancel and never authorize an action. In the initial hands-free implementation, assistant TTS is disabled while that detector is active, avoiding a playback window in which interruption would be unavailable. If the detector or mic fails, end hands-free mode, initiate cancellation, and retain hotkey/tray controls. Speaker spoofing/false stops and recognition misses remain measured limitations, not grounds for a 100% speech-recognition promise.
 
+The Phase 4 preview implements separate Windows System.Speech offline en-US
+fixed-grammar processes for stop and optional “hey Latham” wake. Main owns
+session IDs, bounded PCM/VAD state, single-command routing and generation fences.
+Wake waiting never reaches command ASR; command capture pauses during inference
+and verification while local stop audio continues. Sessions end after 90 seconds
+idle/five minutes total, or on mic/detector/session failure. No assistant TTS is
+enabled. The narrow synthetic corpus includes missed overlapping-speech stops
+and false matches for “stop assistance”; physical controls remain essential.
+[Phase 4 setup](docs/phase4.md) and [evaluation](docs/evaluation.md) define exact
+behavior and distinguish recognition delay from executor cancellation.
+
 ## 6. Speech and Intent Design
 
 ### 6.1 Recognition strategy
@@ -529,9 +540,10 @@ Microsoft UI Automation coverage varies by application and developer implementat
 
 ### 9.1 Stack and later proposals
 
-The current 0.3 preview uses Electron/React, lightweight JSON settings with
+The current 0.4 preview uses Electron/React, lightweight JSON settings with
 DPAPI-protected keys, Gemini or local speech/Ollama, and the narrow Chrome
-relay plus the separate Notepad UIA supervisor/worker. Its portable ZIP and
+relay, separate Notepad UIA supervisor/worker, and independent local wake/stop
+detectors. Its portable ZIP and
 unpacked extension are unsigned. Planner, visual grounding, broad app coverage
 and signed installers describe later work.
 
@@ -546,7 +558,7 @@ and signed installers describe later work.
 | Planner | OpenAI Responses API with typed tools | Optional, restricted to a step-limited mode. |
 | Visual grounding | Local OCR + vision provider fallback | Deferred until structured clicking works reliably. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.3.0, Chrome relay protocol 2; Latham binaries unsigned. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.4.0, Chrome relay protocol 2; Latham binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -767,6 +779,16 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ## 16. Revision Notes
 
+**v1.8 — October 31, 2026:** Added explicit consecutive-command sessions with
+visible microphone/readiness state, separate offline Windows stop and wake
+detectors, idle/total limits, failure-triggered cancellation and no idle cloud
+audio. Stop remains active through ASR, execution and verification; late results
+cannot resume a session. Added local model preflight, language/vocabulary and CPU
+thread settings with the existing speech corpus. Published synthetic recognition
+misses/false stops, hardware limits and separate cancellation evidence in
+[Phase 4 setup](docs/phase4.md) and [evaluation](docs/evaluation.md). Phase 5 is
+not started.
+
 **v1.7 — October 31, 2026:** Added the Phase 3 Notepad document-text profile, remembered app approval/block override, fixed launch allowlist and bound native dictation/correction/undo. Implemented an independent Framework 4.8 supervisor plus disposable non-window-owning MTA UIA worker with deadlines, priority cancellation, process/control/document freshness, readback, persisted uncertainty and no replay. Late replies cannot restore cancelled bindings, and supervisor loss cannot claim a confirmed fence. The shared voice UI requires the same native binding captured before recording. Native fixtures and real Notepad acceptance, package exclusion of test tools, display-layout limits and cloud availability failures are recorded in [desktop setup](docs/phase3.md) and [evaluation](docs/evaluation.md). Phase 4 has not started.
 
 **v1.6 — October 30, 2026:** Completed the scoped Chrome preview for signed-out English Google/YouTube workflows: compiled DOM profiles, bound dictation/correction/undo, document/field/connection freshness, clarified selection, readback/navigation verification and persisted uncertainty without replay. Added explicit Prepare Search recording, memory-only local ASR and measured base.en selection. Prepared and tested the unsigned portable Windows/extension package, protocol/version compatibility and recovery. [Setup](docs/phase2.md) and [evaluation](docs/evaluation.md) publish the narrow support set, actual failures and unmet broad accuracy/latency targets. Phase 3 remains unstarted.
@@ -783,4 +805,4 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ---
 
-**Summary:** The preview implements the published Google/YouTube workflows and scoped Notepad editing, using remembered permissions and user-key or validated local AI. Hands-free interaction is planned next, followed by visual grounding, broader coverage, bounded workflows and optional managed AI delivery. Ground text entry before enabling it, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.
+**Summary:** The preview implements the published Google/YouTube workflows, scoped Notepad editing and opt-in hands-free interaction, using remembered permissions and user-key or validated local AI. Visual grounding is planned next, followed by broader coverage, bounded workflows and optional managed AI delivery. Ground text entry before enabling it, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.

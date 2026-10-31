@@ -1,14 +1,14 @@
 # Latham Roadmap
 
 **Updated:** October 31, 2026\
-**Status:** Phases 0–3 complete for the documented unsigned developer preview; Phase 4 has not started.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.7.
+**Status:** Phases 0–4 implemented for the documented 0.4 unsigned developer preview; measured limits in docs/evaluation.md; Phase 5 not started.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.8.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
 This roadmap covers the whole project, including later ambitions. It has acceptance gates rather than promised dates. “Public release” means a user-facing build, not a decision that the source must be public. Distribution licensing, contribution terms, and any later private/commercial release are separate decisions. The design document owns execution/privacy contracts; this roadmap owns sequence. When a milestone changes, update both without marking unverified work complete.
 
-The fixture foundation, voice/providers, reviewed Chrome workflows and scoped Notepad editing are implemented. [Evaluation](docs/evaluation.md) records automated boundaries/integration flows, real-site workflows, microphone insertion, native editing and recovery, remembered permissions and packaging. [Chrome setup](docs/phase2.md) and [desktop setup](docs/phase3.md) publish exact support sets and limits. The current channel is an unsigned Windows developer preview; hands-free listening has not started.
+The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notepad editing and opt-in hands-free sessions are implemented. [Evaluation](docs/evaluation.md) records automated boundaries/integration flows, real-site workflows, microphone insertion, native editing and recovery, remembered permissions, speech-detection limits and packaging. [Chrome setup](docs/phase2.md), [desktop setup](docs/phase3.md) and [hands-free setup](docs/phase4.md) publish exact support sets and limits. The current channel is an unsigned Windows developer preview.
 
 ## Decisions already made
 
@@ -39,7 +39,7 @@ The fixture foundation, voice/providers, reviewed Chrome workflows and scoped No
 | 8 | Optional Latham-managed AI and commercial delivery | Stable core plus a separately reviewed service design |
 | 9 | Broader platform reach and ongoing compatibility | Stable Windows/browser/desktop contracts |
 
-Phases 0–3 are the immediate delivery order. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step rather than letting vision, hosted accounts, or universal browsing delay it.
+Phases 0–4 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
 
 ## Phase 0 — Foundation and evaluation harness
 
@@ -116,14 +116,16 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Goal:** reduce repeated physical activation while keeping a dependable interruption path.
 
-- [ ] Add opt-in consecutive-command sessions, visible microphone/session state, idle timeouts, and explicit exit controls.
-- [ ] Implement the independent local “stop assistant” detector across transcription, execution, and verification; retain physical stop controls.
-- [ ] Add opt-in local wake detection independently of the stop detector. Do not send idle wake audio to cloud transcription.
-- [ ] Test false activation, missed stops, background voices, speaker playback, microphone disconnects, and detector failure.
-- [ ] Initially disable assistant TTS while the stop detector is active; investigate echo-aware spoken feedback only with measured interruption reliability.
-- [ ] Improve local-ASR startup, languages, vocabulary, model management, and resource use using the same evaluation corpus.
+- [x] Add opt-in consecutive-command sessions, visible microphone/session state, idle timeouts, and explicit exit controls.
+- [x] Implement the independent local “stop assistant” detector across transcription, execution, and verification; retain physical stop controls.
+- [x] Add opt-in local wake detection independently of the stop detector. Do not send idle wake audio to cloud transcription.
+- [x] Test false activation, missed stops, overlapping background voices, digital speaker-content replay, microphone disconnects, and detector failure. Physical room/speaker-loopback reliability remains unverified.
+- [x] Keep assistant TTS disabled while the stop detector is active; echo-aware spoken feedback remains outside the preview.
+- [x] Add local-ASR startup/model preflight, language/vocabulary selection, model-switch controls and bounded CPU use; compare the existing evaluation corpus. Resident ASR/model downloads and broad multilingual acceptance are not included.
 
 **Gate:** publish recognition/false-stop/miss results and distinguish speech-detection latency from executor cancellation latency. Mic/detector failure cancels work and ends hands-free mode. No guaranteed recognition of every spoken stop is claimed.
+
+**Implemented preview:** opt-in sessions use separate Windows offline en-US wake and stop recognizers, bounded transient capture, single-command execution and failure-triggered cancellation. [Setup](docs/phase4.md) and [evaluation](docs/evaluation.md) distinguish synthetic phrase recognition, hardware limits and executor fences. Automatic sessions never grant site/app access, resume uncertainty or persist microphone activation. Phase 5 has not started.
 
 ## Phase 5 — Visual understanding and grounding
 
@@ -205,4 +207,4 @@ The product direction above is settled. The preview selects an English/CPU local
 
 ## Next milestone
 
-**Phase 4 is planned next:** opt-in hands-free interaction and local speech refinement. Stop at Phase 3 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.
+**Phase 5 is planned next:** visual understanding and grounding. Stop at Phase 4 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.

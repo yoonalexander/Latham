@@ -136,3 +136,29 @@ secure/read-only controls, reactive overwrites, stalled calls, killed workers,
 restart uncertainty, shared transcript binding and repeated exact effects.
 Movement and scaled fixture layout were tested on one physical monitor; broad
 mixed-DPI and multi-monitor hardware support is not established. See [setup](phase3.md).
+
+## Phase 4 speech authority and failure boundaries
+
+- Hands-free is an explicit per-session automatic-command authorization, scoped
+  to an existing Chrome or native session. It cannot grant permissions, reconcile
+  uncertain effects or bypass ordinary action policy. It starts off after every
+  launch and cannot restart itself after failure.
+- Wake/stop are independent local fixed-grammar processes without a microphone,
+  network or action interface. Wake waiting never reaches command ASR, including
+  cloud ASR. Only subsequent active utterances use the saved provider route.
+- A main-owned ID, frame sequence, single in-flight command and cancellation
+  generations prevent missing frames, queued speech or late finals from silently
+  resuming a stopped session. Mic, audio-context, detector, heartbeat and backlog
+  failures end capture and cancel adapters; physical Stop does not rely on them.
+- Neither ASR nor VAD authenticates the speaker. Background voices and digital
+  replay can trigger or suppress recognition. Near-homophones can falsely stop;
+  overlapping speech can hide a real stop. No high-consequence actions or
+  speech-only permission approvals are introduced. Assistant TTS stays absent.
+- Detector and capture buffers are bounded and transient. Default diagnostics
+  contain no audio, transcripts, window titles or vocabulary. Local model paths
+  and vocabulary are user settings, not cloud selection inputs or action code.
+- Speech recognition delay is independent of the executor cancellation fence.
+  Stop cannot roll back already-issued effects. Published synthetic results do
+  not establish physical room/speaker-loopback or broad speech reliability.
+
+See [Phase 4 setup](phase4.md) and [evaluation](evaluation.md).

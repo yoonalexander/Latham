@@ -1,5 +1,88 @@
 # Evaluation and acceptance
 
+## Phase 4 evidence — October 31, 2026
+
+Implemented for the **0.4 unsigned Windows developer preview**. This accepts
+the opt-in session/control boundaries and publishes recognition limitations;
+it does not establish dependable voice-only interruption in noisy rooms.
+See [phase4.md](phase4.md). Phase 5 has not started.
+
+- Type checking and **57 unit/boundary tests pass**. New cases cover strict
+  opt-in/target readiness, credential/model preflight, separate wake/stop
+  readiness, no pre-wake inference, consecutive serialization, late ASR and
+  action results after Stop, failed/blocked commands, reserved stop text,
+  stale-session audio/events, microphone loss, missing frames, detector startup
+  failures, idle/total limits, bounded utterances and local-model settings.
+- A separate browser/fixture invocation passed **17 integration flows**,
+  including four new hands-free flows. The real Windows local detector stopped
+  delayed fake cloud ASR without late insertion, and stopped an actual Chrome
+  edit while verification was deliberately withheld. The already-issued edit
+  remained, uncertainty required inspection, and releasing the late verification
+  did not restore the session. Consecutive commands, idle wake privacy, actual
+  renderer capture cleanup on a simulated track disconnect, and terminating the
+  owned detector process were exercised. Cloud responses were controlled fixture
+  responses; these tests do not claim new live Gemini acceptance.
+- In that integration run, spoken Stop was observed **2,537 ms** after playback
+  of a **1,890 ms** synthetic WAV began during delayed ASR. The verification case
+  observed Stop at **2,582 ms** from playback start; the subsequent executor-fence
+  check completed in **10 ms**. The latter is an additional observation after
+  Stop, not an exact isolated IPC latency measurement or a rollback claim.
+- Full `npm run evaluate` is **not green**: its seven native fixtures again
+  failed at the pre-edit Windows focus check inherited from Phase 3, so the
+  dependent 17 browser tests did not run in that invocation. The separate
+  `--project=chrome-and-fixture --no-deps` run above establishes their results.
+  No focus guard, acceptance assertion or test was skipped to obtain a pass.
+- The portable 0.4 executable passed startup/version/sandbox checks, protected
+  fake-key storage, hidden development key import, matching extension pairing,
+  a verified Chrome tab operation, bundled offline stop/wake startup, idle wake
+  without command transcription, microphone-off session state after Stop,
+  desktop-agent scan and acknowledged executor fences. Visual review verified
+  the session controls; active app/wake choices reflect main's actual session,
+  and microphone readiness waits for real input frames. All **four executables
+  are NotSigned**. ZIPs and SHA-256 manifests remain local preview artifacts.
+
+The real offline recognizer was `MS-1033-80-DESK` (en-US), using separate
+System.Speech processes with confidence thresholds 0.55 for Stop and 0.75 for
+wake. **42 streamed synthetic cases** used Zira/David desktop voices, near
+matches, overlapping voices, silence, a tone and digital replay:
+
+| Detector | Clean phrase detections | Clean misses | False matches on 14 clean negatives | Expanded positive detections |
+|---|---|---|---|---|
+| stop assistant | 2/2 | 0/2 | 2/14, both “stop assistance” | 2/4; missed overlapping speech and one later digital replay |
+| hey Latham | 2/2 | 0/2 | 0/14 | 2/3; missed overlapping speech |
+
+Clean successful detections arrived **559–596 ms (Stop)** and **485–610 ms
+(wake)** after the recognizer-reported acoustic end, using wall time against
+stream audio position. This includes input batching/recognition delivery and
+is separate from executor cancellation. The sample is too small for general
+accuracy or latency claims. A replay miss does not establish spoof resistance:
+the detector has no speaker authentication, and identical content was detected
+earlier. Background voices and playback remain practical risks. Physical
+microphone hands-free speech, real speaker/room echo, accents and multilingual
+accuracy remain unverified. Phase 2's microphone insertion evidence is separate.
+
+Local base.en on the same **eight fixed clean Phase 2 phrases**:
+
+| Configuration | Exact phrases / failures | Word error rate | Median / sampled p95 |
+|---|---|---|---|
+| 2 threads, no vocabulary | 8/8; 0 failures | 0% | 4,040 / 4,443 ms |
+| 4 threads, no vocabulary | 8/8; 0 failures | 0% | 3,162 / 3,504 ms |
+| 2 threads, vocabulary hints | 8/8; 0 failures | 0% | 4,753 / 6,965 ms |
+
+These are individual short CPU runs, with development checks also running;
+they are not a controlled resource benchmark. Two threads trade latency for
+CPU headroom and remain the new default. Hints did not improve this already
+correct corpus. Model preflight reads metadata/header before spawn and catches
+missing/invalid paths or English-model language mismatch; it does not make
+Whisper resident or establish faster cold inference. Completion/cancellation
+releases the ASR process. No new model/runtime/package downloads occurred.
+
+Ignored evidence: `detector-evaluation.json`, `handsfree-interruption.json`,
+`handsfree-verification-stop.json`, `speech-evaluation-base.en-*.json`, the native
+failure report, `phase4-e2e-results.json`, `preview-acceptance.json`, signature
+statuses, UI capture and fixture traces under `.test-artifacts/`. Test audio is fixed
+public/synthetic material; raw audio is never persisted by the product itself.
+
 ## Phase 3 evidence — October 31, 2026
 
 Implemented for the **0.3 unsigned Windows developer preview**, limited to the

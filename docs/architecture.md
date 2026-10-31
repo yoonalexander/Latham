@@ -1,6 +1,7 @@
 # Implemented architecture
 
-Status: local fixture, voice/providers, reviewed Chrome pages and scoped Notepad editing.
+Status: local fixture, voice/providers, reviewed Chrome pages, scoped Notepad
+editing and opt-in hands-free sessions.
 The [technical design](../Latham_Design_Document.md) defines broader contracts;
 the [roadmap](../roadmap.md) defines delivery order.
 
@@ -108,6 +109,24 @@ Field values/undo state live only in worker memory. Switching adapters waits
 for the prior executor's fence and refuses unresolved mutations. All physical
 Stop paths now cover fixture, speech, Chrome and desktop. The native fixture is
 test-only and excluded from portable packages. See [Phase 3 setup](phase3.md).
+
+## Phase 4 audio ownership
+
+The command desk exposes an explicit microphone/session opt-in. Its bounded
+PCM frames carry a main-owned session ID and monotonic sequence. Main performs
+simple energy VAD, serializes final commands and routes them through the existing
+permission/verification adapters. Ordinary audio is discarded while busy. Wake
+waiting never calls cloud or command ASR; wake pre-roll is discarded.
+
+Separate Framework 4.8 System.Speech processes recognize only “stop assistant”
+and optional “hey Latham” using the installed offline en-US recognizer. The stop
+process receives frames during command ASR, execution and verification. Neither
+detector can authorize actions. Ready/health/progress messages, bounded pipes,
+audio deadlines, track failure and idle/total limits fail closed and end capture.
+Main generations reject late finals/results after Stop. No assistant TTS path
+is enabled. Model preflight and language/vocabulary/thread controls retain
+memory-only local Whisper subprocesses without a resident model service.
+See [Phase 4 setup](phase4.md) for exact states, timeouts and measured limits.
 
 ## Phase 1 ownership
 

@@ -15,15 +15,19 @@ the [roadmap](../roadmap.md) defines sequence.
 | Logs | Off-by-default bounded metadata, no command/page values | storage and evaluation |
 | Website grants | Remembered optional Google/YouTube grants intersect Latham consent; start paused | phase2.md |
 | Native relay | Own C# .NET Framework stdio/duplex-pipe Chrome relay; separate desktop agent | NativeHost.cs |
-| Final utterances | Bounded push-to-talk, preview, explicit dispatch; partial streaming remains optional | Design 6.1 |
+| Final utterances | Push-to-talk uses reviewed explicit dispatch; opt-in hands-free automatically dispatches one final command at a time | phase4.md |
 | Chrome page scope | Root-only compiled profiles for signed-out English Google Search/YouTube; current document/control/epoch required | phase2.md |
 | Dictation | Prepare Search, record under that binding, explicitly append/replace; guarded correction/undo | phase2.md |
 | Unknown effects | Persist uncertainty before mutation; reconcile explicitly after failed verification/restart; never replay | browser-controller and native-bridge |
 | Local speech retention | Bounded stdin/stdout; no temporary audio/transcript files | speech/providers.ts |
-| Preview distribution | 0.3.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase3.md |
+| Preview distribution | 0.4.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase4.md |
 | Native scope | Same-user unelevated Notepad document text only; per-app approval and block override; browsers/other apps excluded | phase3.md |
 | Native runtime | Framework 4.8 supervisor plus disposable non-window-owning MTA UIA worker; no new .NET SDK | DesktopAgent.cs |
 | Native cancellation | Priority current-user event, worker exit acknowledgement, persisted uncertainty before dispatch and no replay | desktop-controller.ts |
+| Hands-free | Explicit non-persisted sessions; 90-second idle/five-minute cap; existing app permissions only | phase4.md |
+| Stop and wake | Separate Windows System.Speech en-US processes; local fixed grammars; no idle cloud audio; detector/mic failure cancels | phase4.md |
+| Speech resources | Two CPU threads by default; preflight installed GGML model; configurable language and vocabulary; no resident ASR server or auto-download | phase4.md |
+| Playback | No assistant TTS output while hands-free is active; no speaker-identity guarantee | phase4.md |
 
 ## Phase 0 provenance and release checkpoint
 

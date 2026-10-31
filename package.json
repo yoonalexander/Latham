@@ -1,9 +1,9 @@
 {
   "name": "latham",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Independent Windows voice assistant — reviewed Chrome and Notepad dictation preview",
+  "description": "Independent Windows voice assistant — opt-in hands-free Chrome and Notepad preview",
   "engines": {
     "node": ">=22"
   },
@@ -23,6 +23,7 @@
     "setup:electron": "node node_modules/electron/install.js",
     "setup:browser": "playwright install chromium && node scripts/setup-browser.mjs",
     "test:providers": "node scripts/evaluate-providers.mjs --model=qwen2.5:1.5b",
+    "test:detectors": "node scripts/build-host.mjs && powershell.exe -NoProfile -File scripts/generate-detector-fixtures.ps1 && node scripts/evaluate-detectors.mjs",
     "package:preview": "npm run build && node scripts/package-preview.mjs"
   },
   "devDependencies": {

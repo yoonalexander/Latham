@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { ProviderSettings, SetupBridge, SetupState } from "../../../../packages/contracts/src/setup";
+import { speechLanguages, type ProviderSettings, type SetupBridge, type SetupState } from "../../../../packages/contracts/src/setup";
 import { DesktopPanel } from "./desktop";
+import { HandsfreePanel } from "./handsfree";
 declare global { interface Window { setup: SetupBridge } }
 type Recording = { id: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
 export function SetupPanel() {
@@ -61,13 +62,21 @@ export function SetupPanel() {
   if (!state || !draft) return <section className="panel setup-panel">Loading voice and Chrome setup…</section>;
   const patch = (value: Partial<ProviderSettings>): void => setDraft({ ...draft, ...value });
   return <section className="panel setup-panel" aria-label="Voice and Chrome setup">
-    <div className="section-kicker">WINDOWS PREVIEW / 0.3</div><h2>Voice, Chrome & desktop</h2>
+    <div className="section-kicker">WINDOWS PREVIEW / 0.4</div><h2>Voice, Chrome & desktop</h2>
+    <fieldset className="manual-controls" disabled={state.handsfree.phase !== "off"}>
     <div className="setup-grid">
       <div className="setup-group"><h3>1. Choose your AI</h3>
         <label><input type="radio" name="provider" checked={draft.mode === "local"} onChange={() => patch({ mode: "local" })} /> Use local AI</label>
         <label><input type="radio" name="provider" checked={draft.mode === "cloud"} onChange={() => patch({ mode: "cloud" })} /> Use my API key (Gemini)</label>
         <p className="mini">{draft.mode === "local" ? "Audio: local whisper.cpp. Candidate labels: Ollama at 127.0.0.1:11434. No cloud fallback. Install a local model separately." : "Audio and bounded visible control labels go to Google Gemini. Google's account terms and free-tier quotas apply. Field values, frames and screenshots are excluded from target selection."}</p>
         {draft.mode === "local" ? <><label>whisper-cli.exe path<input value={draft.whisperExecutable} onChange={event => patch({ whisperExecutable: event.target.value })} spellCheck={false} /></label><label>Whisper English model path (base.en recommended)<input value={draft.whisperModel} onChange={event => patch({ whisperModel: event.target.value })} spellCheck={false} /></label><label>Installed Ollama model<input value={draft.ollamaModel} onChange={event => patch({ ollamaModel: event.target.value })} /></label></> : <><p className="mini">{state.vaultAvailable ? state.keyStored ? "A key is stored using Windows DPAPI." : "No key stored." : "Windows credential protection is unavailable. Key storage is blocked."}</p><label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><div className="setup-buttons"><button disabled={!state.vaultAvailable || !key} onClick={() => void act(async () => { await window.setup.key(key); setKey(""); })}>Store key</button><button disabled={!state.keyStored} onClick={() => void act(() => window.setup.removeKey())}>Remove key</button>{state.canImportEnvironmentKey && <button onClick={() => void act(() => window.setup.importEnvironmentKey())}>Import GEMINI_API_KEY from .env.local</button>}</div></>}
+        <details><summary>Local speech model options</summary>
+          <label>Speech language<select value={draft.speechLanguage} onChange={event => patch({ speechLanguage: event.target.value })}>{speechLanguages.map(language => <option key={language} value={language}>{language === "auto" ? "Detect language (multilingual model)" : language}</option>)}</select></label>
+          <label>Vocabulary hints (local only)<input value={draft.speechVocabulary} maxLength={400} onChange={event => patch({ speechVocabulary: event.target.value })} /></label>
+          <label>Speech CPU threads<select value={draft.speechThreads} onChange={event => patch({ speechThreads: Number(event.target.value) })}>{[1, 2, 3, 4].map(threads => <option key={threads} value={threads}>{threads}</option>)}</select></label>
+          <p className="mini">English .en models require en. Other languages need separately installed multilingual weights. Hints can bias recognition; they never authorize an action. Two threads leave CPU room for the local stop detector. Models load per turn and release on cancellation.</p>
+          <button disabled={dirty || state.voice !== "idle"} onClick={() => void act(() => window.setup.checkLocalModel())}>Check saved local model</button><p role="status">{state.localModel}</p>
+        </details>
         <div className="setup-buttons"><button onClick={() => void act(() => window.setup.save(draft))}>Save AI setup</button><button disabled={state.voice !== "idle" || dirty} onClick={() => void act(() => window.setup.testDecision())}>Test saved decision setup</button></div>
         {dirty && <p className="mini" role="status">Unsaved AI setup changes. Save before recording; saving pauses current work.</p>}
       </div>
@@ -97,6 +106,8 @@ export function SetupPanel() {
       </div>
     </div>
     <DesktopPanel state={state} dirty={dirty} act={act} />
+    </fieldset>
+    <HandsfreePanel state={state} dirty={dirty} />
     {(error || state.error) && <p className="error" role="alert">{error || state.error.replaceAll("_", " ")}</p>}
   </section>;
 }

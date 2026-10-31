@@ -10,7 +10,7 @@ const env = Object.fromEntries(Object.entries(process.env).filter(([key, value])
 const wait = async check => { for (let n = 0; n < 150; n++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); } throw new Error("preview_acceptance_timeout"); };
 let app, context;
 try {
-  for (const file of ["SETUP.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
+  for (const file of ["SETUP.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
   const data = mkdtempSync(join(root, "packaged-app-"));
   app = await _electron.launch({ executablePath: join(packageRoot, "Latham.exe"), args: ["--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
   await wait(() => app.context().pages().some(page => page.url() === "latham://app/index.html"));
@@ -19,7 +19,9 @@ try {
   assert.equal((await desk.evaluate(() => window.setup.state())).canImportEnvironmentKey, false);
   assert.equal(await desk.getByRole("button", { name: "Import GEMINI_API_KEY from .env.local" }).count(), 0);
   assert.deepEqual(await desk.evaluate(() => window.latham.runtime), { sandboxed: true, contextIsolated: true });
+  assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "off");
   await desk.evaluate(() => window.setup.key("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")); assert.equal(readFileSync(join(data, "provider-key.bin")).includes(Buffer.from("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")), false);
+  await desk.evaluate(async () => window.setup.save({ ...(await window.setup.state()).settings, mode: "cloud" }));
   await desk.evaluate(() => window.setup.installHost());
   const extension = join(packageRoot, "resources/app/chrome-extension");
   context = await chromium.launchPersistentContext(mkdtempSync(join(root, "packaged-browser-")), { executablePath: join(root, "chromium-runtime/latham-test-browser.exe"), headless: false, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
@@ -27,7 +29,14 @@ try {
   await wait(async () => { const state = await desk.evaluate(() => window.setup.state()); return state.chromeConnected && state.chromeFenceConfirmed; });
   await desk.evaluate(() => window.setup.chromeResume()); await desk.evaluate(() => window.setup.chromeRun("new tab"));
   assert.equal((await desk.evaluate(() => window.setup.state())).chromeResult, "Verified Chrome result");
+  const handsfreeId = await desk.evaluate(() => window.setup.startHandsfree({ target: "chrome", wake: true }));
+  for (let sequence = 0; sequence < 16; sequence++) { await desk.evaluate(({ id, sequence }) => window.setup.handsfreeFrame(id, sequence, new ArrayBuffer(4096)), { id: handsfreeId, sequence }); await new Promise(resolve => setTimeout(resolve, 128)); }
+  assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "armed");
+  assert.equal((await desk.evaluate(() => window.setup.state())).voice, "idle");
+  assert.equal(await desk.getByRole("checkbox", { name: "Wait for local" }).isChecked(), true);
+  await desk.getByRole("region", { name: "Hands-free session", exact: true }).screenshot({ path: join(root, "phase4-handsfree-preview.png") });
   await desk.evaluate(() => window.latham.stop()); await wait(async () => (await desk.evaluate(() => window.setup.state())).chromeFenceConfirmed);
+  assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "off");
   await desk.evaluate(() => window.setup.desktopPermission(true, false));
   await desk.evaluate(() => window.setup.desktopScan());
   assert.equal((await desk.evaluate(() => window.setup.state())).desktop.last?.outcome, "verified");
@@ -36,6 +45,7 @@ try {
   const walk = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]);
   assert.equal(walk(packageRoot).some(file => /(?:^|[\\/])(?:\.env(?:\..*)?|provider-key\.bin|providers\.json|connection\.json|Latham.NativeFixture.exe)$/.test(file)), false);
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.DesktopAgent.exe")));
-  writeFileSync(join(root, "preview-acceptance.json"), JSON.stringify({ at: new Date().toISOString(), version, channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"] }, null, 2));
+  assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.SpeechDetector.exe")));
+  writeFileSync(join(root, "preview-acceptance.json"), JSON.stringify({ at: new Date().toISOString(), version, channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent", "packaged_local_speech_detectors", "idle_wake_no_transcription", "microphone_off_on_start_and_stop", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"] }, null, 2));
   console.log("Windows portable preview startup, protected storage, packaged host/extension pairing and Stop passed.");
 } finally { for (const worker of context?.serviceWorkers() ?? []) await worker.evaluate("port?.disconnect()").catch(() => {}); await context?.close(); await app?.close(); for (const { path, value } of registry) { try { if (value) execFileSync("reg.exe", ["ADD", path, "/ve", "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" }); else execFileSync("reg.exe", ["DELETE", path, "/f"], { stdio: "ignore" }); } catch {} } }

@@ -17,3 +17,9 @@ The supervisor contains no UIA calls or windows; Stop terminates the worker and
 acknowledges exit. It shares the existing Framework 4.8 compiler/runtime, avoiding
 an additional SDK requirement. General app coverage is not enabled. See
 [desktop setup](../../docs/phase3.md).
+
+`SpeechDetector.cs` is the Phase 4 fixed-phrase recognizer, compiled separately
+for an installed Windows System.Speech en-US engine. Two independent child
+processes consume bounded PCM pipes for stop and optional wake. They have no
+microphone, network or action API; health/progress monitoring and detector exit
+cause main to cancel hands-free sessions. See [hands-free setup](../../docs/phase4.md).

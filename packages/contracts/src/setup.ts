@@ -1,13 +1,15 @@
 import { record } from "./index";
 import type { PageState } from "./browser";
 import type { NativeState } from "./desktop";
+import type { HandsfreeState } from "./handsfree";
 
 export const sites = [
   { origin: "https://www.google.com", pattern: "https://www.google.com/*", name: "Google Search" },
   { origin: "https://www.youtube.com", pattern: "https://www.youtube.com/*", name: "YouTube" }
 ] as const;
-export type ProviderSettings = { mode: "local" | "cloud"; microphoneId: string; whisperExecutable: string; whisperModel: string; ollamaModel: string };
-export const providerDefaults: ProviderSettings = { mode: "local", microphoneId: "", whisperExecutable: "", whisperModel: "", ollamaModel: "qwen2.5:1.5b" };
+export const speechLanguages = ["en", "es", "fr", "de", "it", "pt", "ko", "ja", "zh", "auto"] as const;
+export type ProviderSettings = { mode: "local" | "cloud"; microphoneId: string; whisperExecutable: string; whisperModel: string; ollamaModel: string; speechLanguage: string; speechVocabulary: string; speechThreads: number };
+export const providerDefaults: ProviderSettings = { mode: "local", microphoneId: "", whisperExecutable: "", whisperModel: "", ollamaModel: "qwen2.5:1.5b", speechLanguage: "en", speechVocabulary: "", speechThreads: 2 };
 export type Candidate = { id: string; label: string; role: string };
 export type Selection = { candidateId: string | null };
 export type ChromeCommand = { kind: "new_tab" | "next_tab" | "previous_tab" | "back" | "forward" } | { kind: "navigate"; url: string };
@@ -16,6 +18,8 @@ export type SetupState = {
   canInsertTranscript: boolean;
   canInsertDesktopTranscript: boolean;
   desktop: NativeState;
+  handsfree: HandsfreeState;
+  localModel: string;
   settings: ProviderSettings; keyStored: boolean; vaultAvailable: boolean;
   voice: "idle" | "recording" | "transcribing" | "testing"; transcript: string; error: string; notice: string;
   chromeConnected: boolean; chromeActive: boolean; chromeFenceConfirmed: boolean; chromeNeedsReview: boolean; chromeResult: string; extensionId: string;
@@ -33,6 +37,10 @@ export interface SetupBridge {
   finishTurn(id: number, pcm: ArrayBuffer): Promise<void>;
   cancelTurn(): Promise<void>;
   clearTranscript(): Promise<void>;
+  startHandsfree(config: { target: "chrome" | "desktop"; wake: boolean }): Promise<string>;
+  handsfreeFrame(id: string, sequence: number, pcm: ArrayBuffer): void;
+  handsfreeFailure(id: string): Promise<void>;
+  checkLocalModel(): Promise<void>;
   chromeResume(): Promise<void>;
   reconcileChrome(): Promise<void>;
   chromeRun(command: string): Promise<void>;
@@ -50,11 +58,14 @@ export interface SetupBridge {
   launchChrome(): Promise<void>;
   subscribe(listener: (state: SetupState) => void): () => void;
 }
-export function parseProviderSettings(value: unknown): ProviderSettings {
-  if (!record(value) || Object.keys(value).some(key => !Object.keys(providerDefaults).includes(key)) || !["local", "cloud"].includes(String(value.mode))) throw new Error("invalid_settings");
+export function parseProviderSettings(input: unknown): ProviderSettings {
+  if (!record(input) || Object.keys(input).some(key => !Object.keys(providerDefaults).includes(key)) || !["local", "cloud"].includes(String(input.mode))) throw new Error("invalid_settings");
+  // Migrate the smaller Phase 1–3 settings without starting a microphone session.
+  const value: Record<string, unknown> = { speechLanguage: "en", speechVocabulary: "", speechThreads: 2, ...input };
   for (const key of ["microphoneId", "whisperExecutable", "whisperModel", "ollamaModel"]) if (typeof value[key] !== "string" || (value[key] as string).length > 1024) throw new Error("invalid_settings");
   if (!/^[a-zA-Z0-9_.:/-]{1,100}$/.test(value.ollamaModel as string) || (value.ollamaModel as string).includes("cloud")) throw new Error("local_model_required");
-  return { mode: value.mode as ProviderSettings["mode"], microphoneId: value.microphoneId as string, whisperExecutable: value.whisperExecutable as string, whisperModel: value.whisperModel as string, ollamaModel: value.ollamaModel as string };
+  if (!speechLanguages.includes(value.speechLanguage as typeof speechLanguages[number]) || typeof value.speechVocabulary !== "string" || value.speechVocabulary.length > 400 || /[\x00-\x1f]/.test(value.speechVocabulary) || !Number.isInteger(value.speechThreads) || Number(value.speechThreads) < 1 || Number(value.speechThreads) > 4) throw new Error("invalid_speech_options");
+  return { mode: value.mode as ProviderSettings["mode"], microphoneId: value.microphoneId as string, whisperExecutable: value.whisperExecutable as string, whisperModel: value.whisperModel as string, ollamaModel: value.ollamaModel as string, speechLanguage: value.speechLanguage as string, speechVocabulary: value.speechVocabulary, speechThreads: Number(value.speechThreads) };
 }
 export function parseChromeCommand(input: unknown): ChromeCommand {
   if (typeof input !== "string" || input.length > 2048) throw new Error("unsupported_chrome_command");

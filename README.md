@@ -1,14 +1,15 @@
 # Latham
 
 Latham is an independently implemented voice-controlled computer assistant.
-Version 0.3 adds a reviewed Notepad editor workflow alongside Google Search/YouTube, field-bound
+Version 0.4 adds opt-in consecutive voice commands and independent local wake/stop
+detection to the reviewed Notepad and Google Search/YouTube workflows, field-bound
 push-to-talk dictation, guarded correction/undo, verified search/video/filter
 navigation, Gemini or local AI, remembered permissions and physical Stop.
-See [desktop setup](docs/phase3.md) and [the Chrome support matrix](docs/phase2.md) for exact operations and limits.
+See [hands-free setup](docs/phase4.md), [desktop setup](docs/phase3.md) and [the Chrome support matrix](docs/phase2.md) for exact operations and limits.
 
-Phases 0–3 are delivered as an **unsigned Windows developer preview**. It is not a
-signed installer or a promise of arbitrary-app/site support. Hands-free listening
-remains Phase 4 and has not been started. The whole-project plan is in
+Phases 0–4 are implemented as an **unsigned Windows developer preview**. It is not a
+signed installer or a promise of arbitrary-app/site support. Hands-free is optional
+and starts disabled; recognition misses and false stops remain possible. The whole-project plan is in
 [roadmap.md](roadmap.md).
 
 ## Run Latham
@@ -29,7 +30,9 @@ native relay uses Windows' existing .NET Framework compiler, without an SDK.
 
 For Chrome, configure AI, register/load/connect the extension, approve a site,
 then choose **Prepare Search dictation**. Hold to talk, review, and explicitly
-insert the transcript. The app starts paused and never dispatches speech by itself.
+insert the transcript. The app starts paused; push-to-talk requires explicit dispatch.
+For consecutive automatic commands, explicitly enable a session as described in
+the hands-free guide. Its microphone turns off when the session ends.
 
 For desktop editing, approve Notepad, refresh and select its window, then choose
 **Prepare editor dictation**. The same microphone produces a reviewed transcript;

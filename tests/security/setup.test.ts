@@ -16,6 +16,12 @@ function store() {
 }
 const candidates = [{ id: "search", label: "Search", role: "button" }];
 describe("provider boundaries", () => {
+  test("hands-free preflight rejects missing local setup or cloud credentials before capture", () => {
+    const storage = store(), voice = new Voice(storage, () => {});
+    expect(() => voice.prepareSession()).toThrow("local_asr_setup_required"); expect(voice.status).toBe("idle");
+    storage.settings.mode = "cloud"; expect(() => voice.prepareSession()).toThrow("key_setup_required");
+    storage.setKey("FAKE_PREFLIGHT_KEY_1234567890"); expect(() => voice.prepareSession()).not.toThrow(); expect(voice.status).toBe("idle");
+  });
   test("settings fail closed and deterministic shortcuts reject arbitrary schemes and origins", () => {
     expect(parseProviderSettings(providerDefaults).mode).toBe("local");
     for (const input of [{ ...providerDefaults, mode: "auto" }, { ...providerDefaults, ollamaModel: "qwen-cloud" }, { ...providerDefaults, endpoint: "https://example.com" }]) expect(() => parseProviderSettings(input)).toThrow();
@@ -94,7 +100,7 @@ describe("native messaging boundary", () => {
     const client = connect(chrome.pipe), responses: unknown[] = [], reader = new FrameReader(); client.on("data", chunk => reader.push(Buffer.from(chunk), value => { responses.push(value); const message = value as { type: string; epoch: number }; if (message.type === "pause") client.write(frame({ type: "paused", epoch: message.epoch })); }));
     const send = (value: unknown) => client.write(frame(value));
     try {
-      send({ type: "hello", protocol: 2, token: chrome.token, origin: `chrome-extension://${extensionId}/` }); send({ type: "ready", protocol: 2, version: "0.3.0" }); await vi.waitFor(() => expect(chrome.connected).toBe(true));
+      send({ type: "hello", protocol: 2, token: chrome.token, origin: `chrome-extension://${extensionId}/` }); send({ type: "ready", protocol: 2, version: "0.4.0" }); await vi.waitFor(() => expect(chrome.connected).toBe(true));
       expect(chrome.active).toBe(false);
       await vi.waitFor(() => expect(chrome.fenceConfirmed).toBe(true));
       send({ type: "consent", origin: "https://www.google.com", granted: true }); send({ type: "grants", origins: ["https://www.google.com"] }); await vi.waitFor(() => expect(chrome.siteState[0]!.effective).toBe(true));

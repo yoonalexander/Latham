@@ -496,3 +496,5 @@ input[type=range] {
 .talk { touch-action:none; user-select:none; }
 .desktop-panel { border-top:1px solid #c8d5cc; margin-top:24px; padding-top:24px; }
 @media(max-width:1100px) { .setup-grid { grid-template-columns:1fr 1fr; } }
+.manual-controls { border: 0; padding: 0; margin: 0; min-width: 0; }
+.handsfree-panel { margin-top: 20px; border-top: 2px solid var(--line, #c9d5cc); padding-top: 18px; }

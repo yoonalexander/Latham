@@ -32,6 +32,111 @@ async function setup() {
 }
 async function run(desk: Page, command: string): Promise<void> { await desk.evaluate(command => window.setup.chromeRun(command), command); }
 async function verified(desk: Page): Promise<void> { const result = (await desk.evaluate(() => window.setup.state())).page.last; expect(result?.outcome, result?.reason).toBe("verified"); }
+function audioPcm(path: string): Buffer {
+  const bytes = readFileSync(path); for (let at = 12; at + 8 < bytes.length;) { const length = bytes.readUInt32LE(at + 4); if (bytes.toString("ascii", at, at + 4) === "data") return bytes.subarray(at + 8, at + 8 + length); at += 8 + length + length % 2; } throw Error("missing_audio");
+}
+async function feedSession(desk: Page, id: string, cursor: { sequence: number }, bytes: Buffer): Promise<void> {
+  for (let offset = 0; offset < bytes.length; offset += 4096) {
+    if ((await desk.evaluate(() => window.setup.state())).handsfree.id !== id) return;
+    const chunk = [...bytes.subarray(offset, offset + 4096)]; if (chunk.length < 320) chunk.push(...new Array(320 - chunk.length).fill(0));
+    await desk.evaluate(({ id, sequence, chunk }) => window.setup.handsfreeFrame(id, sequence, new Uint8Array(chunk).buffer), { id, sequence: cursor.sequence++, chunk });
+    await new Promise(resolve => setTimeout(resolve, 128));
+  }
+}
+async function configureHandsfree(f: Awaited<ReturnType<typeof setup>>): Promise<void> {
+  await f.desk.evaluate(async () => { const s = await window.setup.state(); await window.setup.save({ ...s.settings, mode: "cloud" }); await window.setup.key("FAKE_HANDSFREE_PROVIDER_KEY_123456"); });
+  await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true);
+  await f.desk.evaluate(() => window.setup.chromeResume());
+}
+
+test("hands-free successive commands use current permissions and local stop interrupts delayed cloud transcription", async () => {
+  test.setTimeout(60000); const f = await setup();
+  try {
+    await configureHandsfree(f);
+    await f.app.evaluate(() => { Reflect.set(globalThis, "handsfreeRequests", 0); Reflect.set(globalThis, "fetch", async () => { Reflect.set(globalThis, "handsfreeRequests", Number(Reflect.get(globalThis, "handsfreeRequests")) + 1); return Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "scroll down" }] } }] }); }); });
+    const id = await f.desk.evaluate(() => window.setup.startHandsfree({ target: "chrome", wake: false })), cursor = { sequence: 0 };
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.stopReady)).toBe(true);
+    const commandAudio = Buffer.concat([audioPcm(resolve(".test-artifacts/speech-corpus/06.wav")), Buffer.alloc(32000)]);
+    for (let index = 0; index < 2; index++) {
+      await feedSession(f.desk, id, cursor, commandAudio);
+      await expect.poll(() => f.app.evaluate(() => Number(Reflect.get(globalThis, "handsfreeRequests")))).toBe(index + 1);
+      await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("listening");
+    }
+    expect(await f.page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    await f.app.evaluate(() => { Reflect.set(globalThis, "fetch", () => new Promise<Response>(resolve => { Reflect.set(globalThis, "resolveHandsfree", () => resolve(Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "dictate late text" }] } }] }))); })); });
+    await feedSession(f.desk, id, cursor, commandAudio); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("transcribing");
+    const stopAudio = audioPcm(resolve(".test-artifacts/detector-corpus/zira-0.wav")), started = performance.now();
+    await feedSession(f.desk, id, cursor, Buffer.concat([stopAudio, Buffer.alloc(64000)]));
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("off");
+    const stoppedMs = Math.round(performance.now() - started);
+    expect((await f.desk.evaluate(() => window.setup.state())).handsfree.message).toContain("stop assistant");
+    await f.app.evaluate(() => (Reflect.get(globalThis, "resolveHandsfree") as () => void)());
+    expect((await f.desk.evaluate(() => window.setup.state())).transcript).toBe("");
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true);
+    await expect(f.page.getByRole("textbox", { name: "Search", exact: true })).toHaveValue("");
+    writeFileSync(".test-artifacts/handsfree-interruption.json", JSON.stringify({ source: "synthetic PCM through real local detector during deliberately delayed provider", stoppedMs, speechMs: stopAudio.length / 32, noLateInsertion: true, twoVerifiedCommands: true }, null, 2));
+  } finally { await f.close(); }
+});
+
+test("hands-free wake audio stays local until the separate phrase; detector loss cancels the session", async () => {
+  test.setTimeout(60000); const f = await setup();
+  try {
+    await configureHandsfree(f);
+    await f.app.evaluate(() => { Reflect.set(globalThis, "handsfreeRequests", 0); Reflect.set(globalThis, "fetch", async () => { Reflect.set(globalThis, "handsfreeRequests", Number(Reflect.get(globalThis, "handsfreeRequests")) + 1); return Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "inspect page" }] } }] }); }); });
+    const id = await f.desk.evaluate(() => window.setup.startHandsfree({ target: "chrome", wake: true })), cursor = { sequence: 0 };
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("armed");
+    await feedSession(f.desk, id, cursor, Buffer.concat([audioPcm(resolve(".test-artifacts/detector-corpus/zira-4.wav")), Buffer.alloc(32000)]));
+    expect(await f.app.evaluate(() => Reflect.get(globalThis, "handsfreeRequests"))).toBe(0);
+    await feedSession(f.desk, id, cursor, Buffer.concat([audioPcm(resolve(".test-artifacts/detector-corpus/zira-1.wav")), Buffer.alloc(32000)]));
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("listening");
+    expect(await f.app.evaluate(() => Reflect.get(globalThis, "handsfreeRequests"))).toBe(0);
+    const parent = await f.app.evaluate(() => process.pid), executable = resolve("dist/native/Latham.SpeechDetector.exe").replaceAll("'", "''");
+    execFileSync("powershell.exe", ["-NoProfile", "-Command", `Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq ${parent} -and $_.ExecutablePath -eq '${executable}' -and $_.CommandLine -match 'stop' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`], { stdio: "ignore" });
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("off");
+    expect((await f.desk.evaluate(() => window.setup.state())).handsfree.message).toContain("detector failed");
+  } finally { await f.close(); }
+});
+
+test("hands-free capture uses the selected microphone and disconnect closes it and pauses Chrome", async () => {
+  test.setTimeout(60000); const f = await setup();
+  try {
+    await configureHandsfree(f);
+    await f.desk.evaluate(() => { const request = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia = async constraints => { const stream = await request(constraints); Reflect.set(globalThis, "handsfreeTrack", stream.getAudioTracks()[0]); return stream; }; });
+    await f.desk.getByRole("checkbox", { name: "Wait for local" }).check();
+    await f.desk.getByRole("button", { name: "Enable hands-free microphone", exact: true }).click();
+    await expect(f.desk.getByTestId("handsfree-status")).toContainText("armed");
+    await expect(f.desk.getByRole("button", { name: "Hold to talk", exact: true })).toBeDisabled();
+    await f.desk.evaluate(() => (Reflect.get(globalThis, "handsfreeTrack") as MediaStreamTrack).dispatchEvent(new Event("ended")));
+    await expect(f.desk.getByTestId("handsfree-status")).toContainText("Microphone: OFF");
+    expect((await f.desk.evaluate(() => window.setup.state())).chromeActive).toBe(false);
+    expect(await f.desk.evaluate(() => (Reflect.get(globalThis, "handsfreeTrack") as MediaStreamTrack).readyState)).toBe("ended");
+  } finally { await f.close(); }
+});
+
+test("local spoken stop reaches the executor fence while an actual edit waits for verification", async () => {
+  test.setTimeout(60000); const f = await setup();
+  try {
+    await configureHandsfree(f); await run(f.desk, "focus Search"); await run(f.desk, "start dictation");
+    await f.app.evaluate(() => { Reflect.set(globalThis, "fetch", async () => Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "dictate pending edit" }] } }] })); });
+    const worker = f.context.serviceWorkers()[0]!;
+    await worker.evaluate("const originalHandsfreeCall = callPage; callPage = async (scope, request) => { if (request.op === 'verify') return new Promise(resolve => { globalThis.releaseHandsfreeVerification = async () => resolve(await originalHandsfreeCall(scope, request)); }); return originalHandsfreeCall(scope, request); };");
+    const id = await f.desk.evaluate(() => window.setup.startHandsfree({ target: "chrome", wake: false })), cursor = { sequence: 0 };
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.stopReady)).toBe(true);
+    await feedSession(f.desk, id, cursor, Buffer.concat([audioPcm(resolve(".test-artifacts/speech-corpus/06.wav")), Buffer.alloc(32000)]));
+    await expect(f.page.getByRole("textbox", { name: "Search", exact: true })).toHaveValue("pending edit");
+    await expect.poll(() => worker.evaluate("typeof globalThis.releaseHandsfreeVerification")).toBe("function");
+    expect((await f.desk.evaluate(() => window.setup.state())).handsfree.phase).toBe("executing");
+    const started = performance.now(); await feedSession(f.desk, id, cursor, Buffer.concat([audioPcm(resolve(".test-artifacts/detector-corpus/zira-0.wav")), Buffer.alloc(64000)]));
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("off"); const detectedMs = Math.round(performance.now() - started), fenceStarted = performance.now();
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true);
+    const fenceObservedAfterStopMs = Math.round(performance.now() - fenceStarted);
+    expect((await f.desk.evaluate(() => window.setup.state())).chromeNeedsReview).toBe(true);
+    await worker.evaluate("globalThis.releaseHandsfreeVerification()");
+    await expect(f.page.getByRole("textbox", { name: "Search", exact: true })).toHaveValue("pending edit");
+    expect((await f.desk.evaluate(() => window.setup.state())).handsfree.phase).toBe("off");
+    writeFileSync(".test-artifacts/handsfree-verification-stop.json", JSON.stringify({ detectedMs, fenceObservedAfterStopMs, alreadyDispatchedEditPreserved: true, uncertaintyRequired: true, lateResultDidNotResume: true }, null, 2));
+  } finally { await f.close(); }
+});
 test("Chrome scoped fields, literal dictation, correction, undo, search and excluded effects", async () => {
   test.setTimeout(60000); const f = await setup();
   try {
