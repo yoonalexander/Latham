@@ -36,7 +36,7 @@ The fixture executor is trusted local code. Phase 2 adds the separate Chrome
 document/control bindings and compiled supported-site profiles described below.
 These profiles do not establish that arbitrary website effects can be inferred
 safely.
-UIA, screenshots, voice spoofing and managed service boundaries require their
+Broader UIA coverage, screenshots, voice spoofing and managed service boundaries require their
 own later evidence. UAC/secure desktop and arbitrary shell execution remain
 excluded.
 
@@ -97,10 +97,42 @@ extension identity remain release work. See [Phase 2 setup](phase2.md).
   an acknowledged fence before resume. Stop fences previously observed scopes,
   including across worker restarts; no uncertain mutation is replayed.
 - The packaged app hides development env import and requires desktop/extension
-  0.2.0 plus protocol 2. The local portable package was smoke tested, but both
+  the matching desktop/extension version plus protocol 2. The local portable package was smoke tested, but both
   executable binaries are unsigned. Checksums do not authenticate a publisher.
 
 Evidence includes stale nodes, duplicate clarification, late provider responses,
 user edits/focus, denied controls/frames, persisted unknown effects and reactive
 overwrites, plus real signed-out website workflows. External sites can change;
 this is narrow preview support, not adversarial-page or general-site assurance.
+
+## Phase 3 native boundaries
+
+- App approval and a block override are stored separately from Chrome grants.
+  Notepad is the only production native profile. Exact protected executable
+  locations, window class, same-user/session token and non-elevated integrity
+  are checked before any UIA traversal. All other apps are denied by default.
+- The renderer submits named commands and opaque controller-owned window IDs,
+  never native handles, arbitrary paths, selectors, keys or window messages.
+  Window titles are local transient choice labels, not model inputs or logs.
+- A separate non-window-owning MTA process performs bounded UIA traversal and
+  editing. The supervisor never makes provider calls and can signal/terminate
+  a stalled worker. A current-user ACL protects the cancellation event.
+- Process start time, window/control handles, UIA runtime identity, document
+  title, GUI-thread focus, edit notifications and expected value bind each edit.
+  Secure/read-only/off-screen/unknown fields are excluded. Only the reviewed
+  Notepad editor value or its exact RichEdit control can receive text; no
+  keyboard, clipboard or denied-browser fallback exists.
+- Before dispatch, durable uncertainty is written. Stop, crash, lost response
+  or reactive readback failure cannot silently clear it. Reconciliation requires
+  explicit inspection and confirmed worker exit; restart does not replay edits.
+  Switching adapters waits for prior fences and blocks unresolved mutations.
+- Field text and undo records live only in the worker, with no default persistent
+  native activity log. App Stop does not undo target-app autosave or a call
+  already issued. Same-user malware/replaced trusted binaries and independently
+  hostile accessibility providers are not certified safe by these tests.
+
+Evidence includes native user edits, removed controls, wrong fields/windows,
+secure/read-only controls, reactive overwrites, stalled calls, killed workers,
+restart uncertainty, shared transcript binding and repeated exact effects.
+Movement and scaled fixture layout were tested on one physical monitor; broad
+mixed-DPI and multi-monitor hardware support is not established. See [setup](phase3.md).

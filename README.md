@@ -1,17 +1,17 @@
 # Latham
 
 Latham is an independently implemented voice-controlled computer assistant.
-Version 0.2 adds reviewed Google Search/YouTube workflows, field-bound
+Version 0.3 adds a reviewed Notepad editor workflow alongside Google Search/YouTube, field-bound
 push-to-talk dictation, guarded correction/undo, verified search/video/filter
 navigation, Gemini or local AI, remembered permissions and physical Stop.
-See [the setup/support matrix](docs/phase2.md) for exact operations and limits.
+See [desktop setup](docs/phase3.md) and [the Chrome support matrix](docs/phase2.md) for exact operations and limits.
 
-Phase 2 is delivered as an **unsigned Windows developer preview**. It is not a
-signed installer or a promise of arbitrary-site support. Desktop applications
-remain Phase 3 and have not been started. The whole-project plan is in
+Phases 0–3 are delivered as an **unsigned Windows developer preview**. It is not a
+signed installer or a promise of arbitrary-app/site support. Hands-free listening
+remains Phase 4 and has not been started. The whole-project plan is in
 [roadmap.md](roadmap.md).
 
-## Run the foundation
+## Run Latham
 
 Tested on Windows with Node.js 22.13.0 and npm 10.9.2. Use a compatible Node 22+
 release, then run from the repository root:
@@ -30,6 +30,13 @@ native relay uses Windows' existing .NET Framework compiler, without an SDK.
 For Chrome, configure AI, register/load/connect the extension, approve a site,
 then choose **Prepare Search dictation**. Hold to talk, review, and explicitly
 insert the transcript. The app starts paused and never dispatches speech by itself.
+
+For desktop editing, approve Notepad, refresh and select its window, then choose
+**Prepare editor dictation**. The same microphone produces a reviewed transcript;
+explicit editor insertion requires the field binding captured before recording.
+Manual edits, changed tabs/controls, denied apps and third-window focus suspend it.
+Windows can intermittently refuse editor activation; Latham stops and asks you
+to select the editor manually. See [validation results](docs/evaluation.md).
 
 The optional **Show fixture tools** panel retains the local regression playground.
 Enable **Allow local fixture**, click **Start session**, and run a command:
@@ -88,7 +95,7 @@ default retention policy. See [evaluation evidence](docs/evaluation.md).
 |---|---|
 | apps/desktop | Electron main, narrow preload bridge, React shell |
 | apps/chrome-extension | MV3 permissions, scoped root DOM agent and reviewed page operations |
-| services/windows-helper | Independent C# framing relay; native UIA remains Phase 3 |
+| services/windows-helper | Independent Chrome relay plus desktop supervisor/disposable MTA UIA worker |
 | packages/contracts | Shared types and runtime boundary validation |
 | packages/core | Session, policy orchestration, queue and cancellation |
 | packages/decisions | Phase 0 deterministic commands; future cloud/local selection |

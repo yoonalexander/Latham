@@ -1,5 +1,6 @@
 import { record } from "./index";
 import type { PageState } from "./browser";
+import type { NativeState } from "./desktop";
 
 export const sites = [
   { origin: "https://www.google.com", pattern: "https://www.google.com/*", name: "Google Search" },
@@ -13,6 +14,8 @@ export type ChromeCommand = { kind: "new_tab" | "next_tab" | "previous_tab" | "b
 export type SetupState = {
   canImportEnvironmentKey: boolean;
   canInsertTranscript: boolean;
+  canInsertDesktopTranscript: boolean;
+  desktop: NativeState;
   settings: ProviderSettings; keyStored: boolean; vaultAvailable: boolean;
   voice: "idle" | "recording" | "transcribing" | "testing"; transcript: string; error: string; notice: string;
   chromeConnected: boolean; chromeActive: boolean; chromeFenceConfirmed: boolean; chromeNeedsReview: boolean; chromeResult: string; extensionId: string;
@@ -35,6 +38,13 @@ export interface SetupBridge {
   chromeRun(command: string): Promise<void>;
   insertTranscript(mode: "append" | "replace"): Promise<void>;
   prepareDictation(): Promise<void>;
+  desktopPermission(approved: boolean, denied: boolean): Promise<void>;
+  desktopScan(): Promise<void>;
+  desktopOpen(): Promise<void>;
+  desktopPrepare(windowId: string): Promise<void>;
+  desktopRun(command: string): Promise<void>;
+  desktopInsertTranscript(mode: "append" | "replace"): Promise<void>;
+  desktopReconcile(): Promise<void>;
   revoke(origin: string): Promise<void>;
   installHost(): Promise<void>;
   launchChrome(): Promise<void>;

@@ -31,7 +31,7 @@ async function setup() {
   return { desk, page, context, app, directory, close: async () => { for (const worker of context.serviceWorkers()) await worker.evaluate("port?.disconnect()").catch(() => {}); await context.close(); await app.close(); restore(); } };
 }
 async function run(desk: Page, command: string): Promise<void> { await desk.evaluate(command => window.setup.chromeRun(command), command); }
-async function verified(desk: Page): Promise<void> { expect((await desk.evaluate(() => window.setup.state())).page.last?.outcome).toBe("verified"); }
+async function verified(desk: Page): Promise<void> { const result = (await desk.evaluate(() => window.setup.state())).page.last; expect(result?.outcome, result?.reason).toBe("verified"); }
 test("Chrome scoped fields, literal dictation, correction, undo, search and excluded effects", async () => {
   test.setTimeout(60000); const f = await setup();
   try {
@@ -54,7 +54,7 @@ test("100 bound DOM operations verify effects through both reviewed site profile
   test.setTimeout(120000); const f = await setup(), samples: number[] = [];
   try {
     for (const origin of ["https://www.google.com/", "https://www.youtube.com/"]) {
-      await f.desk.evaluate(() => window.latham.stop()); await f.page.goto(origin);
+      await f.desk.evaluate(() => window.latham.stop()); await f.page.goto(origin); await f.page.bringToFront();
       await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume());
       for (const command of ["focus Search", "start dictation"]) { await run(f.desk, command); await verified(f.desk); samples.push((await f.desk.evaluate(() => window.setup.state())).page.last!.elapsedMs); }
       for (let index = 0; index < 12; index++) {
@@ -74,11 +74,15 @@ test("Prepare Search dictation keeps the field bound while the user records in L
     await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true);
     await f.desk.getByRole("button", { name: "Prepare Search dictation", exact: true }).click();
     await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).page.dictation)).toBe("Search");
+    await f.desk.evaluate(() => {
+      const original = AudioContext.prototype.createScriptProcessor;
+      AudioContext.prototype.createScriptProcessor = function (...args) { const node = original.apply(this, args); node.addEventListener("audioprocess", event => Reflect.set(globalThis, "testCapturedSamples", Number(Reflect.get(globalThis, "testCapturedSamples") ?? 0) + event.inputBuffer.length)); return node; };
+    });
     const talk = f.desk.getByRole("button", { name: "Hold to talk", exact: true }); const bounds = await talk.boundingBox(); expect(bounds).not.toBeNull();
     await f.desk.mouse.move(bounds!.x + 20, bounds!.y + 15); await f.desk.mouse.down();
     await expect(f.desk.getByTestId("voice-status")).toHaveText("Voice: recording");
     await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).page.dictation)).toBe("Search");
-    await f.desk.waitForTimeout(1200); await f.desk.mouse.up();
+    await expect.poll(() => f.desk.evaluate(() => Number(Reflect.get(globalThis, "testCapturedSamples") ?? 0))).toBeGreaterThanOrEqual(8000); await f.desk.mouse.up();
     await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).voice)).toBe("idle");
     expect((await f.desk.evaluate(() => window.setup.state())).error).toBe("");
     await expect(f.desk.getByLabel("Final transcript", { exact: true })).toHaveValue("piano music");

@@ -1,9 +1,9 @@
 {
   "name": "latham",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Independent voice-controlled Chrome assistant — reviewed search and field-bound dictation preview",
+  "description": "Independent Windows voice assistant — reviewed Chrome and Notepad dictation preview",
   "engines": {
     "node": ">=22"
   },
@@ -17,7 +17,7 @@
     "dev": "npm run build && npm start",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "test": "vitest run",
-    "test:e2e": "npm run build && npm run setup:electron && playwright test",
+    "test:e2e": "npm run build && node scripts/build-native-fixture.mjs && npm run setup:electron && playwright test",
     "evaluate": "npm run typecheck && npm test && npm run test:e2e",
     "check": "npm run typecheck && npm test && npm run build",
     "setup:electron": "node node_modules/electron/install.js",

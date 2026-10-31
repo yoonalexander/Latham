@@ -1,14 +1,14 @@
 # Latham Roadmap
 
-**Updated:** October 30, 2026\
-**Status:** Phases 0–2 complete for the documented unsigned developer preview; Phase 3 has not started.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.6.
+**Updated:** October 31, 2026\
+**Status:** Phases 0–3 complete for the documented unsigned developer preview; Phase 4 has not started.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.7.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
 This roadmap covers the whole project, including later ambitions. It has acceptance gates rather than promised dates. “Public release” means a user-facing build, not a decision that the source must be public. Distribution licensing, contribution terms, and any later private/commercial release are separate decisions. The design document owns execution/privacy contracts; this roadmap owns sequence. When a milestone changes, update both without marking unverified work complete.
 
-The fixture foundation, voice/provider setup and reviewed Chrome page workflows are implemented. [Evaluation](docs/evaluation.md) records 39 boundary cases, 13 integration flows, real-site cloud/local workflows, physical microphone insertion, remembered permissions, cancellation and packaged startup. [Phase 2 setup](docs/phase2.md) publishes the exact support set and limits. The current channel is an unsigned Windows developer preview; desktop automation has not started.
+The fixture foundation, voice/providers, reviewed Chrome workflows and scoped Notepad editing are implemented. [Evaluation](docs/evaluation.md) records automated boundaries/integration flows, real-site workflows, microphone insertion, native editing and recovery, remembered permissions and packaging. [Chrome setup](docs/phase2.md) and [desktop setup](docs/phase3.md) publish exact support sets and limits. The current channel is an unsigned Windows developer preview; hands-free listening has not started.
 
 ## Decisions already made
 
@@ -101,14 +101,16 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Goal:** extend the Chrome assistant to a small set of Windows applications, starting with a plain text editing task.
 
-- [ ] Add the non-elevated C#/.NET UIA helper and a separate non-window-owning worker with deadlines and a responsive cancellation/control path.
-- [ ] Build a native test app and process/window/control identity contracts; detect focus changes, removed controls, and helper restarts.
-- [ ] Add explicit per-app consent, a denylist, and a small launch allowlist. Native app permissions never authorize denied browser origins.
-- [ ] Target a simple editor such as Notepad first: open/focus, identify the text field, dictate/correct/undo, and verify the edit. Do not assume every installed app/version exposes adequate UIA.
-- [ ] Add targeted native control operations for the accepted app set, reusing the scope/effect/provider/verification contracts.
-- [ ] Test stalled UIA providers, lost acknowledgement, user edits, wrong-window cases, multi-monitor/display scaling, cancellation, and recovery.
+- [x] Add the non-elevated C#/.NET UIA helper and a separate non-window-owning worker with deadlines and a responsive cancellation/control path.
+- [x] Build a native test app and process/window/control identity contracts; detect focus changes, removed controls, and helper restarts.
+- [x] Add explicit per-app consent, a denylist, and a small launch allowlist. Native app permissions never authorize denied browser origins.
+- [x] Target Notepad: open/focus, identify the text field, dictate/correct/undo, and verify the edit. Publish the tested app/version rather than assuming every installed version exposes adequate UIA.
+- [x] Add targeted native control operations for the accepted app set, reusing the scope/effect/provider/verification contracts.
+- [x] Test stalled UIA providers, lost acknowledgement, user edits, wrong-window cases, window movement/scaled layout, cancellation and recovery. One physical monitor was available; mixed-DPI/multi-monitor hardware remains an explicit compatibility limit.
 
 **Gate:** the advertised native-app workflows pass real-app and fixture acceptance. If targeted secure editing cannot be verified, report unsupported behavior rather than using blind keyboard/clipboard input. UAC, secure desktops, elevated targets, and credential fields remain outside supported automation. Browser-content fallback remains governed by its own origin/permission contract.
+
+**Implemented preview:** October 31, 2026, for the documented **0.3 unsigned Windows developer preview**, limited to the tested Notepad document-text profile. The separate Framework 4.8 supervisor/MTA worker, app approval/block override, literal bound editing, guarded undo, persisted uncertainty and no-replay recovery have fixture and real-app evidence in [evaluation](docs/evaluation.md). Local base.en and Gemini speech reached real Notepad. The earlier full integration run passed; the final native recheck was blocked by Windows refusing editor focus before editing. Foreground activation remains an intermittent preview limitation. Cloud availability failures and broader hardware/speech limits are recorded separately, without fallback or invented success. Signing and general app coverage are not claimed. No Phase 4 work is included.
 
 ## Phase 4 — Hands-free interaction and local speech refinement
 
@@ -203,4 +205,4 @@ The product direction above is settled. The preview selects an English/CPU local
 
 ## Next milestone
 
-**Phase 3 is planned next:** desktop applications, starting with a grounded plain-text editor task. Stop at Phase 2 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.
+**Phase 4 is planned next:** opt-in hands-free interaction and local speech refinement. Stop at Phase 3 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.

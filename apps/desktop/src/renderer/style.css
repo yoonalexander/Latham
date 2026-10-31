@@ -488,10 +488,11 @@ input[type=range] {
 .setup-group { min-width:0; display:flex; flex-direction:column; align-items:stretch; gap:10px; }
 .setup-group h3 { margin:0; font-size:16px; }
 .setup-group label { display:block; font-size:13px; }
-.setup-group input:not([type=radio]), .setup-group select, .setup-group textarea { display:block; width:100%; padding:9px; margin-top:5px; border:1px solid #96aa9c; border-radius:6px; background:#fffefa; color:#223d36; }
-.setup-group input[type=radio] { margin-right:8px; }
+.setup-group input:not([type=radio]):not([type=checkbox]), .setup-group select, .setup-group textarea { display:block; width:100%; padding:9px; margin-top:5px; border:1px solid #96aa9c; border-radius:6px; background:#fffefa; color:#223d36; }
+.setup-group input[type=radio], .setup-group input[type=checkbox] { margin-right:8px; }
 .setup-group ul { margin:0; padding-left:18px; font-size:13px; }
 .setup-group li { margin:6px 0; }
 .setup-buttons { display:flex; flex-wrap:wrap; gap:6px; }
 .talk { touch-action:none; user-select:none; }
+.desktop-panel { border-top:1px solid #c8d5cc; margin-top:24px; padding-top:24px; }
 @media(max-width:1100px) { .setup-grid { grid-template-columns:1fr 1fr; } }

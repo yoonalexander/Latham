@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ProviderSettings, SetupBridge, SetupState } from "../../../../packages/contracts/src/setup";
+import { DesktopPanel } from "./desktop";
 declare global { interface Window { setup: SetupBridge } }
 type Recording = { id: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
 export function SetupPanel() {
@@ -60,7 +61,7 @@ export function SetupPanel() {
   if (!state || !draft) return <section className="panel setup-panel">Loading voice and Chrome setup…</section>;
   const patch = (value: Partial<ProviderSettings>): void => setDraft({ ...draft, ...value });
   return <section className="panel setup-panel" aria-label="Voice and Chrome setup">
-    <div className="section-kicker">CHROME PREVIEW / 0.2</div><h2>Voice & Chrome</h2>
+    <div className="section-kicker">WINDOWS PREVIEW / 0.3</div><h2>Voice, Chrome & desktop</h2>
     <div className="setup-grid">
       <div className="setup-group"><h3>1. Choose your AI</h3>
         <label><input type="radio" name="provider" checked={draft.mode === "local"} onChange={() => patch({ mode: "local" })} /> Use local AI</label>
@@ -76,9 +77,9 @@ export function SetupPanel() {
         <button className="primary talk" disabled={dirty || state.voice === "testing" || state.voice === "transcribing"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); void begin(); }} onPointerUp={() => void finish()} onPointerCancel={() => { clean(); void window.setup.cancelTurn(); }} onKeyDown={event => { if ((event.key === " " || event.key === "Enter") && !event.repeat) { event.preventDefault(); void begin(); } }} onKeyUp={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); void finish(); } }}>Hold to talk</button>
         <p role="status" data-testid="voice-status">Voice: {state.voice}</p><label htmlFor="transcript-preview">Final transcript</label><textarea id="transcript-preview" readOnly value={state.transcript} rows={3} />
         <div className="setup-buttons"><button disabled={!state.transcript} onClick={() => setCommand(state.transcript)}>Use transcript as Chrome command</button><button onClick={() => { clean(); void act(() => window.setup.cancelTurn()); }}>Cancel / clear speech</button></div>
-        <p className="mini">Dictation: {state.page.dictation ? `ready for ${state.page.dictation}` : "not bound"}. Prepare Search first, then record and review your words.</p>
+        <p className="mini">Dictation: {state.desktop.bound ? "ready for the selected Notepad editor" : state.page.dictation ? `ready for ${state.page.dictation}` : "not bound"}. Prepare Search or editor dictation first, then record and review your words.</p>
         <button disabled={dirty || !state.chromeConnected || state.chromeNeedsReview || state.page.busy || (!state.chromeActive && !state.chromeFenceConfirmed)} onClick={() => void act(() => window.setup.prepareDictation())}>Prepare Search dictation</button>
-        {!!state.transcript && !state.canInsertTranscript && <p className="mini" role="status">This transcript has no current field binding. Prepare Search dictation, then record again to insert it safely.</p>}
+        {!!state.transcript && !state.canInsertTranscript && !state.canInsertDesktopTranscript && <p className="mini" role="status">This transcript has no current field binding. Prepare Search or editor dictation, then record again to insert it safely.</p>}
         <div className="setup-buttons"><button disabled={dirty || !state.canInsertTranscript || state.page.busy} onClick={() => void act(() => window.setup.insertTranscript("append"))}>Append transcript</button><button disabled={dirty || !state.canInsertTranscript || state.page.busy} onClick={() => void act(() => window.setup.insertTranscript("replace"))}>Replace field with transcript</button></div>
         <p className="mini" role="status">{state.notice}</p>
       </div>
@@ -95,6 +96,7 @@ export function SetupPanel() {
         <details><summary>Supported controls on the last observed page</summary><ul>{state.page.targets.map((target, index) => <li key={index}>{target.name} · {target.role}</li>)}</ul></details>
       </div>
     </div>
+    <DesktopPanel state={state} dirty={dirty} act={act} />
     {(error || state.error) && <p className="error" role="alert">{error || state.error.replaceAll("_", " ")}</p>}
   </section>;
 }

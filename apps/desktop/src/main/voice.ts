@@ -31,7 +31,7 @@ export class Voice {
       if (Math.sqrt(energy / (bytes.length / 2)) < 0.003) throw new Error("no_usable_transcript");
       const settings = this.store.settings;
       const text = settings.mode === "cloud" ? await cloudTranscribe(audio, this.store.key(), signal) : await localTranscribe(audio, settings.whisperExecutable, settings.whisperModel, signal);
-      if (generation === this.turn && !signal.aborted) { this.transcript = text; this.notice = "Final transcript. Review it, then insert into the prepared field or use it as a Chrome command."; }
+      if (generation === this.turn && !signal.aborted) { this.transcript = text; this.notice = "Final transcript. Review it, then insert into the prepared field or use it as an app command."; }
     } catch (error) { if (generation === this.turn) this.error = signal.aborted ? "transcription_cancelled_or_timed_out" : errors.has((error as Error).message) ? (error as Error).message : "speech_failed"; }
     finally { if (generation === this.turn) { this.status = "idle"; this.changed(); } }
   }

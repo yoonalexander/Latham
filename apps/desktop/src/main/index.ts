@@ -13,6 +13,7 @@ import { ChromeBridge, extensionId } from "./native-bridge";
 import { installHost, launchChrome } from "./host-install";
 import type { SetupState } from "../../../../packages/contracts/src/setup";
 import { BrowserController } from "./browser-controller";
+import { DesktopController } from "./desktop-controller";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "latham", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName("Latham");
@@ -76,38 +77,63 @@ async function boot(): Promise<void> {
   };
   const providerStore = new ProviderStore(app.getPath("userData"), safeStorage);
   let browser: BrowserController;
+  let desktop: DesktopController;
   let utteranceBinding: string | null = null;
-  const setupState = (): SetupState => ({ canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
+  const setupState = (): SetupState => ({ canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
   const setupSend = (): void => { if (voice && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState()); };
   voice = new Voice(providerStore, setupSend);
   const chrome = new ChromeBridge(providerStore, setupSend);
   browser = new BrowserController(chrome, providerStore, setupSend);
+  const nativeTesting = !app.isPackaged && process.argv.includes("--latham-test") && process.env.LATHAM_TEST_NATIVE_FIXTURE === "1";
+  const nativeApp = nativeTesting ? "fixture" : "notepad";
+  desktop = new DesktopController(app.getPath("userData"), join(__dirname, "native/Latham.DesktopAgent.exe"), () => Number(win.getNativeWindowHandle().readBigUInt64LE()), setupSend, nativeTesting);
+  desktop.onInvalidate = () => voice.cancel();
   chrome.onInvalidate = () => { browser.stop(); voice.cancel(); };
   await chrome.start();
   const hostDirectory = join(app.getPath("userData"), "native");
   chrome.writeConfig(hostDirectory);
-  const stopAll = (): void => { controller.stop(); voice.cancel(); chrome.pause(); };
+  const stopAll = (): void => { controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
+  const waitFence = async (confirmed: () => boolean): Promise<void> => {
+    const deadline = Date.now() + 3500;
+    while (!confirmed() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+    if (!confirmed()) throw new Error("executor_fence_unconfirmed");
+  };
+  const useChrome = async (): Promise<void> => {
+    controller.stop(); desktop.pause(); await waitFence(() => desktop.state.fenceConfirmed);
+    if (desktop.state.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
+  };
+  const useDesktop = async (): Promise<void> => {
+    controller.stop(); chrome.pause(); await waitFence(() => !chrome.connected || chrome.fenceConfirmed);
+    if (chrome.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
+  };
   ipcMain.handle("setup:state", event => { guard(event); return setupState(); });
   ipcMain.handle("setup:save", (event, input: unknown) => { guard(event); stopAll(); voice.save(input); });
   ipcMain.handle("setup:key", (event, input: unknown) => { guard(event); stopAll(); providerStore.setKey(input); setupSend(); });
   ipcMain.handle("setup:remove-key", event => { guard(event); stopAll(); providerStore.removeKey(); setupSend(); });
   ipcMain.handle("setup:import-key", async event => { guard(event); stopAll(); if (app.isPackaged) throw new Error("development_only"); const values = parseEnv(await readFile(resolve(".env.local"), "utf8")); providerStore.setKey(values.GEMINI_API_KEY); setupSend(); });
   ipcMain.handle("setup:test", event => { guard(event); return voice.test(); });
-  ipcMain.handle("setup:begin", event => { guard(event); utteranceBinding = browser.bindingId; return voice.begin(); });
+  ipcMain.handle("setup:begin", event => { guard(event); utteranceBinding = desktop.bindingId ?? browser.bindingId; return voice.begin(); });
   ipcMain.handle("setup:finish", (event, id: unknown, pcm: unknown) => { guard(event); return voice.finish(id, pcm); });
   ipcMain.handle("setup:cancel", event => { guard(event); voice.cancel(); });
   ipcMain.handle("setup:clear-transcript", event => { guard(event); voice.cancel(); });
-  ipcMain.handle("setup:chrome-resume", event => { guard(event); chrome.resume(); });
+  ipcMain.handle("setup:chrome-resume", async event => { guard(event); await useChrome(); chrome.resume(); });
   ipcMain.handle("setup:reconcile-chrome", event => { guard(event); chrome.reconcile(); });
-  ipcMain.handle("setup:chrome-run", (event, command: unknown) => { guard(event); if (typeof command === "string" && /^(stop|pause)( assistant)?[.!]?$/i.test(command.trim())) { stopAll(); return; } return browser.run(command); });
-  ipcMain.handle("setup:prepare-dictation", async event => { guard(event); voice.cancel(); utteranceBinding = null; if (!chrome.active) chrome.resume(); await browser.run("focus Search"); if (browser.state.last?.outcome === "verified") await browser.run("start dictation"); setupSend(); });
+  ipcMain.handle("setup:chrome-run", async (event, command: unknown) => { guard(event); if (typeof command === "string" && /^(stop|pause)( assistant)?[.!]?$/i.test(command.trim())) { stopAll(); return; } await useChrome(); return browser.run(command); });
+  ipcMain.handle("setup:prepare-dictation", async event => { guard(event); await useChrome(); voice.cancel(); utteranceBinding = null; if (!chrome.active) chrome.resume(); await browser.run("focus Search"); if (browser.state.last?.outcome === "verified") await browser.run("start dictation"); setupSend(); });
   ipcMain.handle("setup:insert-transcript", (event, mode: unknown) => { guard(event); if (!["append", "replace"].includes(String(mode)) || !utteranceBinding || utteranceBinding !== browser.bindingId || !voice.transcript || voice.transcript.length > 1000) throw new Error("transcript_binding_changed"); return browser.run(`${mode === "replace" ? "replace dictation with" : "dictate"} ${voice.transcript}`); });
   ipcMain.handle("setup:revoke", (event, origin: unknown) => { guard(event); chrome.revoke(origin); });
   ipcMain.handle("setup:install-host", event => { guard(event); stopAll(); installHost(hostDirectory, join(__dirname, "native/Latham.NativeHost.exe")); chrome.writeConfig(hostDirectory); });
   ipcMain.handle("setup:launch-chrome", event => { guard(event); launchChrome(); });
+  ipcMain.handle("setup:desktop-permission", (event, approved: unknown, denied: unknown) => { guard(event); stopAll(); desktop.permission(approved, denied); });
+  ipcMain.handle("setup:desktop-scan", async event => { guard(event); await useDesktop(); return desktop.scan(nativeApp); });
+  ipcMain.handle("setup:desktop-open", async event => { guard(event); await useDesktop(); return desktop.open(); });
+  ipcMain.handle("setup:desktop-prepare", async (event, id: unknown) => { guard(event); await useDesktop(); return desktop.prepare(id, nativeApp); });
+  ipcMain.handle("setup:desktop-run", (event, input: unknown) => { guard(event); if (typeof input === "string" && /^(stop|pause)( assistant)?[.!]?$/i.test(input.trim())) { stopAll(); return; } return desktop.run(input, nativeApp); });
+  ipcMain.handle("setup:desktop-insert", (event, mode: unknown) => { guard(event); if (!["append", "replace"].includes(String(mode)) || !utteranceBinding || utteranceBinding !== desktop.bindingId || !voice.transcript || voice.transcript.length > 1000) throw new Error("transcript_binding_changed"); return desktop.run(`${mode === "replace" ? "replace dictation with" : "dictate"} ${voice.transcript}`, nativeApp); });
+  ipcMain.handle("setup:desktop-reconcile", event => { guard(event); desktop.reconcile(); });
   ipcMain.handle("latham:state", event => { guard(event); return state(); });
-  ipcMain.handle("latham:run", (event, command: unknown) => { guard(event); if (resetting) throw new Error("executor_unavailable"); return controller.run(command); });
-  ipcMain.handle("latham:resume", event => { guard(event); if (resetting) throw new Error("executor_unavailable"); controller.resume(); });
+  ipcMain.handle("latham:run", (event, command: unknown) => { guard(event); if (resetting || desktop.state.active || desktop.state.busy || chrome.active) throw new Error("executor_unavailable"); return controller.run(command); });
+  ipcMain.handle("latham:resume", async event => { guard(event); if (resetting) throw new Error("executor_unavailable"); desktop.pause(); chrome.pause(); await waitFence(() => desktop.state.fenceConfirmed && (!chrome.connected || chrome.fenceConfirmed)); if (desktop.state.needsReview || chrome.needsReview) throw new Error("executor_reconciliation_required"); controller.resume(); });
   ipcMain.handle("latham:stop", event => { guard(event); stopAll(); });
   ipcMain.handle("latham:settings", (event, input: unknown) => {
     guard(event);
@@ -134,7 +160,7 @@ async function boot(): Promise<void> {
     bitmap[offset] = letter ? 184 : 45; bitmap[offset + 1] = letter ? 224 : 61; bitmap[offset + 2] = letter ? 201 : 36; bitmap[offset + 3] = 255;
   }
   tray = new Tray(nativeImage.createFromBitmap(bitmap, { width: 24, height: 24 }));
-  tray.setToolTip("Latham — Chrome assistant");
+  tray.setToolTip("Latham — Windows assistant");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Show Latham", click: () => win.show() },
     { label: "Start fixture session", click: () => controller.resume() },
@@ -148,7 +174,7 @@ async function boot(): Promise<void> {
   win.on("hide", stopAll);
   win.on("closed", () => { if (!fixture.webContents.isDestroyed()) fixture.webContents.close(); });
   fixture.webContents.on("render-process-gone", () => { controller.resetExecutor(); });
-  app.on("before-quit", () => { quitting = true; stopAll(); chrome.close(); });
+  app.on("before-quit", () => { quitting = true; stopAll(); chrome.close(); desktop.close(); });
   await fixture.webContents.loadURL("latham://fixture/index.html");
   await win.loadURL("latham://app/index.html");
   win.show();

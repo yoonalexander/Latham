@@ -24,6 +24,10 @@ const setup: SetupBridge = {
   testDecision: () => ipcRenderer.invoke("setup:test"), beginTurn: () => ipcRenderer.invoke("setup:begin"),
   insertTranscript: mode => ipcRenderer.invoke("setup:insert-transcript", mode),
   prepareDictation: () => ipcRenderer.invoke("setup:prepare-dictation"),
+  desktopPermission: (approved, denied) => ipcRenderer.invoke("setup:desktop-permission", approved, denied),
+  desktopScan: () => ipcRenderer.invoke("setup:desktop-scan"), desktopOpen: () => ipcRenderer.invoke("setup:desktop-open"),
+  desktopPrepare: id => ipcRenderer.invoke("setup:desktop-prepare", id), desktopRun: command => ipcRenderer.invoke("setup:desktop-run", command),
+  desktopInsertTranscript: mode => ipcRenderer.invoke("setup:desktop-insert", mode), desktopReconcile: () => ipcRenderer.invoke("setup:desktop-reconcile"),
   finishTurn: (id, pcm) => ipcRenderer.invoke("setup:finish", id, pcm), cancelTurn: () => ipcRenderer.invoke("setup:cancel"), clearTranscript: () => ipcRenderer.invoke("setup:clear-transcript"),
   chromeResume: () => ipcRenderer.invoke("setup:chrome-resume"), reconcileChrome: () => ipcRenderer.invoke("setup:reconcile-chrome"), chromeRun: command => ipcRenderer.invoke("setup:chrome-run", command), revoke: origin => ipcRenderer.invoke("setup:revoke", origin), installHost: () => ipcRenderer.invoke("setup:install-host"), launchChrome: () => ipcRenderer.invoke("setup:launch-chrome"),
   subscribe: listener => { const receive = (_event: unknown, state: SetupState): void => listener(state); ipcRenderer.on("setup:state", receive); return () => ipcRenderer.removeListener("setup:state", receive); }

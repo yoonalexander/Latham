@@ -42,5 +42,9 @@ this list records provenance and is not a legal compliance determination.
 
 Download sources, exact speech hashes, destinations and tested setup are in
 [phase1.md](phase1.md). The optional runtime/model files live in ignored test
-artifacts during evaluation and are not committed. The C# relay and extension
-are Latham's own code. No reference repository was forked or copied.
+artifacts during evaluation and are not committed. The C# relay, desktop
+supervisor/MTA worker, native fixture and extension are Latham's own code. Phase
+3 uses the existing Windows .NET Framework 4.8 UIAutomationClient/Types and
+WindowsBase assemblies; no new runtime/dependency download is required. The
+WinForms fixture is excluded from portable packages. No reference repository
+was forked or copied.

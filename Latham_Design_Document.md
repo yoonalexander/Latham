@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.6\
-**Date:** October 30, 2026\
-**Status:** Phases 0–2 accepted for the documented 0.2 unsigned Windows developer preview; Phase 3 not started; evidence in docs/evaluation.md\
+**Version:** 1.7\
+**Date:** October 31, 2026\
+**Status:** Phases 0–3 implemented for the documented 0.3 unsigned Windows developer preview; acceptance evidence in docs/evaluation.md; Phase 4 not started\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -26,7 +26,7 @@ The first release is **not** a general autonomous agent. It is a foreground, use
 
 The **first public MVP is the completion of Phase 2**: Windows-hosted, Chrome-only control; push-to-talk; deterministic Chrome navigation; grounded selection and dictation on a few supported websites; user-supplied API keys or a validated local-AI configuration; remembered per-site permissions; local policy enforcement; hotkey/tray cancellation; and verified results. Phase 1 is an internal voice/navigation milestone. **Desktop-application control is Phase 3, the next major milestone after the Chrome MVP**, and is not a first-release requirement. Unknown-effect actions, consequential submissions, and arbitrary-site message drafting are outside the MVP.
 
-Use fixtures to develop and test the infrastructure, then validate a small real-site set before public release. Initial implementation candidates are Google Search and YouTube search/navigation from the existing examples; these are proposed targets, not claims of support or a user-selected final list. Publish the actual supported sites and operations after acceptance. LinkedIn and other integrations can follow. Long-term coverage should expand to many websites, with every website as an ambition rather than an unconditional compatibility promise; permissions and platform boundaries continue to apply.
+Use fixtures to develop and test the infrastructure, then validate a small real-site set before public release. The accepted preview supports signed-out English Google Search/YouTube workflows and Notepad document-text editing, with exact operations and limits in [Chrome setup](docs/phase2.md) and [desktop setup](docs/phase3.md). LinkedIn and other integrations can follow. Long-term coverage should expand to many websites, with every website as an ambition rather than an unconditional compatibility promise; permissions and platform boundaries continue to apply.
 
 ### 1.1 Key product decisions
 
@@ -529,23 +529,24 @@ Microsoft UI Automation coverage varies by application and developer implementat
 
 ### 9.1 Stack and later proposals
 
-The current 0.2 preview uses Electron/React, lightweight JSON settings with
+The current 0.3 preview uses Electron/React, lightweight JSON settings with
 DPAPI-protected keys, Gemini or local speech/Ollama, and the narrow Chrome
-relay. Its portable ZIP and unpacked extension are unsigned. Planner, visual
-grounding, general UIA and signed installer rows describe later work.
+relay plus the separate Notepad UIA supervisor/worker. Its portable ZIP and
+unpacked extension are unsigned. Planner, visual grounding, broad app coverage
+and signed installers describe later work.
 
 | Layer | Choice | Notes |
 |---|---|---|
 | UI and tray | Electron + React + TypeScript | Disable Node integration in renderer; use context-isolated IPC. |
 | Orchestration | TypeScript | State machine, action queue, routing, provider adapters. |
-| Windows helper | Own C# .NET Framework relay in Phase 1; .NET 8+ considered for Phase 3 | Narrow stdio/named-pipe relay only; known Chrome launch stays in main. General UIA/native-app execution is Phase 3. |
+| Windows helper | Own C# .NET Framework 4.8 relay and desktop supervisor/MTA worker | Separate Chrome framing and scoped Notepad execution; no .NET SDK installation. |
 | Browser helper | Chrome extension, Manifest V3, native messaging | Remembered user-granted per-site optional hosts plus Latham scopes; required for browser content. |
 | Speech | Gemini user key or whisper.cpp base.en | Both paths tested; narrow English corpus and hardware limits published. |
 | Bounded decision | User-key cloud adapter or local Ollama | Same validated target-choice contract; add other providers only when needed. |
 | Planner | OpenAI Responses API with typed tools | Optional, restricted to a step-limited mode. |
 | Visual grounding | Local OCR + vision provider fallback | Deferred until structured clicking works reliably. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.2.0, relay protocol 2; both binaries unsigned. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.3.0, Chrome relay protocol 2; Latham binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -766,6 +767,8 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ## 16. Revision Notes
 
+**v1.7 — October 31, 2026:** Added the Phase 3 Notepad document-text profile, remembered app approval/block override, fixed launch allowlist and bound native dictation/correction/undo. Implemented an independent Framework 4.8 supervisor plus disposable non-window-owning MTA UIA worker with deadlines, priority cancellation, process/control/document freshness, readback, persisted uncertainty and no replay. Late replies cannot restore cancelled bindings, and supervisor loss cannot claim a confirmed fence. The shared voice UI requires the same native binding captured before recording. Native fixtures and real Notepad acceptance, package exclusion of test tools, display-layout limits and cloud availability failures are recorded in [desktop setup](docs/phase3.md) and [evaluation](docs/evaluation.md). Phase 4 has not started.
+
 **v1.6 — October 30, 2026:** Completed the scoped Chrome preview for signed-out English Google/YouTube workflows: compiled DOM profiles, bound dictation/correction/undo, document/field/connection freshness, clarified selection, readback/navigation verification and persisted uncertainty without replay. Added explicit Prepare Search recording, memory-only local ASR and measured base.en selection. Prepared and tested the unsigned portable Windows/extension package, protocol/version compatibility and recovery. [Setup](docs/phase2.md) and [evaluation](docs/evaluation.md) publish the narrow support set, actual failures and unmet broad accuracy/latency targets. Phase 3 remains unstarted.
 
 **v1.5 — October 30, 2026:** Added push-to-talk/final preview, Gemini BYOK, separate local speech/decision setup, OS-protected keys, own MV3/native-messaging relay, remembered optional site consent, deterministic Chrome commands, acknowledged cancellation fences and uncertain-result recovery. Updated reference provider/runtime proposals to the implemented configuration. Website DOM actions, dictation and distribution remain Phase 2; desktop UIA remains Phase 3. See [setup](docs/phase1.md) and [evidence](docs/evaluation.md).
@@ -780,4 +783,4 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ---
 
-**Summary:** The Phase 2 Chrome preview is implemented for the published Google/YouTube support set, using remembered site permissions and user-key or validated local AI. Desktop applications are planned next in Phase 3, followed by hands-free interaction, visual grounding, broader websites, bounded workflows, and optional managed AI delivery. Ground text entry before enabling it, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.
+**Summary:** The preview implements the published Google/YouTube workflows and scoped Notepad editing, using remembered permissions and user-key or validated local AI. Hands-free interaction is planned next, followed by visual grounding, broader coverage, bounded workflows and optional managed AI delivery. Ground text entry before enabling it, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Latham",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minimum_chrome_version": "120",
   "description": "Connect Chrome to Latham. Site access is optional and starts paused.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyBCNwLAuHJgAezLNldRMDvoVYUzAxhgzpSMZYIibl8Eh2XHp5zwMSO5cQr4fCIprkHGc7xinPU94Dc1AvGTkMEv5/s0MZAFf8EzViwkIQPrBEOZG2ah0R9a7M0yP0oCd6UmyLi26+iwDkJKG3WD/4K0Tq29mvL0xPK/YFfSTFDT/c5Bk8oPJrRTWwlvBFFILDsU7HkUTQE1/fNohJdBILQDKA+bp0L2ahLcisbZe56b878mSngnYRU1w8ilWV4r+/mUXSqCSn1vlI1t3N4lCtqw1RrlcJg8WZ4eRdhuJ6W20/XDDRoN+b9iRlSY4Ifepaj/zM1Vu/XpVztC9Kc1s/wIDAQAB",

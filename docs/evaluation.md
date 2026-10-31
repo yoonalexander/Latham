@@ -1,5 +1,74 @@
 # Evaluation and acceptance
 
+## Phase 3 evidence — October 31, 2026
+
+Implemented for the **0.3 unsigned Windows developer preview**, limited to the
+Notepad configuration and operations in [phase3.md](phase3.md). Phase 4 has not
+started. Broader app coverage, signed distribution and mixed-DPI hardware are
+not implied by this evidence. The final foreground-focus recheck limitation is
+recorded below alongside the earlier passing runs.
+
+- `npm run evaluate`: **46 unit/boundary tests and 20 integration flows passed**,
+  with no skipped or flaky cases in the accepted run. Seven native flows cover
+  approval/block/revoke, exact field binding, literal edits, correction/undo,
+  user edits, replaced controls, wrong fields/windows, secure/read-only fields,
+  reactive changes, stalled providers, worker/supervisor loss, restart and shared
+  transcript insertion. The original 13 Chrome/fixture flows remain passing.
+- Regression tests first reproduced late successful replies restoring a binding
+  after Stop, including a verification-observer continuation. Generation checks
+  now fence both paths. Failed settings writes neither grant consent nor clear
+  uncertainty. Supervisor loss leaves Stop unconfirmed; its worker watchdog and
+  explicit restart/inspection recovery were exercised without mutation replay.
+- The native fixture benchmark verified **100/100** operations, **0 wrong
+  effects**, **226 ms median / 251 ms p95**. A stalled in-flight edit received
+  confirmed Stop in **136 ms**. The edit was already present before Stop and
+  remained a documented uncertain effect; the test does not claim rollback.
+  These are fixture/controller measurements, separate from ASR or broad app
+  compatibility.
+- Real Notepad 11.2607.14.0 on Windows 11 Home 10.0.26100 passed scoped
+  focus/inspection, replacement, append, correction, undo and actual speech
+  insertion using both base.en and Gemini. A successful synthetic-speech run
+  took **3,980 ms local / 2,198 ms cloud**, including insertion. A later local
+  run also verified insertion with Latham's own window in foreground, exercising
+  the return-to-review path rather than relying on Notepad retaining foreground.
+  These are individual clean synthetic en-US samples, not latency percentiles
+  or new physical-microphone accuracy evidence.
+- Earlier Gemini checks returned provider-unavailable errors; a later failed
+  recheck recorded HTTP **503**. No transcript was inserted, no automatic retry
+  occurred and no local/cloud route was substituted. Successful cloud evidence
+  and availability failures are retained separately.
+- Native fixtures initially lacked a stable foreground when browser windows
+  took it. The harness now activates its own editor before preparation, and
+  native flows run before Chrome fixtures. The helper's foreign-window checks
+  remain enforced. The microphone test waits for actual synthetic PCM callbacks
+  rather than assuming capture has started after a fixed sleep.
+- A final native-only recheck failed all seven cases at preparation because
+  Windows refused editor foreground focus; a single-case recheck did likewise.
+  No editor mutation was dispatched. Explicitly focusing Latham before worker
+  startup did not resolve it and that test change was removed. The earlier
+  passing 20-flow report remains historical evidence, not a claim that the
+  final recheck passed. Foreground activation remains an intermittent preview
+  limitation; select the intended editor manually and prepare again.
+- The 0.3 portable executable passed packaged startup/version/sandbox, protected
+  key storage, hidden development key import, matching extension/relay pairing,
+  verified Chrome tab operation, bundled desktop-agent scan and acknowledged
+  Stop. The package excludes secret files and the native test fixture. All three
+  executables have Authenticode status **NotSigned**. ZIPs and SHA-256 manifests
+  are generated locally. A real Notepad launch also completed with clean app
+  shutdown after isolating the fixed app launch from inherited executor pipes.
+- Window movement and **1.5x fixture-layout scaling** passed on one physical
+  monitor (96 logical DPI reported by the fixture). Live mixed-DPI/multi-monitor
+  hardware is unverified. Phase 2's physical-microphone acceptance remains
+  separate from Phase 3's native binding, simulated capture and real-provider
+  synthetic-speech evidence.
+
+Ignored evidence includes `native-benchmark.json`, `native-cancellation.json`,
+`native-display.json`, `native-live-acceptance.json`, timestamped native live
+reports and `e2e-results.json` under `.test-artifacts/`. Live acceptance uses only
+an explicitly prepared blank or known synthetic Notepad document; it does not
+send native document text to a provider. See the setup guide for reproduction
+and the exact English plain-text profile limits.
+
 ## Phase 2 evidence — October 30, 2026
 
 Accepted for the **0.2 unsigned Windows developer-preview channel**, with the

@@ -23,6 +23,7 @@ export class Controller {
   private listeners = new Set<() => void>();
   constructor(private readonly executor: FixtureExecutor, private readonly options: { delayMs: () => number; diagnostic?: (event: Diagnostic) => void; operationTimeoutMs?: number }) {}
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+  get needsReview(): boolean { return this.requiresReset || this.dispatchPending; }
   getState(): ControllerState {
     return structuredClone({ status: this.status, permissionEpoch: this.permissionEpoch, executorEpoch: this.executorEpoch,
       turnId: this.turnId, targets: this.targets, deniedFrameCount: this.deniedFrameCount, lastResult: this.lastResult, diagnostics: this.diagnostics });
