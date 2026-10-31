@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.5\
+**Version:** 1.6\
 **Date:** October 30, 2026\
-**Status:** Phase 0 accepted; Phase 1 voice/Chrome implementation and acceptance tracked in docs/evaluation.md; public Chrome MVP pending\
+**Status:** Phases 0–2 accepted for the documented 0.2 unsigned Windows developer preview; Phase 3 not started; evidence in docs/evaluation.md\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -385,7 +385,7 @@ P0 offers two user-configured paths: a cloud provider using the user's API key, 
 
 Reconcile provider item IDs with the local session/turn; local ASR adapters must produce equivalent locally owned turn/final events. Accept each final once. Reconnect, cancellation, and stream failure invalidate outstanding turn mappings. A late final must not enter a new dictation session or execute after a pause. An internet outage disables a cloud-only voice configuration; a validated local configuration continues supported local commands and can operate on loaded pages, but cannot load remote website content offline. Tray/hotkeys and typed local commands remain available in either configuration.
 
-A local ASR backend is part of the P0 local voice path, not a promise inferred from installing Ollama. Phase 1 selects whisper.cpp v1.8.2 Windows x64 CPU with Whisper tiny.en (English) and Ollama Qwen2.5 1.5B for the initial tested configuration. Terms, download sizes, hashes, hardware and measurements are recorded in [Phase 1 setup](docs/phase1.md) and [evaluation](docs/evaluation.md). Public-sample speech and a small candidate corpus establish internal setup evidence; representative microphone accuracy, resource budgets, vocabulary and minimum hardware still need Phase 2 release evaluation. Do not conflate open model weights with a hosted model identifier.
+A local ASR backend is part of the P0 local voice path, not a promise inferred from installing Ollama. The Phase 2 preview selects whisper.cpp v1.8.2 Windows x64 CPU with Whisper base.en (English, four threads) and Ollama Qwen2.5 1.5B. Base.en improved the fixed synthetic corpus over Phase 1's tiny.en, at a latency cost. Audio/transcripts now use bounded memory-only stdin/stdout rather than temporary files. Terms, hashes, hardware, physical microphone acceptance and separate cloud/local measurements are recorded in [Phase 2 setup](docs/phase2.md) and [evaluation](docs/evaluation.md). The small clean corpus does not establish broad accent/noise accuracy, minimum hardware or the proposed sub-second voice targets. Do not conflate open model weights with a hosted model identifier.
 
 ### 6.2 Mode selection and utterance routing
 
@@ -527,7 +527,12 @@ Microsoft UI Automation coverage varies by application and developer implementat
 
 ## 9. Technology Stack and Repository Structure
 
-### 9.1 Proposed stack
+### 9.1 Stack and later proposals
+
+The current 0.2 preview uses Electron/React, lightweight JSON settings with
+DPAPI-protected keys, Gemini or local speech/Ollama, and the narrow Chrome
+relay. Its portable ZIP and unpacked extension are unsigned. Planner, visual
+grounding, general UIA and signed installer rows describe later work.
 
 | Layer | Choice | Notes |
 |---|---|---|
@@ -535,12 +540,12 @@ Microsoft UI Automation coverage varies by application and developer implementat
 | Orchestration | TypeScript | State machine, action queue, routing, provider adapters. |
 | Windows helper | Own C# .NET Framework relay in Phase 1; .NET 8+ considered for Phase 3 | Narrow stdio/named-pipe relay only; known Chrome launch stays in main. General UIA/native-app execution is Phase 3. |
 | Browser helper | Chrome extension, Manifest V3, native messaging | Remembered user-granted per-site optional hosts plus Latham scopes; required for browser content. |
-| Speech | User-key cloud adapter or validated local ASR | Both onboarding paths are P0; benchmark/select the local runtime/model before release. |
+| Speech | Gemini user key or whisper.cpp base.en | Both paths tested; narrow English corpus and hardware limits published. |
 | Bounded decision | User-key cloud adapter or local Ollama | Same validated target-choice contract; add other providers only when needed. |
 | Planner | OpenAI Responses API with typed tools | Optional, restricted to a step-limited mode. |
 | Visual grounding | Local OCR + vision provider fallback | Deferred until structured clicking works reliably. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Electron Builder and signed native helper | Windows installer, clear mic and screen permissions. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.2.0, relay protocol 2; both binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -702,7 +707,7 @@ For a research- or portfolio-quality evaluation, measure the same set of tasks u
 The following decisions define v1.3; remaining choices are called out explicitly:
 
 1. **Branding and foundation:** the product name is Latham, with an independent codebase and the reference policy in section 1.2. Choose its icon and visual identity after validating interaction design.
-2. **AI access:** user-supplied API keys or a validated local-AI configuration are P0. Phase 1 implements Gemini and selects whisper.cpp tiny.en plus Ollama Qwen2.5 1.5B for an initial English/CPU setup. Proven minimum hardware, broader audio accuracy and additional languages remain validation work. Latham-managed accounts/service are Phase 8 roadmap work.
+2. **AI access:** user-supplied API keys or a validated local-AI configuration are P0. The preview implements Gemini and selects whisper.cpp base.en plus Ollama Qwen2.5 1.5B for an English/CPU setup. Proven minimum hardware, broader audio accuracy and additional languages remain validation work. Latham-managed accounts/service are Phase 8 roadmap work.
 3. **Browser IPC and grants:** native messaging plus explicitly approved, remembered per-site optional host permissions are the P0 baseline. Validate installation, persistence, reconnect, and revocation in Phase 1. Temporary activeTab access is optional; all-site/background access is not implied.
 4. **Activation:** push-to-talk is P0, with hotkey/tray cancellation. P1 hands-free requires the independent local stop detector; wake-word activation is separate from execution-time interruption.
 5. **Visual grounding:** benchmark local OCR/UI detection before paying for general screenshot reasoning.
@@ -761,6 +766,8 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ## 16. Revision Notes
 
+**v1.6 — October 30, 2026:** Completed the scoped Chrome preview for signed-out English Google/YouTube workflows: compiled DOM profiles, bound dictation/correction/undo, document/field/connection freshness, clarified selection, readback/navigation verification and persisted uncertainty without replay. Added explicit Prepare Search recording, memory-only local ASR and measured base.en selection. Prepared and tested the unsigned portable Windows/extension package, protocol/version compatibility and recovery. [Setup](docs/phase2.md) and [evaluation](docs/evaluation.md) publish the narrow support set, actual failures and unmet broad accuracy/latency targets. Phase 3 remains unstarted.
+
 **v1.5 — October 30, 2026:** Added push-to-talk/final preview, Gemini BYOK, separate local speech/decision setup, OS-protected keys, own MV3/native-messaging relay, remembered optional site consent, deterministic Chrome commands, acknowledged cancellation fences and uncertain-result recovery. Updated reference provider/runtime proposals to the implemented configuration. Website DOM actions, dictation and distribution remain Phase 2; desktop UIA remains Phase 3. See [setup](docs/phase1.md) and [evidence](docs/evaluation.md).
 
 **v1.4 — October 30, 2026:** Implemented and evaluated the Phase 0 local-fixture foundation: Electron/React shell, tray/settings, narrow sandboxed preload, typed commands, compiled fixture effect policy, snapshot/node revisions, epochs, serialized dispatch, cancellation/deadlines, expected-effect verification, metadata-only diagnostics, and regression/Electron evaluation. Phase 0 is accepted only at this local boundary; real Chrome permissions, speech/providers and native automation remain later milestones. See [evaluation evidence](docs/evaluation.md).
@@ -773,4 +780,4 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ---
 
-**Summary:** Build and verify the Phase 2 Chrome MVP on a few real websites, using remembered site permissions and user-key or validated local AI. Add desktop applications next in Phase 3, then follow the roadmap toward hands-free interaction, visual grounding, broader websites, bounded workflows, and optional managed AI delivery. Ground text entry before enabling it, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.
+**Summary:** The Phase 2 Chrome preview is implemented for the published Google/YouTube support set, using remembered site permissions and user-key or validated local AI. Desktop applications are planned next in Phase 3, followed by hands-free interaction, visual grounding, broader websites, bounded workflows, and optional managed AI delivery. Ground text entry before enabling it, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.

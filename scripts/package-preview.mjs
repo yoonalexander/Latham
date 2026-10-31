@@ -1,0 +1,24 @@
+import { cp, mkdir, rename, writeFile, readFile, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { dirname, join, resolve, sep } from "node:path";
+import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
+const require = createRequire(import.meta.url);
+const version = "0.2.0", root = resolve(".test-artifacts/releases"), name = `Latham-${version}-win-x64-preview`, target = join(root, name);
+if (process.platform !== "win32" || process.arch !== "x64") throw new Error("Windows x64 preview packaging only");
+if (!target.startsWith(root + sep)) throw new Error("invalid_release_path");
+await mkdir(root, { recursive: true }); await rm(target, { recursive: true, force: true }); await mkdir(target);
+const electron = require("electron"); await cp(dirname(electron), target, { recursive: true }); await rename(join(target, "electron.exe"), join(target, "Latham.exe"));
+const app = join(target, "resources/app"); await mkdir(app, { recursive: true }); await cp(resolve("dist"), app, { recursive: true });
+await writeFile(join(app, "package.json"), JSON.stringify({ name: "latham", productName: "Latham", version, main: "main.cjs" }, null, 2));
+await cp(resolve("docs"), join(target, "docs"), { recursive: true });
+for (const file of ["Latham_Design_Document.md", "Latham_Design_Review.md", "roadmap.md"]) await cp(resolve(file), join(target, file));
+await writeFile(join(target, "SETUP.md"), "# Latham 0.2 Chrome preview\n\nRead [installation, provider setup and recovery](docs/phase2.md) before running Latham.exe.\n\nThis is an unsigned Windows x64 developer preview.\n");
+const archive = join(root, name + ".zip");
+execFileSync("tar.exe", ["-a", "-c", "-f", archive, "-C", root, name], { windowsHide: true, stdio: "inherit" });
+const extensionArchive = join(root, `Latham-extension-${version}.zip`);
+execFileSync("tar.exe", ["-a", "-c", "-f", extensionArchive, "-C", resolve("dist/chrome-extension"), "."], { windowsHide: true, stdio: "inherit" });
+const files = [];
+for (const path of [archive, extensionArchive]) { const bytes = await readFile(path); files.push({ name: path.slice(root.length + 1), bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") }); }
+await writeFile(join(root, "release-manifest.json"), JSON.stringify({ version, channel: "unsigned-developer-preview", platform: "win32-x64", minimumChrome: 120, autoUpdate: false, files }, null, 2));
+console.log(JSON.stringify({ directory: target, files }, null, 2));

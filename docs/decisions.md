@@ -10,12 +10,17 @@ the [roadmap](../roadmap.md) defines sequence.
 | Phase 0 execution | Bundled local fixture only, no live-site/OS adapter | architecture.md |
 | UI | Electron/React command desk with tray and always-available Stop | apps/desktop |
 | Permissions | Fixture consent persists; every launch stays paused | core and main/storage |
-| AI access | Gemini user key; whisper.cpp tiny.en plus Ollama Qwen2.5 1.5B locally | phase1.md |
+| AI access | Gemini user key; whisper.cpp base.en plus Ollama Qwen2.5 1.5B locally; no silent fallback | phase2.md |
 | Cancellation | Local controller fence; preserve in-flight uncertainty and require reset | core |
 | Logs | Off-by-default bounded metadata, no command/page values | storage and evaluation |
-| Website grants | Remembered optional Google/YouTube grants intersect Latham consent; start paused | phase1.md |
+| Website grants | Remembered optional Google/YouTube grants intersect Latham consent; start paused | phase2.md |
 | Native relay | Own C# .NET Framework stdio/duplex-pipe relay; general UIA remains Phase 3 | NativeHost.cs |
 | Final utterances | Bounded push-to-talk, preview, explicit dispatch; partial streaming remains optional | Design 6.1 |
+| Chrome page scope | Root-only compiled profiles for signed-out English Google Search/YouTube; current document/control/epoch required | phase2.md |
+| Dictation | Prepare Search, record under that binding, explicitly append/replace; guarded correction/undo | phase2.md |
+| Unknown effects | Persist uncertainty before mutation; reconcile explicitly after failed verification/restart; never replay | browser-controller and native-bridge |
+| Local speech retention | Bounded stdin/stdout; no temporary audio/transcript files | speech/providers.ts |
+| Preview distribution | 0.2.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; protocol 2 | phase2.md |
 
 ## Phase 0 provenance and release checkpoint
 
@@ -31,6 +36,7 @@ advertising a licensed public release, distributing a packaged installer, or
 adding third-party/model material. The user's requested source commit/push
 does not imply a choice of license or completion of a legal review.
 
-Remaining implementation choices include proven minimum hardware, additional
-speech languages, the final Phase 2 site-task set, and release mechanics. The
-small model corpus is setup evidence, not a general accuracy claim.
+The Phase 2 preview's site-task set and local package/recovery mechanics are
+published in [phase2.md](phase2.md). Remaining decisions include proven minimum
+hardware, additional speech languages, signed distribution and update mechanics.
+The small model corpus is setup evidence, not a general accuracy claim.

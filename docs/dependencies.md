@@ -33,6 +33,7 @@ this list records provenance and is not a legal compliance determination.
 |---|---|---|---|
 | whisper.cpp Windows CPU | v1.8.2 | MIT | Explicit official runtime download |
 | Whisper tiny.en GGML weights | Model SHA-256 in phase1.md | MIT model card | Explicit model download, 77.7 MB |
+| Whisper base.en GGML weights | SHA-256 in phase2.md | MIT model card | Phase 2 recommended English model; explicit download, about 142 MiB |
 | Ollama Windows | v0.40.13 | MIT | Explicit portable runtime/installation |
 | Qwen2.5 1.5B Q4_K_M | `qwen2.5:1.5b` | Apache-2.0 | Explicit Ollama pull, about 986 MB |
 | Google Gemini | `gemini-3.1-flash-lite` | Google API/account terms | User-key hosted service, not bundled weights |

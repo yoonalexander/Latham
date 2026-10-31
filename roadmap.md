@@ -1,14 +1,14 @@
 # Latham Roadmap
 
 **Updated:** October 30, 2026\
-**Status:** Phases 0–1 complete; Phase 2 Chrome MVP is next.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.5.
+**Status:** Phases 0–2 complete for the documented unsigned developer preview; Phase 3 has not started.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.6.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
 This roadmap covers the whole project, including later ambitions. It has acceptance gates rather than promised dates. “Public release” means a user-facing build, not a decision that the source must be public. Distribution licensing, contribution terms, and any later private/commercial release are separate decisions. The design document owns execution/privacy contracts; this roadmap owns sequence. When a milestone changes, update both without marking unverified work complete.
 
-The fixture foundation and Phase 1 voice/provider/Chrome setup are implemented. [Evaluation](docs/evaluation.md) records 36 boundary cases, six integration flows, live Gemini/local speech and decision fixtures, protected-key onboarding, real native messaging, remembered permission/revocation checks and physical Stop. [Setup](docs/phase1.md) records tested models/hardware and limits. Website DOM tasks/dictation and desktop automation remain later work.
+The fixture foundation, voice/provider setup and reviewed Chrome page workflows are implemented. [Evaluation](docs/evaluation.md) records 39 boundary cases, 13 integration flows, real-site cloud/local workflows, physical microphone insertion, remembered permissions, cancellation and packaged startup. [Phase 2 setup](docs/phase2.md) publishes the exact support set and limits. The current channel is an unsigned Windows developer preview; desktop automation has not started.
 
 ## Decisions already made
 
@@ -79,19 +79,21 @@ Phases 0–3 are the immediate delivery order. Later phases are planned capabili
 
 **Goal:** complete useful, verified browser tasks on a small published site set.
 
-Initial implementation candidates are **Google Search and YouTube search/navigation**, based on the design examples. They are proposed targets, not verified support or a final user-selected list. Validate them before advertising them; record exact origins, supported operations, signed-in/out assumptions, redirects/frames, and known limitations. LinkedIn can follow after the initial slice.
+The accepted set is **signed-out Google Search and YouTube search/navigation with English UI**. [The support matrix](docs/phase2.md) records exact origins/paths, plain Search fields, permitted filters/video links, root-frame limits and excluded controls. Arbitrary sites, signed-in/private flows and LinkedIn remain outside this release.
 
-- [ ] Implement scoped DOM snapshots, current document/frame/element binding, target ranking, and concise clarification.
-- [ ] Build reviewed profiles for the initial site set, including bounded scrolling, label-based focus/click, plain text entry, read-query search, and permitted navigation/filter changes.
-- [ ] Add browser field-bound dictation, explicit append/replace behavior, guarded corrections/undo, and suspension on focus/document/grant changes.
-- [ ] Verify intended outcomes, reject stale targets, handle lost acknowledgements honestly, and reconcile after extension/host restarts without replaying mutations.
-- [ ] Make blocked and unsupported operations understandable. Clarifying a target does not authorize a forbidden effect.
-- [ ] Complete the remembered-permission UX, local/cloud settings, installation, recovery, and setup instructions.
-- [ ] Run the full P0 matrix against fixtures and the actual advertised websites. Distinguish a search-filter “Easy Apply” control from a blocked job-application submission button; always exclude secure fields from P0 dictation.
-- [ ] Measure cloud/local accuracy, wrong-action rate, abstentions, interventions, latency, and resource use separately; publish tested configuration limits.
-- [ ] Prepare the Windows/extension distribution method, signing/installation evidence, version compatibility, and a recovery path appropriate to the release channel.
+- [x] Implement scoped DOM snapshots, current document/frame/element binding, target ranking, and concise clarification.
+- [x] Build reviewed profiles for the initial site set, including bounded scrolling, label-based focus/click, plain text entry, read-query search, and permitted navigation/filter changes.
+- [x] Add browser field-bound dictation, explicit append/replace behavior, guarded corrections/undo, and suspension on focus/document/grant changes.
+- [x] Verify intended outcomes, reject stale targets, handle lost acknowledgements honestly, and reconcile after extension/host restarts without replaying mutations.
+- [x] Make blocked and unsupported operations understandable. Clarifying a target does not authorize a forbidden effect.
+- [x] Complete the remembered-permission UX, local/cloud settings, installation, recovery, and setup instructions.
+- [x] Run the P0 boundary matrix against fixtures and the actual advertised workflows. Fixture coverage distinguishes search-filter “Easy Apply” from consequential application submission; LinkedIn itself is not supported. Always exclude secure fields from P0 dictation.
+- [x] Measure cloud/local accuracy, wrong-action rate, abstentions, interventions, latency, and resource use separately; publish tested configuration limits.
+- [x] Prepare the Windows/extension distribution method, signing/installation evidence, version compatibility, and a recovery path appropriate to the release channel.
 
 **Gate:** all P0 requirements and the design's definition of done pass on a few real website workflows, not only fixtures. Users can install/configure Latham, approve sites once, return without repeated prompts, navigate/search/dictate through supported controls, interrupt with physical controls, and see true results. At least one complete cloud-key setup and one local voice/decision setup pass on documented hardware. Unknown/high/critical effects, messages, uploads, account changes, and consequential submissions remain blocked.
+
+**Accepted:** October 30, 2026, for the documented **0.2 unsigned Windows developer preview**. The fixture repetition benchmark verified 100/100 operations with zero wrong effects; the final live navigation recheck verified 43/44, with one stale-document stop. Real cloud/local speech insertion, physical microphone insertion, protected storage, versioned packaged host/extension pairing and Stop passed. [Evaluation](docs/evaluation.md) separates synthetic speech, real-site results and latency/resource measurements. Sub-second voice targets, broad accent/noise accuracy, signed distribution and general website compatibility are not claimed. Base.en replaces tiny.en as the recommended local recognizer. No Phase 3 work is included.
 
 **Explicitly deferred:** native-app control/dictation, wake-word/hands-free operation, screenshot vision, general multi-step planning, arbitrary-site coverage, and Latham-hosted AI accounts.
 
@@ -197,8 +199,8 @@ Initial implementation candidates are **Google Search and YouTube search/navigat
 
 ## Open implementation choices
 
-The product direction above is settled. Phase 1 selects an initial English/CPU local configuration. Proven minimum hardware, additional languages, the final first-site task list, icon/visual treatment, distribution license/contribution terms, and release-channel mechanics still need implementation evidence or a focused decision. These choices must not quietly change Chrome-first scope, desktop-app priority, remembered site consent, or the user-key/local access options.
+The product direction above is settled. The preview selects an English/CPU local configuration and a narrow published site-task list. Proven minimum hardware, additional languages, broader visual treatment, distribution license/contribution terms, signed distribution and automatic updates still need evidence or a focused decision. These choices must not quietly change Chrome-first scope, desktop-app priority, remembered site consent, or the user-key/local access options.
 
 ## Next milestone
 
-Begin **Phase 2**: scoped DOM snapshots, reviewed website actions and field-bound dictation on a few chosen sites. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.
+**Phase 3 is planned next:** desktop applications, starting with a grounded plain-text editor task. Stop at Phase 2 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.

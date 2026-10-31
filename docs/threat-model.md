@@ -32,10 +32,10 @@ the fixture's root-document observation/dispatch transport.
 
 ## Limits and next review
 
-The concrete executor is trusted local fixture code. These profiles and tests
-do not establish that arbitrary website effects can be inferred safely.
-Phase 2 adds real Chrome DOM/frame binding and supported-site effect profiles
-to the Phase 1 setup boundary.
+The fixture executor is trusted local code. Phase 2 adds the separate Chrome
+document/control bindings and compiled supported-site profiles described below.
+These profiles do not establish that arbitrary website effects can be inferred
+safely.
 UIA, screenshots, voice spoofing and managed service boundaries require their
 own later evidence. UAC/secure desktop and arbitrary shell execution remain
 excluded.
@@ -68,7 +68,39 @@ for scope and future acceptance obligations.
 Regression evidence covers local-only request destinations, invalid/refused
 model output, bounded audio/responses/frames, bad pairing tokens, revoked scope,
 late/duplicate finals, missing acknowledgements and physical cancellation.
-This is implementation review, not an independent security audit. Local ASR
-temporarily writes WAV data and crash leftovers remain a documented development
-limitation. Installer signing, model integrity management and production
-extension identity remain release work. See [Phase 1 setup](phase1.md).
+This is implementation review, not an independent security audit. Phase 2
+supersedes the original temporary-file ASR path with bounded stdin/stdout.
+Installer signing, automatic model integrity management and production
+extension identity remain release work. See [Phase 2 setup](phase2.md).
+
+## Phase 2 Chrome boundaries
+
+- Exact Google/YouTube origin and path profiles are compiled locally. Injection
+  happens only during explicit active requests into the root document's
+  isolated world. No general content observer or arbitrary selector/script IPC
+  is exposed. Secure, hidden, framed and unreviewed controls are excluded.
+- Snapshots capture Chrome document ID, tab/window, isolated document token,
+  element reference/revision, URL and connection/permission epoch. Dispatch
+  rechecks all scope. Retired connections and replaced nodes cannot authorize
+  later actions. A matching label alone never grants an effect.
+- Read-query navigation is built from reviewed URLs rather than calling unknown
+  handlers. YouTube links are restricted to ordinary same-origin video results.
+  Consequential controls and unsupported routes remain blocked. Page text and
+  provider output can choose only among bounded already-permitted candidates.
+- Dictation captures its field binding before recording. Changing the actual
+  field, editing it, losing grants or changing documents suspends that binding.
+  Moving between Chrome and Latham's recording window preserves the same field.
+  Append/replace/correction/undo require expected values and edit history;
+  verification repeats after 100 ms to catch reactive overwrites.
+- A durable uncertainty marker is written before mutation dispatch. Missing
+  acknowledgement, failed readback and crashes require explicit inspection and
+  an acknowledged fence before resume. Stop fences previously observed scopes,
+  including across worker restarts; no uncertain mutation is replayed.
+- The packaged app hides development env import and requires desktop/extension
+  0.2.0 plus protocol 2. The local portable package was smoke tested, but both
+  executable binaries are unsigned. Checksums do not authenticate a publisher.
+
+Evidence includes stale nodes, duplicate clarification, late provider responses,
+user edits/focus, denied controls/frames, persisted unknown effects and reactive
+overwrites, plus real signed-out website workflows. External sites can change;
+this is narrow preview support, not adversarial-page or general-site assurance.

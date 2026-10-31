@@ -5,15 +5,16 @@ export interface Encryption { isEncryptionAvailable(): boolean; encryptString(va
 export class ProviderStore {
   settings = { ...providerDefaults };
   consent: string[] = [];
+  chromeUncertain = false;
   constructor(readonly directory: string, private encryption: Encryption) {
     mkdirSync(directory, { recursive: true });
-    try { const value = JSON.parse(readFileSync(join(directory, "providers.json"), "utf8")); this.settings = parseProviderSettings(value.settings); if (Array.isArray(value.consent)) this.consent = value.consent.filter((item: unknown) => typeof item === "string"); } catch { /* No grant on malformed storage. */ }
+    try { const value = JSON.parse(readFileSync(join(directory, "providers.json"), "utf8")); this.settings = parseProviderSettings(value.settings); this.chromeUncertain = value.chromeUncertain === true; if (Array.isArray(value.consent)) this.consent = value.consent.filter((item: unknown) => typeof item === "string"); } catch { this.chromeUncertain = existsSync(join(directory, "providers.json")); /* Malformed recovery state cannot erase uncertainty. */ }
   }
   get available(): boolean { return process.platform === "win32" && this.encryption.isEncryptionAvailable(); }
   get keyStored(): boolean { return existsSync(join(this.directory, "provider-key.bin")); }
   save(settings: ProviderSettings = this.settings): void {
     const temp = join(this.directory, "providers.json.tmp");
-    writeFileSync(temp, JSON.stringify({ settings, consent: this.consent }) + "\n", { mode: 0o600 }); renameSync(temp, join(this.directory, "providers.json")); this.settings = settings;
+    writeFileSync(temp, JSON.stringify({ settings, consent: this.consent, chromeUncertain: this.chromeUncertain }) + "\n", { mode: 0o600 }); renameSync(temp, join(this.directory, "providers.json")); this.settings = settings;
   }
   key(): string {
     if (!this.available || !this.keyStored) throw new Error("key_setup_required");

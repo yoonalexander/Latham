@@ -25,6 +25,7 @@ function App() {
   const [state, setState] = useState<DesktopState>();
   const [command, setCommand] = useState("type Hello Latham");
   const [error, setError] = useState("");
+  const [fixtureVisible, setFixtureVisible] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const unsubscribe = window.latham.subscribe(setState);
@@ -33,7 +34,7 @@ function App() {
   }, []);
   useEffect(() => {
     const element = viewport.current;
-    if (!element) return;
+    if (!element) { window.latham.setFixtureBounds({ x: 0, y: 0, width: 0, height: 0 }); return; }
     const update = (): void => {
       const rect = element.getBoundingClientRect();
       if (rect.y < 0 || rect.bottom > window.innerHeight) { window.latham.setFixtureBounds({ x: 0, y: 0, width: 0, height: 0 }); return; }
@@ -42,7 +43,7 @@ function App() {
     const observer = new ResizeObserver(update);
     observer.observe(element); window.addEventListener("resize", update); window.addEventListener("scroll", update, true); update();
     return () => { observer.disconnect(); window.removeEventListener("resize", update); window.removeEventListener("scroll", update, true); };
-  }, []);
+  }, [fixtureVisible]);
   const act = async (operation: () => Promise<unknown>): Promise<void> => {
     setError("");
     try { await operation(); } catch { setError("The operation could not complete. Stop or reset the local fixture."); }
@@ -59,8 +60,9 @@ function App() {
   const run = (event: FormEvent): void => { event.preventDefault(); void act(() => window.latham.run(command)); };
   const result = state?.lastResult;
   return <div className="app-shell">
-    <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>DEVELOPMENT</span></h1><p>A small step. A verified result.</p></div></div><div className="header-tools"><span className="local-badge">Voice · Chrome · local fixture</span><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
-    <main className="workspace">
+    <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>PREVIEW</span></h1><p>A small step. A verified result.</p></div></div><div className="header-tools"><button onClick={() => { void window.latham.stop(); setFixtureVisible(!fixtureVisible); }}>{fixtureVisible ? "Hide fixture tools" : "Show fixture tools"}</button><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
+    {state && !state.stopShortcutRegistered && <p className="error" role="alert">Global stop shortcut unavailable. Use Stop or the tray menu.</p>}
+    {fixtureVisible && <main className="workspace">
       <aside className="control-column">
         <section className="panel command-panel"><div className="section-kicker">01 / CONTROL</div><div className="section-title"><h2>Command desk</h2><span className={"status " + (state?.status ?? "paused")} role="status" data-testid="session-status">{state ? statusLabels[state.status] : "Loading"}</span></div>
           <p className="muted">Type an instruction. Latham checks the target, applies local policy, then verifies the effect.</p>
@@ -86,7 +88,7 @@ function App() {
           <section className="panel evidence-panel"><div className="section-title"><h2>Action trail</h2><span className="count">{state?.diagnostics.length ?? 0}</span></div><p className="mini">A bounded metadata trail, not an activity recording.</p><ol className="trail">{state?.diagnostics.slice(-5).reverse().map(item => <li key={item.sequence}><span>{item.event === "action" ? item.outcome?.replaceAll("_", " ") : item.event.replaceAll("_", " ")}</span><small>{item.reason ?? item.kind ?? "session"}{item.durationMs !== undefined ? " · " + item.durationMs + " ms" : ""}</small></li>)}</ol></section>
         </div>
       </div>
-    </main>
+    </main>}
     <SetupPanel />
   </div>;
 }

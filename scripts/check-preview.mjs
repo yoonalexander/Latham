@@ -1,0 +1,35 @@
+import { _electron, chromium } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
+import { resolve, join } from "node:path";
+import assert from "node:assert/strict";
+const root = resolve(".test-artifacts"), packageRoot = join(root, "releases/Latham-0.2.0-win-x64-preview"); mkdirSync(root, { recursive: true });
+const registry = ["Google\\Chrome", "Chromium"].map(browser => { const path = `HKCU\\Software\\${browser}\\NativeMessagingHosts\\com.latham.host`; try { return { path, value: execFileSync("reg.exe", ["QUERY", path, "/ve"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).match(/REG_SZ\s+(.+)/)?.[1]?.trim() }; } catch { return { path }; } });
+const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && key !== "ELECTRON_RUN_AS_NODE"));
+const wait = async check => { for (let n = 0; n < 150; n++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); } throw new Error("preview_acceptance_timeout"); };
+let app, context;
+try {
+  for (const file of ["SETUP.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
+  const data = mkdtempSync(join(root, "packaged-app-"));
+  app = await _electron.launch({ executablePath: join(packageRoot, "Latham.exe"), args: ["--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
+  await wait(() => app.context().pages().some(page => page.url() === "latham://app/index.html"));
+  const desk = app.context().pages().find(page => page.url() === "latham://app/index.html");
+  assert.deepEqual(await app.evaluate(({ app }) => ({ version: app.getVersion(), packaged: app.isPackaged })), { version: "0.2.0", packaged: true });
+  assert.equal((await desk.evaluate(() => window.setup.state())).canImportEnvironmentKey, false);
+  assert.equal(await desk.getByRole("button", { name: "Import GEMINI_API_KEY from .env.local" }).count(), 0);
+  assert.deepEqual(await desk.evaluate(() => window.latham.runtime), { sandboxed: true, contextIsolated: true });
+  await desk.evaluate(() => window.setup.key("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")); assert.equal(readFileSync(join(data, "provider-key.bin")).includes(Buffer.from("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")), false);
+  await desk.evaluate(() => window.setup.installHost());
+  const extension = join(packageRoot, "resources/app/chrome-extension");
+  context = await chromium.launchPersistentContext(mkdtempSync(join(root, "packaged-browser-")), { executablePath: join(root, "chromium-runtime/latham-test-browser.exe"), headless: false, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
+  const popup = await context.newPage(); await popup.goto("chrome-extension://plggaillpeoabjjmpjedmblaakepbhdb/popup.html"); await popup.getByRole("button", { name: "Connect to Latham" }).click();
+  await wait(async () => { const state = await desk.evaluate(() => window.setup.state()); return state.chromeConnected && state.chromeFenceConfirmed; });
+  await desk.evaluate(() => window.setup.chromeResume()); await desk.evaluate(() => window.setup.chromeRun("new tab"));
+  assert.equal((await desk.evaluate(() => window.setup.state())).chromeResult, "Verified Chrome result");
+  await desk.evaluate(() => window.latham.stop()); await wait(async () => (await desk.evaluate(() => window.setup.state())).chromeFenceConfirmed);
+  await desk.screenshot({ path: join(root, "phase2-preview.png") });
+  const walk = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]);
+  assert.equal(walk(packageRoot).some(file => /(?:^|[\\/])(?:\.env(?:\..*)?|provider-key\.bin|providers\.json|connection\.json)$/.test(file)), false);
+  writeFileSync(join(root, "preview-acceptance.json"), JSON.stringify({ at: new Date().toISOString(), version: "0.2.0", channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_in_package"] }, null, 2));
+  console.log("Windows portable preview startup, protected storage, packaged host/extension pairing and Stop passed.");
+} finally { for (const worker of context?.serviceWorkers() ?? []) await worker.evaluate("port?.disconnect()").catch(() => {}); await context?.close(); await app?.close(); for (const { path, value } of registry) { try { if (value) execFileSync("reg.exe", ["ADD", path, "/ve", "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" }); else execFileSync("reg.exe", ["DELETE", path, "/f"], { stdio: "ignore" }); } catch {} } }

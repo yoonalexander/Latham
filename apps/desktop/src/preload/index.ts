@@ -22,6 +22,8 @@ const setup: SetupBridge = {
   state: () => ipcRenderer.invoke("setup:state"), save: value => ipcRenderer.invoke("setup:save", value),
   key: value => ipcRenderer.invoke("setup:key", value), removeKey: () => ipcRenderer.invoke("setup:remove-key"), importEnvironmentKey: () => ipcRenderer.invoke("setup:import-key"),
   testDecision: () => ipcRenderer.invoke("setup:test"), beginTurn: () => ipcRenderer.invoke("setup:begin"),
+  insertTranscript: mode => ipcRenderer.invoke("setup:insert-transcript", mode),
+  prepareDictation: () => ipcRenderer.invoke("setup:prepare-dictation"),
   finishTurn: (id, pcm) => ipcRenderer.invoke("setup:finish", id, pcm), cancelTurn: () => ipcRenderer.invoke("setup:cancel"), clearTranscript: () => ipcRenderer.invoke("setup:clear-transcript"),
   chromeResume: () => ipcRenderer.invoke("setup:chrome-resume"), reconcileChrome: () => ipcRenderer.invoke("setup:reconcile-chrome"), chromeRun: command => ipcRenderer.invoke("setup:chrome-run", command), revoke: origin => ipcRenderer.invoke("setup:revoke", origin), installHost: () => ipcRenderer.invoke("setup:install-host"), launchChrome: () => ipcRenderer.invoke("setup:launch-chrome"),
   subscribe: listener => { const receive = (_event: unknown, state: SetupState): void => listener(state); ipcRenderer.on("setup:state", receive); return () => ipcRenderer.removeListener("setup:state", receive); }

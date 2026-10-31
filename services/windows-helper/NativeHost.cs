@@ -23,7 +23,7 @@ internal static class NativeHost {
             if (args.Length < 1 || args[0] != config["origin"] || !config["pipe"].StartsWith("latham-")) return 2;
             using (var pipe = new NamedPipeClientStream(".", config["pipe"], PipeDirection.InOut, PipeOptions.Asynchronous, System.Security.Principal.TokenImpersonationLevel.Identification)) {
                 pipe.Connect(3000);
-                Write(pipe, Encoding.UTF8.GetBytes(Json.Serialize(new { type = "hello", token = config["token"], origin = args[0] })));
+                Write(pipe, Encoding.UTF8.GetBytes(Json.Serialize(new { type = "hello", protocol = 2, token = config["token"], origin = args[0] })));
                 var input = Console.OpenStandardInput(); var output = Console.OpenStandardOutput();
                 var reader = new Thread(() => { try { while (true) Write(pipe, Read(input)); } catch { Environment.Exit(0); } }); reader.IsBackground = true; reader.Start();
                 while (true) Write(output, Read(pipe));

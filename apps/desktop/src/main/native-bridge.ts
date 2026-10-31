@@ -24,14 +24,15 @@ export class FrameReader {
 export class ChromeBridge {
   active = false; connected = false; result = "Not connected";
   fenceConfirmed = false; needsReview = false;
+  onInvalidate: () => void = () => {};
   private server: Server | undefined;
   private socket: Socket | undefined;
   private grants = new Set<string>();
   private epoch = 0;
-  private pending: { id: string; timer: ReturnType<typeof setTimeout>; resolve: () => void } | undefined;
+  private pending: { id: string; timer: ReturnType<typeof setTimeout>; mutation: boolean; resolve: (value?: unknown) => void } | undefined;
   readonly pipe = "\\\\.\\pipe\\latham-" + randomUUID();
   readonly token = randomBytes(32).toString("hex");
-  constructor(private store: ProviderStore, private changed: () => void) {}
+  constructor(private store: ProviderStore, private changed: () => void) { this.needsReview = store.chromeUncertain; }
   get siteState(): SetupState["sites"] { return sites.map(site => ({ origin: site.origin, name: site.name, consent: this.store.consent.includes(site.origin), chromeGranted: this.grants.has(site.origin), effective: this.connected && this.store.consent.includes(site.origin) && this.grants.has(site.origin) })); }
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -41,8 +42,8 @@ export class ChromeBridge {
         socket.on("data", chunk => {
           try { reader.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk), value => {
             if (!authenticated) {
-              if (!record(value) || value.type !== "hello" || value.token !== this.token || value.origin !== `chrome-extension://${extensionId}/` || this.socket) { socket.destroy(); return; }
-              authenticated = true; clearTimeout(timeout); this.socket = socket; this.connected = true; this.pause(); this.send({ type: "sync", consent: this.store.consent }); this.changed(); return;
+              if (!record(value) || value.type !== "hello" || value.protocol !== 2 || value.token !== this.token || value.origin !== `chrome-extension://${extensionId}/` || this.socket) { socket.destroy(); return; }
+              authenticated = true; clearTimeout(timeout); this.socket = socket; this.pause(); this.send({ type: "sync", protocol: 2, consent: this.store.consent }); this.changed(); return;
             }
             this.receive(value);
           }); } catch { socket.destroy(); }
@@ -56,12 +57,13 @@ export class ChromeBridge {
   writeConfig(directory: string): void { mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, "connection.json"), JSON.stringify({ pipe: this.pipe.replace("\\\\.\\pipe\\", ""), token: this.token, origin: `chrome-extension://${extensionId}/` }), { mode: 0o600 }); }
   close(): void { this.pause(); this.socket?.destroy(); this.server?.close(); }
   pause(): void {
+    this.onInvalidate();
     this.active = false; this.fenceConfirmed = false; this.epoch++; this.send({ type: "pause", epoch: this.epoch });
-    if (this.pending) { clearTimeout(this.pending.timer); this.needsReview = true; this.result = "Stopped. An in-flight Chrome effect may already have happened; inspect Chrome before resuming. It will not be retried."; this.pending.resolve(); this.pending = undefined; }
+    if (this.pending) { clearTimeout(this.pending.timer); if (this.pending.mutation) { this.needsReview = true; this.result = "Stopped. An in-flight Chrome effect may already have happened; inspect Chrome before resuming. It will not be retried."; } this.pending.resolve(); this.pending = undefined; }
     this.changed();
   }
   resume(): void { if (!this.connected || !this.fenceConfirmed || this.needsReview) throw new Error("chrome_reconciliation_required"); this.active = true; this.fenceConfirmed = false; this.epoch++; this.send({ type: "resume", epoch: this.epoch }); this.result = "Chrome session ready"; this.changed(); }
-  reconcile(): void { if (this.active || !this.fenceConfirmed) throw new Error("chrome_fence_unconfirmed"); this.needsReview = false; this.result = "Chrome inspected. Start a new session when ready."; this.changed(); }
+  reconcile(): void { if (this.active || !this.fenceConfirmed) throw new Error("chrome_fence_unconfirmed"); this.store.chromeUncertain = false; this.store.save(); this.needsReview = false; this.result = "Chrome inspected. Start a new session when ready."; this.changed(); }
   revoke(origin: unknown): void {
     if (typeof origin !== "string" || !sites.some(site => site.origin === origin)) throw new Error("invalid_origin");
     this.pause(); this.store.consent = this.store.consent.filter(item => item !== origin); this.store.save(); this.send({ type: "revoke", origin }); this.changed();
@@ -72,16 +74,30 @@ export class ChromeBridge {
     if (this.pending) throw new Error("chrome_busy");
     if (command.kind === "navigate" && !this.siteState.some(site => site.effective && site.origin === new URL(command.url).origin)) throw new Error("site_denied");
     this.result = "Waiting for Chrome"; this.changed();
-    await new Promise<void>(resolve => {
+    this.store.chromeUncertain = true; this.store.save();
+    await new Promise<unknown>(resolve => {
       const id = randomUUID();
-      this.pending = { id, resolve, timer: setTimeout(() => { this.result = "Chrome acknowledgement missing. Outcome unknown; no automatic retry."; this.pause(); }, 5000) };
+      this.pending = { id, resolve, mutation: true, timer: setTimeout(() => { this.result = "Chrome acknowledgement missing. Outcome unknown; no automatic retry."; this.pause(); }, 5000) };
       this.send({ type: "command", id, epoch: this.epoch, command });
     });
+  }
+  async request(request: object, mutation = false): Promise<unknown> {
+    if (!this.active || !this.connected || this.needsReview) throw new Error("chrome_session_paused");
+    if (this.pending) throw new Error("chrome_busy");
+    if (mutation) { this.store.chromeUncertain = true; this.store.save(); }
+    return new Promise(resolve => { const id = randomUUID(); this.pending = { id, resolve, mutation, timer: setTimeout(() => { this.result = "Page acknowledgement missing; inspect Chrome before continuing."; this.pause(); }, 18000) }; this.send({ type: "page_request", id, epoch: this.epoch, request }); });
   }
   private send(value: unknown): void { if (this.socket?.writable) this.socket.write(frame(value)); }
   private receive(value: unknown): void {
     if (!record(value)) throw new Error("invalid_message");
-    if (value.type === "paused" && value.epoch === this.epoch) { this.fenceConfirmed = true;
+    if (value.type === "ready") { this.connected = value.protocol === 2 && value.version === "0.2.0"; if (!this.connected) { this.pause(); this.result = "Incompatible extension. Load Latham extension 0.2.0 and register the current host."; }
+    } else if (value.type === "context_changed") { this.pause(); this.result = "Page focus, edit, tab or document changed. Start a new session and rebind dictation.";
+    } else if (value.type === "page_result" && value.id === this.pending?.id && value.epoch === this.epoch) {
+      const pending = this.pending!; this.pending = undefined; clearTimeout(pending.timer);
+      if (["verified", "blocked"].includes(String(value.outcome))) { if (pending.mutation) { this.store.chromeUncertain = false; this.store.save(); } }
+      else { this.needsReview = true; this.pause(); }
+      pending.resolve(value);
+    } else if (value.type === "paused" && value.epoch === this.epoch) { this.fenceConfirmed = true;
     } else if (value.type === "grants" && Array.isArray(value.origins)) {
       const next = new Set(value.origins.filter((origin): origin is string => typeof origin === "string" && sites.some(site => site.origin === origin)));
       const revoked = [...this.grants].filter(origin => !next.has(origin));
@@ -97,6 +113,7 @@ export class ChromeBridge {
       this.result = results[String(value.outcome)] ?? results.unknown!;
       const pending = this.pending!; this.pending = undefined; clearTimeout(pending.timer); pending.resolve();
       if (value.outcome === "unknown" || !results[String(value.outcome)]) { this.needsReview = true; this.pause(); }
+      else { this.store.chromeUncertain = false; this.store.save(); }
     }
     this.changed();
   }

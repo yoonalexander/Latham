@@ -1,4 +1,5 @@
 import { record } from "./index";
+import type { PageState } from "./browser";
 
 export const sites = [
   { origin: "https://www.google.com", pattern: "https://www.google.com/*", name: "Google Search" },
@@ -10,10 +11,13 @@ export type Candidate = { id: string; label: string; role: string };
 export type Selection = { candidateId: string | null };
 export type ChromeCommand = { kind: "new_tab" | "next_tab" | "previous_tab" | "back" | "forward" } | { kind: "navigate"; url: string };
 export type SetupState = {
+  canImportEnvironmentKey: boolean;
+  canInsertTranscript: boolean;
   settings: ProviderSettings; keyStored: boolean; vaultAvailable: boolean;
   voice: "idle" | "recording" | "transcribing" | "testing"; transcript: string; error: string; notice: string;
   chromeConnected: boolean; chromeActive: boolean; chromeFenceConfirmed: boolean; chromeNeedsReview: boolean; chromeResult: string; extensionId: string;
   sites: { origin: string; name: string; consent: boolean; chromeGranted: boolean; effective: boolean }[];
+  page: PageState;
 };
 export interface SetupBridge {
   state(): Promise<SetupState>;
@@ -29,6 +33,8 @@ export interface SetupBridge {
   chromeResume(): Promise<void>;
   reconcileChrome(): Promise<void>;
   chromeRun(command: string): Promise<void>;
+  insertTranscript(mode: "append" | "replace"): Promise<void>;
+  prepareDictation(): Promise<void>;
   revoke(origin: string): Promise<void>;
   installHost(): Promise<void>;
   launchChrome(): Promise<void>;

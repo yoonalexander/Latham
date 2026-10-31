@@ -1,6 +1,85 @@
 # Evaluation and acceptance
 
-## Phase 1 evidence — October 30, 2026
+## Phase 2 evidence — October 30, 2026
+
+Accepted for the **0.2 unsigned Windows developer-preview channel**, with the
+exact supported operations and installation/recovery rules in [phase2.md](phase2.md).
+This is not a signed production installer, general browser coverage or desktop
+automation acceptance.
+
+- `npm run evaluate`: **39 unit/boundary tests and 13 integration flows passed**.
+  The seven new page flows cover actual native messaging, root-document binding,
+  literal dictation, append/replace/correct/undo, duplicate clarification, unsafe
+  and secure controls, user edits/focus loss, replaced nodes, late model replies,
+  reactive page changes, uncertainty persistence and button-driven recording.
+- The repeated-operation fixture benchmark verified **100/100** supported DOM
+  operations, with **0 wrong effects**, **122 ms median / 154 ms p95** controller
+  latency. This is a repetition test over two small reviewed profiles, not 100
+  independent websites or an ASR-inclusive latency claim. Routed-origin fixture
+  manifests use explicit test install-time grants; production optional prompts
+  and actual websites were accepted separately.
+- Live signed-out Google and YouTube workflows passed with both configured
+  routes, including real provider final transcripts inserted into reviewed
+  fields. The final 44-operation navigation recheck verified **43/44**:
+  cloud configuration 21/22, local configuration 22/22. One changing YouTube
+  document stopped safely without an invented success. Google Images filters
+  passed on both routes after the off-screen search-form verification fix.
+  Known commands were deterministic in both configurations; these numbers do
+  not measure model semantic selection accuracy.
+- Live navigation/effect median/p95 on successful final-recheck operations:
+  cloud configuration **382 / 3,836 ms**, local configuration **268 / 3,260 ms**.
+  These include website network load and exclude transcription time.
+- Google presented one CAPTCHA; the user completed it manually. Latham stopped
+  at that challenge and required reconciliation. No verification bypass occurred.
+- The user verified the **physical microphone → local base.en → reviewed
+  transcript → Chrome field** path. The initial attempt exposed an already
+  suspended binding and disabled insertion. A new explicit Prepare Search step,
+  correct window-versus-field focus handling, stable transcript labeling and
+  same-binding insertion checks resolved it; a button-driven regression and
+  the user's repeat insertion both passed.
+- The packaged executable passed startup/version/sandbox checks, hidden
+  development-env import, DPAPI key storage, packaged host/extension pairing,
+  verified tab operation, acknowledged Stop and absence of user-secret files.
+  Actual Authenticode status is **NotSigned** for both `Latham.exe` and the
+  relay. ZIPs and checksums are generated locally, not published automatically.
+
+Speech benchmark on eight fixed **synthetic clean en-US** phrases:
+
+| Route | Exact phrases | Request failures | Word error rate | Successful median / p95 |
+|---|---|---|---|---|
+| Local tiny.en, initial comparison | 7/8 | 0 | 10.5% | 1,466 / 1,740 ms |
+| Local base.en, selected configuration | 8/8 | 0 | 0% | 4,596 / 5,772 ms |
+| Gemini 3.1 Flash-Lite | 7/8 overall; 7/7 completed | 1 provider-unavailable response | 0% on completed requests; 10.5% counting failed request words | 3,152 / 36,951 ms |
+
+The base model avoids the tiny model's “orchestral music” error, at a CPU latency
+cost. On a separate sampled base.en run: **312,303,616 bytes** peak working set,
+**825,774,080 bytes** peak private memory, **17.73 CPU seconds / 5.96 wall
+seconds**, four threads, sampled every 100 ms. These are measurements, not
+minimum hardware requirements or memory guarantees. The tested laptop is an
+Intel i7-1065G7, 8 logical processors, 16 GB RAM, Windows 11 Home 10.0.26100.
+The browser acceptance runtime is Chrome for Testing 156.0.8078.4; Chrome 120
+is the API minimum, not a claim that every intervening release was tested.
+
+The proposed sub-second voice latency and broad accent/noise accuracy targets
+are **not achieved or established** by this corpus. Local-only request tests
+prove no cloud inference fallback; the speech runtime now receives audio through
+stdin, with no temporary WAV/transcript retention. One transient Gemini failure
+was recorded without an automatic retry or route switch. Initial dynamic-page
+and off-screen-field failures informed the current guards; their raw reports
+remain separate from the final recheck.
+
+Ignored evidence: `phase2-dom-benchmark.json`, `live-browser-evaluation.json`,
+`speech-evaluation.json`, `speech-evaluation-tiny.json`, `asr-resources.json`,
+`preview-acceptance.json`, `release-signatures.json`, `e2e-results.json` and the
+preview ZIP/checksum manifest under `.test-artifacts/`. Do not overlap integration
+or packaged acceptance runs: they share the current-user host registry key.
+
+Remaining release decisions: signing/trusted distribution, project licensing,
+broader hardware/browser/language coverage, and larger human speech datasets.
+These limits are explicit in the preview channel; no later implementation phase
+was started as part of this delivery.
+
+## Historical Phase 1 evidence — October 30, 2026
 
 Implemented setup and its reproducible commands are in [phase1.md](phase1.md).
 The offline suite now has 36 unit/boundary cases and six integration flows

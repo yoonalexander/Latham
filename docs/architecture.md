@@ -46,8 +46,37 @@ flowchart LR
 | desktop main | Concrete fixture transport, storage and guarded IPC |
 | desktop renderer/preload | Command desk, settings, status and narrow bridge |
 
-Visual grounding, DOM website actions, general native UIA and planning remain
-later phases. The diagram above describes the fixture path only.
+Visual grounding, general native UIA and planning remain later phases. The
+diagram above describes the fixture path only; website actions are below.
+
+## Phase 2 page path
+
+`BrowserController` owns page intents, provider selection, literal dictation,
+clarification and cancellation. It never accepts renderer-provided selectors,
+scripts or authorized actions. Known commands bypass models. Candidate proposals
+must pass the profile/ID parser before reaching Chrome.
+
+The MV3 worker checks current active tab/window, effective grants, epoch and
+connection incarnation before invoking the isolated root-frame agent. The agent
+enumerates only compiled Google/YouTube profiles, stores exact node references
+and private field revisions locally, and returns bounded labels/IDs. No frame
+contents or field values enter selection payloads. Dynamic root Chrome document
+IDs prevent stale injection into a replacement page. Retired connection sessions
+cannot revive an older action; acknowledged Stop clears transient scopes.
+
+Search/filter/video commands compile reviewed read-navigation URLs, avoiding
+unreviewed site handlers. Navigation verifies origin/path/query and reviewed
+search structure; field edits verify value/focus/revision again after 100 ms.
+Dictation binds before capture, requires explicit preview insertion and preserves
+that binding while the user moves to Latham's microphone window. Real field
+changes/user edits suspend it. Undo/correction require the unchanged owned edit.
+
+Potential mutations persist an uncertainty marker before dispatch. A missing
+reply, failed verification or crash cannot reset that marker; explicit inspection
+and a confirmed fence are required before resuming. There is no mutation replay.
+The main UI opens on voice/Chrome, with fixture tools explicitly optional.
+
+See [Phase 2 setup](phase2.md) for exact supported operations and release limits.
 
 ## Phase 1 ownership
 

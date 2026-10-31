@@ -1,14 +1,15 @@
 # Latham
 
 Latham is an independently implemented voice-controlled computer assistant.
-The development build combines a verified local fixture with push-to-talk,
-Gemini user-key or whisper.cpp/Ollama local AI, a native-messaging Chrome
-extension, remembered optional website access, and deterministic tab/navigation
-commands. The complete project plan is in [roadmap.md](roadmap.md).
+Version 0.2 adds reviewed Google Search/YouTube workflows, field-bound
+push-to-talk dictation, guarded correction/undo, verified search/video/filter
+navigation, Gemini or local AI, remembered permissions and physical Stop.
+See [the setup/support matrix](docs/phase2.md) for exact operations and limits.
 
-This is an internal Phase 1 build. Website DOM actions/dictation are Phase 2;
-desktop-app control is Phase 3. See [voice and Chrome setup](docs/phase1.md) for
-provider models, downloads, key storage, extension installation and limitations.
+Phase 2 is delivered as an **unsigned Windows developer preview**. It is not a
+signed installer or a promise of arbitrary-site support. Desktop applications
+remain Phase 3 and have not been started. The whole-project plan is in
+[roadmap.md](roadmap.md).
 
 ## Run the foundation
 
@@ -26,8 +27,12 @@ official release distribution if it is not already installed. No provider key,
 model download or browser extension is needed for the fixture. The narrow
 native relay uses Windows' existing .NET Framework compiler, without an SDK.
 
-The app starts **Paused**. Enable **Allow local fixture**, click **Start session**,
-and run a command:
+For Chrome, configure AI, register/load/connect the extension, approve a site,
+then choose **Prepare Search dictation**. Hold to talk, review, and explicitly
+insert the transcript. The app starts paused and never dispatches speech by itself.
+
+The optional **Show fixture tools** panel retains the local regression playground.
+Enable **Allow local fixture**, click **Start session**, and run a command:
 
 ```text
 type Hello Latham
@@ -66,6 +71,11 @@ npm run evaluate
 - `evaluate`: those checks plus actual Electron and MV3/native-host flows.
 - `test:e2e`: builds, prepares Electron, and runs the integration flows.
 - `start`: runs the last build; `dev` rebuilds before starting.
+- `package:preview`: prepares local Windows/extension ZIPs and a SHA-256 manifest
+  under ignored `.test-artifacts/releases/`; it does not publish a release.
+- `node scripts/check-preview.mjs`: checks the prepared executable and bundled
+  native host/extension independently of the source checkout. Run it after other
+  acceptance apps have closed; current-user native-host registration is shared.
 
 Tests use isolated directories under ignored `.test-artifacts/`. The Electron
 runner writes a JSON report and synthetic fixture screenshots there; failed
@@ -77,7 +87,7 @@ default retention policy. See [evaluation evidence](docs/evaluation.md).
 | Directory | Responsibility |
 |---|---|
 | apps/desktop | Electron main, narrow preload bridge, React shell |
-| apps/chrome-extension | MV3 native messaging, optional host permissions and tab/navigation commands |
+| apps/chrome-extension | MV3 permissions, scoped root DOM agent and reviewed page operations |
 | services/windows-helper | Independent C# framing relay; native UIA remains Phase 3 |
 | packages/contracts | Shared types and runtime boundary validation |
 | packages/core | Session, policy orchestration, queue and cancellation |
@@ -99,8 +109,8 @@ Settings persist fixture consent, the test delay, and the diagnostic preference
 in Electron's user-data directory. Each launch still starts paused. The pages
 use an in-memory browser session. Provider settings and remembered site consent
 persist separately; keys use Windows DPAPI. Audio, screenshots, credentials and
-user command/page contents are not written by the diagnostic logger. The local
-ASR's short-lived WAV files and crash limitation are documented in the setup guide.
+user command/page contents are not written by the diagnostic logger. Local ASR
+uses stdin/stdout and creates no temporary audio or transcript files.
 
 Diagnostic persistence is off by default. Opting in saves only a bounded,
 50-event set of codes, dispatch states, timestamps and durations in

@@ -9,13 +9,19 @@ export function SetupPanel() {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [command, setCommand] = useState("new tab");
+  const savedSettings = useRef<ProviderSettings | null>(null);
+  const dirty = !!state && !!draft && Object.keys(state.settings).some(key => state.settings[key as keyof ProviderSettings] !== draft[key as keyof ProviderSettings]);
   const recording = useRef<Recording | null>(null);
   const clean = (): Recording | null => { const current = recording.current; recording.current = null; if (current) { clearTimeout(current.timer); current.node?.disconnect(); current.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); }); void current.context?.close(); } return current; };
   const act = async (operation: () => Promise<unknown>): Promise<void> => { setError(""); try { await operation(); } catch { setError("Setup could not complete. Check the saved paths, provider key, Chrome connection, and permissions, then try again."); } };
   useEffect(() => {
-    const receive = (next: SetupState): void => { setState(next); if (next.voice === "idle") clean(); };
+    const receive = (next: SetupState): void => {
+      const previous = savedSettings.current; savedSettings.current = next.settings;
+      setDraft(current => !current || !previous || Object.keys(previous).every(key => previous[key as keyof ProviderSettings] === current[key as keyof ProviderSettings]) ? { ...next.settings } : current);
+      setState(next); if (next.voice === "idle") clean();
+    };
     const unsubscribe = window.setup.subscribe(receive);
-    void window.setup.state().then(next => { receive(next); setDraft(next.settings); });
+    void window.setup.state().then(receive);
     const blur = (): void => { if (recording.current) { clean(); void window.setup.cancelTurn(); } };
     window.addEventListener("blur", blur);
     return () => { unsubscribe(); clean(); void window.setup.cancelTurn(); window.removeEventListener("blur", blur); };
@@ -26,7 +32,7 @@ export function SetupPanel() {
     await act(() => window.setup.finishTurn(current.id, pcm.buffer));
   };
   const begin = async (): Promise<void> => {
-    if (recording.current || !state || state.voice !== "idle") return;
+    if (recording.current || !state || state.voice !== "idle" || dirty) return;
     setError("");
     const current: Recording = { id: -1, chunks: [], samples: 0 }; recording.current = current;
     try {
@@ -54,29 +60,39 @@ export function SetupPanel() {
   if (!state || !draft) return <section className="panel setup-panel">Loading voice and Chrome setup…</section>;
   const patch = (value: Partial<ProviderSettings>): void => setDraft({ ...draft, ...value });
   return <section className="panel setup-panel" aria-label="Voice and Chrome setup">
-    <div className="section-kicker">PHASE 1 / VOICE & CHROME</div><h2>Set up Latham</h2>
+    <div className="section-kicker">CHROME PREVIEW / 0.2</div><h2>Voice & Chrome</h2>
     <div className="setup-grid">
       <div className="setup-group"><h3>1. Choose your AI</h3>
         <label><input type="radio" name="provider" checked={draft.mode === "local"} onChange={() => patch({ mode: "local" })} /> Use local AI</label>
         <label><input type="radio" name="provider" checked={draft.mode === "cloud"} onChange={() => patch({ mode: "cloud" })} /> Use my API key (Gemini)</label>
-        <p className="mini">{draft.mode === "local" ? "Audio: local whisper.cpp. Candidate labels: Ollama at 127.0.0.1:11434. No cloud fallback. Install a local model separately." : "Audio and bounded candidate labels go to Google Gemini. Google's account terms and free-tier quotas apply. No page capture is sent in this phase."}</p>
-        {draft.mode === "local" ? <><label>whisper-cli.exe path<input value={draft.whisperExecutable} onChange={event => patch({ whisperExecutable: event.target.value })} spellCheck={false} /></label><label>Whisper tiny.en model path<input value={draft.whisperModel} onChange={event => patch({ whisperModel: event.target.value })} spellCheck={false} /></label><label>Installed Ollama model<input value={draft.ollamaModel} onChange={event => patch({ ollamaModel: event.target.value })} /></label></> : <><p className="mini">{state.vaultAvailable ? state.keyStored ? "A key is stored using Windows DPAPI." : "No key stored." : "Windows credential protection is unavailable. Key storage is blocked."}</p><label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><div className="setup-buttons"><button disabled={!state.vaultAvailable || !key} onClick={() => void act(async () => { await window.setup.key(key); setKey(""); })}>Store key</button><button disabled={!state.keyStored} onClick={() => void act(() => window.setup.removeKey())}>Remove key</button><button onClick={() => void act(() => window.setup.importEnvironmentKey())}>Import GEMINI_API_KEY from .env.local</button></div></>}
-        <div className="setup-buttons"><button onClick={() => void act(() => window.setup.save(draft))}>Save AI setup</button><button disabled={state.voice !== "idle"} onClick={() => void act(() => window.setup.testDecision())}>Test saved decision setup</button></div>
+        <p className="mini">{draft.mode === "local" ? "Audio: local whisper.cpp. Candidate labels: Ollama at 127.0.0.1:11434. No cloud fallback. Install a local model separately." : "Audio and bounded visible control labels go to Google Gemini. Google's account terms and free-tier quotas apply. Field values, frames and screenshots are excluded from target selection."}</p>
+        {draft.mode === "local" ? <><label>whisper-cli.exe path<input value={draft.whisperExecutable} onChange={event => patch({ whisperExecutable: event.target.value })} spellCheck={false} /></label><label>Whisper English model path (base.en recommended)<input value={draft.whisperModel} onChange={event => patch({ whisperModel: event.target.value })} spellCheck={false} /></label><label>Installed Ollama model<input value={draft.ollamaModel} onChange={event => patch({ ollamaModel: event.target.value })} /></label></> : <><p className="mini">{state.vaultAvailable ? state.keyStored ? "A key is stored using Windows DPAPI." : "No key stored." : "Windows credential protection is unavailable. Key storage is blocked."}</p><label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><div className="setup-buttons"><button disabled={!state.vaultAvailable || !key} onClick={() => void act(async () => { await window.setup.key(key); setKey(""); })}>Store key</button><button disabled={!state.keyStored} onClick={() => void act(() => window.setup.removeKey())}>Remove key</button>{state.canImportEnvironmentKey && <button onClick={() => void act(() => window.setup.importEnvironmentKey())}>Import GEMINI_API_KEY from .env.local</button>}</div></>}
+        <div className="setup-buttons"><button onClick={() => void act(() => window.setup.save(draft))}>Save AI setup</button><button disabled={state.voice !== "idle" || dirty} onClick={() => void act(() => window.setup.testDecision())}>Test saved decision setup</button></div>
+        {dirty && <p className="mini" role="status">Unsaved AI setup changes. Save before recording; saving pauses current work.</p>}
       </div>
       <div className="setup-group"><h3>2. Test your voice</h3><p className="mini">Hold to record up to 30 seconds. Release to transcribe using the saved AI setup. Review the words before running anything.</p>
         <label>Microphone<select value={draft.microphoneId} onChange={event => patch({ microphoneId: event.target.value })}><option value="">System default</option>{devices.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || "Microphone"}</option>)}</select></label>
         <p className="mini">Microphone names appear after the first permission request. Save AI setup after changing the selection.</p>
-        <button className="primary talk" disabled={state.voice === "testing" || state.voice === "transcribing"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); void begin(); }} onPointerUp={() => void finish()} onPointerCancel={() => { clean(); void window.setup.cancelTurn(); }} onKeyDown={event => { if ((event.key === " " || event.key === "Enter") && !event.repeat) { event.preventDefault(); void begin(); } }} onKeyUp={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); void finish(); } }}>Hold to talk</button>
-        <p role="status" data-testid="voice-status">Voice: {state.voice}</p><label>Final transcript<textarea readOnly value={state.transcript} rows={3} /></label>
+        <button className="primary talk" disabled={dirty || state.voice === "testing" || state.voice === "transcribing"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); void begin(); }} onPointerUp={() => void finish()} onPointerCancel={() => { clean(); void window.setup.cancelTurn(); }} onKeyDown={event => { if ((event.key === " " || event.key === "Enter") && !event.repeat) { event.preventDefault(); void begin(); } }} onKeyUp={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); void finish(); } }}>Hold to talk</button>
+        <p role="status" data-testid="voice-status">Voice: {state.voice}</p><label htmlFor="transcript-preview">Final transcript</label><textarea id="transcript-preview" readOnly value={state.transcript} rows={3} />
         <div className="setup-buttons"><button disabled={!state.transcript} onClick={() => setCommand(state.transcript)}>Use transcript as Chrome command</button><button onClick={() => { clean(); void act(() => window.setup.cancelTurn()); }}>Cancel / clear speech</button></div>
+        <p className="mini">Dictation: {state.page.dictation ? `ready for ${state.page.dictation}` : "not bound"}. Prepare Search first, then record and review your words.</p>
+        <button disabled={dirty || !state.chromeConnected || state.chromeNeedsReview || state.page.busy || (!state.chromeActive && !state.chromeFenceConfirmed)} onClick={() => void act(() => window.setup.prepareDictation())}>Prepare Search dictation</button>
+        {!!state.transcript && !state.canInsertTranscript && <p className="mini" role="status">This transcript has no current field binding. Prepare Search dictation, then record again to insert it safely.</p>}
+        <div className="setup-buttons"><button disabled={dirty || !state.canInsertTranscript || state.page.busy} onClick={() => void act(() => window.setup.insertTranscript("append"))}>Append transcript</button><button disabled={dirty || !state.canInsertTranscript || state.page.busy} onClick={() => void act(() => window.setup.insertTranscript("replace"))}>Replace field with transcript</button></div>
         <p className="mini" role="status">{state.notice}</p>
       </div>
-      <div className="setup-group"><h3>3. Connect Chrome</h3><p className="mini">Build once, register the current-user native host, then load dist/chrome-extension from Chrome's developer extension screen. Open the extension and choose Connect. No administrator access is needed.</p>
+      <div className="setup-group"><h3>3. Connect Chrome</h3><p className="mini">Register this build's Chrome host, then load its supplied extension folder from Chrome's developer extension screen. Open the extension and choose Connect. No administrator access is needed.</p>
         <div className="setup-buttons"><button onClick={() => void act(() => window.setup.installHost())}>Register Chrome host</button><button onClick={() => void act(() => window.setup.launchChrome())}>Launch Chrome</button><button disabled={!state.chromeConnected || state.chromeActive || !state.chromeFenceConfirmed || state.chromeNeedsReview} onClick={() => void act(() => window.setup.chromeResume())}>Start Chrome session</button>{state.chromeNeedsReview && <button disabled={!state.chromeFenceConfirmed} onClick={() => void act(() => window.setup.reconcileChrome())}>I inspected Chrome · clear uncertain result</button>}</div>
         <p role="status">Chrome: {state.chromeConnected ? state.chromeActive ? "Connected · Active" : state.chromeFenceConfirmed ? "Connected · Paused (fence confirmed)" : "Connected · Pause requested (fence unconfirmed)" : "Disconnected"}</p>
         <ul>{state.sites.map(site => <li key={site.origin}>{site.name}: {site.effective ? "Approved" : site.consent ? "Chrome grant missing / disconnected" : "Not approved"} <button disabled={!site.consent && !site.chromeGranted} onClick={() => void act(() => window.setup.revoke(site.origin))}>Revoke {site.name}</button></li>)}</ul>
         <p className="mini">Approve websites in the extension popup. Consent and Chrome's host grant are both required. Returning to a site retains approval; every restart starts paused.</p>
-        <form onSubmit={event => { event.preventDefault(); void act(() => window.setup.chromeRun(command)); }}><label>Chrome command<input value={command} onChange={event => setCommand(event.target.value)} maxLength={2048} /></label><button disabled={!state.chromeActive} type="submit">Run Chrome command</button></form><p className="mini">new tab · next tab · previous tab · go back · go forward · open https://www.google.com</p><p role="status" data-testid="chrome-result">{state.chromeResult}</p>
+        <div className="setup-buttons">{["inspect page", "focus Search", "start dictation", "undo dictation", "stop dictation"].map(action => <button key={action} disabled={!state.chromeActive || state.page.busy} onClick={() => void act(() => window.setup.chromeRun(action))}>{action}</button>)}</div>
+        <form onSubmit={event => { event.preventDefault(); if (!dirty) void act(() => window.setup.chromeRun(command)); }}><label>Chrome command<input value={command} onChange={event => setCommand(event.target.value)} maxLength={2000} /></label><button disabled={dirty || !state.chromeActive || state.page.busy} type="submit">Run Chrome command</button></form><p className="mini">inspect page · focus Search · start dictation · dictate music · correct that to piano · undo dictation · stop dictation · click Search · search music · scroll down · open first result (YouTube) · filter images (Google)</p><p role="status" data-testid="chrome-result">{state.chromeResult}</p>
+        <p role="status" data-testid="page-status">{state.page.status}{state.page.busy ? " · Working" : ""}</p>
+        {state.page.last && <p className="mini" data-testid="page-result">{state.page.last.outcome}: {state.page.last.reason} ({state.page.last.elapsedMs} ms)</p>}
+        {state.page.clarification.length > 0 && <div aria-label="Choose a matching target">{state.page.clarification.map((label, index) => <button key={index} onClick={() => void act(() => window.setup.chromeRun(`choose ${index + 1}`))}>{label}</button>)}</div>}
+        <details><summary>Supported controls on the last observed page</summary><ul>{state.page.targets.map((target, index) => <li key={index}>{target.name} · {target.role}</li>)}</ul></details>
       </div>
     </div>
     {(error || state.error) && <p className="error" role="alert">{error || state.error.replaceAll("_", " ")}</p>}
