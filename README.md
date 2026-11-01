@@ -1,16 +1,22 @@
 # Latham
 
 Latham is an independently implemented voice-controlled computer assistant.
-Version 0.4 adds opt-in consecutive voice commands and independent local wake/stop
-detection to the reviewed Notepad and Google Search/YouTube workflows, field-bound
+Version 0.5 adds scoped YouTube thumbnail capture, OCR/visual matching, target
+outlines and explicit opening alongside opt-in hands-free commands, field-bound
 push-to-talk dictation, guarded correction/undo, verified search/video/filter
 navigation, Gemini or local AI, remembered permissions and physical Stop.
-See [hands-free setup](docs/phase4.md), [desktop setup](docs/phase3.md) and [the Chrome support matrix](docs/phase2.md) for exact operations and limits.
+See [visual setup](docs/phase5.md), [hands-free setup](docs/phase4.md), [desktop setup](docs/phase3.md) and [the Chrome support matrix](docs/phase2.md) for exact operations and limits.
 
-Phases 0–4 are implemented as an **unsigned Windows developer preview**. It is not a
+Phases 0–5 are implemented as an **unsigned Windows developer preview**. It is not a
 signed installer or a promise of arbitrary-app/site support. Hands-free is optional
 and starts disabled; recognition misses and false stops remain possible. The whole-project plan is in
 [roadmap.md](roadmap.md).
+
+Visual capture is off by default. It copies only approved public thumbnail assets;
+it never captures a full screen, frames or form fields. Local OCR/layout or an
+explicitly selected local/cloud visual model can propose matches. Opening a
+video requires a separate confirmation and fresh DOM checks. The controlled
+benchmark does not establish general photo/person matching.
 
 ## Run Latham
 

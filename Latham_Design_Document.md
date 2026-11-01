@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.8\
+**Version:** 1.10\
 **Date:** October 31, 2026\
-**Status:** Phases 0–4 implemented for the documented 0.4 unsigned Windows developer preview; measured evidence and limits in docs/evaluation.md; Phase 5 not started\
+**Status:** Phases 0–5 implemented for the documented 0.5 unsigned Windows developer preview; measured evidence and limits in docs/evaluation.md; Phase 6 not started\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -253,6 +253,21 @@ The priority list selects an adapter only **after** the same scope policy has al
 **P0 browser decision:** browser content is observed and controlled through the extension only. An absent or denied extension does not enable UIA, OCR, or screenshot fallback. P0 has no general native-app UIA adapter; narrow Chrome window/tab commands use a separately identified browser-chrome surface. Phase 3 native UIA remains scoped to supported native applications. Later browser fallbacks require a trusted current origin/frame identity and the same grants; inability to establish identity is a stop condition.
 
 Origin grants apply separately to the top-level document and each observed frame. DOM collection omits ungranted frames. A later screenshot path may capture only regions demonstrably free of denied content; if frame/overlay boundaries cannot be excluded reliably, block capture of the whole surface. A screenshot permission never overrides an app/site denial. A reconnect or new document requires fresh identity and permission checks before reading content.
+
+The Phase 5 preview implements a deliberately narrower **source-isolated
+thumbnail capture** path. With per-session consent, YouTube approval and a separate
+optional image grant, only public JPEG assets belonging to reviewed video links
+enter an isolated canvas. It never captures the viewport/desktop and therefore
+does not read denied frame, overlay or form pixels for later redaction. Missing
+source/target proof blocks capture. Windows OCR/layout or an explicitly selected
+Ollama/Gemini visual provider returns bounded candidate-ID sets. Multiple matches
+clarify; a unique match proposes an outline. A separate user action opens only a
+freshly validated reviewed video URL through the existing navigation gateway.
+Scroll/zoom/mutations/occlusion/replacement, lost grants and Stop invalidate
+pending authority. No coordinate click or provider fallback is introduced.
+[Visual setup](docs/phase5.md) and [evaluation](docs/evaluation.md) distinguish
+the controlled text/color/icon/layout results from unproven general photo/person
+matching and full-screen capture.
 
 ### 5.4 Snapshot contract
 
@@ -540,7 +555,7 @@ Microsoft UI Automation coverage varies by application and developer implementat
 
 ### 9.1 Stack and later proposals
 
-The current 0.4 preview uses Electron/React, lightweight JSON settings with
+The current 0.5 preview uses Electron/React, lightweight JSON settings with
 DPAPI-protected keys, Gemini or local speech/Ollama, and the narrow Chrome
 relay, separate Notepad UIA supervisor/worker, and independent local wake/stop
 detectors. Its portable ZIP and
@@ -556,9 +571,9 @@ and signed installers describe later work.
 | Speech | Gemini user key or whisper.cpp base.en | Both paths tested; narrow English corpus and hardware limits published. |
 | Bounded decision | User-key cloud adapter or local Ollama | Same validated target-choice contract; add other providers only when needed. |
 | Planner | OpenAI Responses API with typed tools | Optional, restricted to a step-limited mode. |
-| Visual grounding | Local OCR + vision provider fallback | Deferred until structured clicking works reliably. |
+| Visual grounding | Source-isolated YouTube thumbnails, Windows OCR/layout, opt-in local/cloud vision | Candidate-ID sets, explicit clarification/highlight/open; no viewport/desktop capture or coordinate click. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.4.0, Chrome relay protocol 2; Latham binaries unsigned. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.5.0, Chrome relay protocol 2; Latham binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -779,6 +794,15 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ## 16. Revision Notes
 
+**v1.10 — October 31, 2026:** Implemented the Phase 5 source-isolated YouTube
+thumbnail profile with separate per-session image consent, optional asset grants,
+Windows OCR/layout, opt-in visual providers, bounded candidate-ID sets, blue
+outlines and explicit verified navigation. Freshness/occlusion checks, failed
+provider/late-result handling and controlled text/icon/layout evaluation are
+documented in [visual setup](docs/phase5.md) and [evaluation](docs/evaluation.md).
+General screen capture, photo/person reliability and Phase 6 remain outside this
+preview. Existing planned speech-backend work remains separate.
+
 **v1.8 — October 31, 2026:** Added explicit consecutive-command sessions with
 visible microphone/readiness state, separate offline Windows stop and wake
 detectors, idle/total limits, failure-triggered cancellation and no idle cloud
@@ -805,4 +829,4 @@ not started.
 
 ---
 
-**Summary:** The preview implements the published Google/YouTube workflows, scoped Notepad editing and opt-in hands-free interaction, using remembered permissions and user-key or validated local AI. Visual grounding is planned next, followed by broader coverage, bounded workflows and optional managed AI delivery. Ground text entry before enabling it, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.
+**Summary:** The preview implements the published Google/YouTube workflows, scoped Notepad editing, opt-in hands-free interaction and bounded visual thumbnail matching. Broader coverage is planned next, followed by bounded workflows and optional managed AI delivery. Ground targets before enabling effects, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.

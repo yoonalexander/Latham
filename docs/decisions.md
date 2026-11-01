@@ -20,7 +20,9 @@ the [roadmap](../roadmap.md) defines sequence.
 | Dictation | Prepare Search, record under that binding, explicitly append/replace; guarded correction/undo | phase2.md |
 | Unknown effects | Persist uncertainty before mutation; reconcile explicitly after failed verification/restart; never replay | browser-controller and native-bridge |
 | Local speech retention | Bounded stdin/stdout; no temporary audio/transcript files | speech/providers.ts |
-| Preview distribution | 0.4.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase4.md |
+| Preview distribution | 0.5.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase5.md |
+| Visual capture | Per-session consent and separate optional image grant; approved YouTube thumbnail assets only; no full-screen/desktop capture | phase5.md |
+| Visual grounding | Local OCR/layout, opt-in installed Ollama vision or Gemini; candidate-ID sets, explicit clarification/highlight/open and fresh DOM navigation checks | phase5.md |
 | Native scope | Same-user unelevated Notepad document text only; per-app approval and block override; browsers/other apps excluded | phase3.md |
 | Native runtime | Framework 4.8 supervisor plus disposable non-window-owning MTA UIA worker; no new .NET SDK | DesktopAgent.cs |
 | Native cancellation | Priority current-user event, worker exit acknowledgement, persisted uncertainty before dispatch and no replay | desktop-controller.ts |

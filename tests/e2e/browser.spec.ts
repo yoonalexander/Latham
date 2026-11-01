@@ -11,7 +11,7 @@ function backupRegistry(): () => void {
   const values = ["Google\\Chrome", "Chromium"].map(browser => { const path = `HKCU\\Software\\${browser}\\NativeMessagingHosts\\${hostName}`; try { return { path, value: execFileSync("reg.exe", ["QUERY", path, "/ve"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).match(/REG_SZ\s+(.+)/)?.[1]?.trim() }; } catch { return { path }; } });
   return () => { for (const item of values) { try { if (item.value) execFileSync("reg.exe", ["ADD", item.path, "/ve", "/t", "REG_SZ", "/d", item.value, "/f"], { stdio: "ignore" }); else execFileSync("reg.exe", ["DELETE", item.path, "/f"], { stdio: "ignore" }); } catch {} } };
 }
-async function setup() {
+async function setup(imageGrant = true) {
   mkdirSync(".test-artifacts", { recursive: true }); const restore = backupRegistry(), directory = mkdtempSync(resolve(".test-artifacts/page-app-"));
   const env = Object.fromEntries(Object.entries(process.env).filter((pair): pair is [string, string] => pair[1] !== undefined && pair[0] !== "ELECTRON_RUN_AS_NODE"));
   const tone = new Int16Array(32000); for (let i = 0; i < tone.length; i++) tone[i] = Math.round(8000 * Math.sin(i * Math.PI * 880 / 16000)); const capture = join(directory, "capture.wav"); writeFileSync(capture, wav(new Uint8Array(tone.buffer)));
@@ -19,7 +19,7 @@ async function setup() {
   await expect.poll(() => app.context().pages().some(page => page.url() === "latham://app/index.html")).toBe(true);
   const desk = app.context().pages().find(page => page.url() === "latham://app/index.html")!; await desk.evaluate(() => window.setup.installHost());
   // Install-time grants are an isolated fixture arrangement. Production optional prompts have separate native acceptance.
-  const extension = mkdtempSync(resolve(".test-artifacts/page-extension-")); cpSync("dist/chrome-extension", extension, { recursive: true }); const manifest = JSON.parse(readFileSync(join(extension, "manifest.json"), "utf8")); manifest.host_permissions = manifest.optional_host_permissions; delete manifest.optional_host_permissions; writeFileSync(join(extension, "manifest.json"), JSON.stringify(manifest));
+  const extension = mkdtempSync(resolve(".test-artifacts/page-extension-")); cpSync("dist/chrome-extension", extension, { recursive: true }); const manifest = JSON.parse(readFileSync(join(extension, "manifest.json"), "utf8")); manifest.host_permissions = manifest.optional_host_permissions.filter((origin: string) => imageGrant || !origin.includes("ytimg")); manifest.optional_host_permissions = manifest.optional_host_permissions.filter((origin: string) => !manifest.host_permissions.includes(origin)); writeFileSync(join(extension, "manifest.json"), JSON.stringify(manifest));
   const context = await chromium.launchPersistentContext(mkdtempSync(resolve(".test-artifacts/page-browser-")), { executablePath: resolve(".test-artifacts/chromium-runtime/latham-test-browser.exe"), headless: false, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
   await context.route("https://www.google.com/**", route => route.fulfill({ contentType: "text/html", body: google })); await context.route("https://www.youtube.com/**", route => route.fulfill({ contentType: "text/html", body: youtube })); await context.route("https://denied.example/**", route => route.fulfill({ body: "DENIED_FRAME_SENTINEL" }));
   const popup = await context.newPage(); await popup.goto(`chrome-extension://${extensionId}/popup.html`); await popup.getByRole("button", { name: "Connect to Latham" }).click();
@@ -32,6 +32,95 @@ async function setup() {
 }
 async function run(desk: Page, command: string): Promise<void> { await desk.evaluate(command => window.setup.chromeRun(command), command); }
 async function verified(desk: Page): Promise<void> { const result = (await desk.evaluate(() => window.setup.state())).page.last; expect(result?.outcome, result?.reason).toBe("verified"); }
+const visualIds = ["abcdefghijk", "lmnopqrstuv", "12345678901", "ZXCVBNMasdf"];
+async function visualFixture(imageGrant = true) {
+  const f = await setup(imageGrant);
+  const html = `<!doctype html><html><body style="min-height:2400px;font:16px Arial"><yt-searchbox><form><input name="search_query" aria-label="Search"></form><button aria-label="Search">Search</button></yt-searchbox><main style="display:grid;grid-template-columns:240px 240px;gap:16px;margin:20px">${visualIds.map(id => `<ytd-video-renderer style="display:block"><a href="/watch?v=${id}"><img src="https://i.ytimg.com/vi/${id}/hqdefault.jpg" width="192" height="108"></a><a id="video-title" style="display:block" href="/watch?v=${id}">Same video title</a></ytd-video-renderer>`).join("")}</main><input type="password" value="PRIVATE_VISUAL_PASSWORD" style="position:fixed;right:0;top:0"><iframe src="https://denied.example/frame" style="position:fixed;right:0;bottom:0"></iframe><div style="position:fixed;right:0;top:100px">PRIVATE_VISUAL_OVERLAY</div></body></html>`;
+  await f.context.route("https://www.youtube.com/**", route => route.fulfill({ contentType: "text/html", body: html }));
+  const assets = visualIds.map((id, index) => ({ url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, image: readFileSync(resolve(`.test-artifacts/visual-corpus/${index}.jpg`)).toString("base64") }));
+  await f.context.route("https://i.ytimg.com/**", route => { const address = new URL(route.request().url()), asset = assets.find(a => a.url === address.origin + address.pathname); return route.fulfill({ contentType: "image/jpeg", body: Buffer.from(asset?.image ?? "", "base64") }); });
+  const worker = f.context.serviceWorkers()[0]!;
+  await worker.evaluate(({ assets }) => {
+    const request = globalThis.fetch; Reflect.set(globalThis, "visualAssetRequests", []);
+    Reflect.set(globalThis, "fetch", async (...args: Parameters<typeof fetch>) => { const asset = assets.find(a => a.url === String(args[0])); if (!asset) return request(...args); (Reflect.get(globalThis, "visualAssetRequests") as string[]).push(asset.url); return new Response(Uint8Array.from(atob(asset.image), c => c.charCodeAt(0)), { headers: { "Content-Type": "image/jpeg" } }); });
+  }, { assets });
+  await f.desk.evaluate(() => window.latham.stop()); await f.page.goto("https://www.youtube.com/results?search_query=visual"); await f.page.bringToFront(); await f.page.locator("img").first().waitFor();
+  await f.page.evaluate(() => { document.querySelector("img")!.src += "?sqp=synthetic_layout&rs=synthetic_signature"; });
+  await expect.poll(() => f.page.evaluate(() => [...document.images].every(img => img.complete && img.naturalWidth > 0))).toBe(true);
+  await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume());
+  await f.desk.evaluate(() => window.setup.visualPermission(true)); return { ...f, worker };
+}
+
+test("visual source capture excludes denied pixels and OCR proposes then verifies a reviewed navigation", async () => {
+  test.setTimeout(90000); const f = await visualFixture();
+  try {
+    await f.desk.evaluate(() => window.setup.visualFind({ text: "text PIANO", route: "ocr", model: "llava" }));
+    const state = (await f.desk.evaluate(() => window.setup.state())).visual;
+    expect(state.message).toContain("outlined"); expect(state.candidates).toHaveLength(4); expect(state.proposed).toBe(state.candidates[0]!.id);
+    expect(state.candidates.map(c => c.text).join(" ")).not.toMatch(/PRIVATE|PASSWORD|DENIED/);
+    writeFileSync(".test-artifacts/visual-captured-fixture.json", JSON.stringify({ source: "synthetic approved JPEG assets through the real extension capture/OCR path; not full-screen capture", candidates: state.candidates }, null, 2));
+    expect((await f.worker.evaluate(() => Reflect.get(globalThis, "visualAssetRequests")) as string[])).toEqual(visualIds.map(id => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`));
+    await f.page.evaluate(() => { document.body.style.zoom = "1.1"; });
+    await f.desk.evaluate(() => window.setup.visualFind({ text: "text PIANO", route: "ocr", model: "llava" }));
+    expect((await f.desk.evaluate(() => window.setup.state())).visual.candidates[0]!.rect.width).toBeGreaterThan(state.candidates[0]!.rect.width);
+    await expect(f.page.locator('[aria-label="Latham proposed video"]')).toBeVisible();
+    await f.desk.getByRole("region", { name: "Visual thumbnail matching" }).screenshot({ path: ".test-artifacts/phase5-visual-preview.png" });
+    await f.desk.getByRole("button", { name: "Open highlighted video", exact: true }).click();
+    await expect(f.page).toHaveURL("https://www.youtube.com/watch?v=abcdefghijk"); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).visual.message)).toBe("Video navigation verified.");
+  } finally { await f.close(); }
+});
+
+test("visual geometry, zoom, overlays and replaced images invalidate proposals without a coordinate click", async () => {
+  test.setTimeout(180000); const f = await visualFixture();
+  try {
+    for (const change of ["scroll", "scale", "replace", "overlay"]) {
+      await expect.poll(() => f.page.evaluate(() => [...document.images].every(img => img.complete && img.naturalWidth > 0))).toBe(true);
+      await f.desk.evaluate(() => window.setup.visualFind({ text: "text PIANO", route: "ocr", model: "llava" }));
+      const state = (await f.desk.evaluate(() => window.setup.state())).visual; expect(state.proposed, state.message).toBeTruthy();
+      await f.page.evaluate(change => {
+        if (change === "scroll") scrollBy(0, 10);
+        if (change === "scale") document.body.style.zoom = "1.1";
+        if (change === "replace") { const image = document.querySelector("img")!; image.replaceWith(image.cloneNode(true)); }
+        if (change === "overlay") { const cover = document.createElement("div"); cover.id = "test-cover"; cover.style.cssText = "position:fixed;inset:0;background:white;z-index:999"; document.body.append(cover); }
+      }, change);
+      await expect(f.page.locator('[aria-label="Latham proposed video"]')).toHaveCount(0);
+      await f.desk.evaluate(() => window.setup.visualOpen()); expect((await f.desk.evaluate(() => window.setup.state())).visual.ready).toBe(false); await expect(f.page).toHaveURL(/\/results\?/);
+      await f.page.evaluate(() => { document.body.style.zoom = ""; document.getElementById("test-cover")?.remove(); scrollTo(0, 0); });
+    }
+  } finally { await f.close(); }
+});
+
+test("visual capture respects image grants, blocked overlays, ambiguous matches and Stop", async () => {
+  test.setTimeout(90000); const f = await visualFixture();
+  try {
+    await f.page.evaluate(() => { const cover = document.createElement("div"); cover.id = "test-cover"; cover.style.cssText = "position:fixed;inset:0;background:white;z-index:999"; document.body.append(cover); });
+    await f.desk.evaluate(() => window.setup.visualFind({ text: "PIANO", route: "ocr", model: "llava" })); expect((await f.desk.evaluate(() => window.setup.state())).visual.candidates).toEqual([]);
+    expect(await f.worker.evaluate(() => (Reflect.get(globalThis, "visualAssetRequests") as string[]).length)).toBe(0); await f.page.locator("#test-cover").evaluate(node => node.remove());
+    await f.desk.evaluate(() => window.setup.visualFind({ text: "topmost thumbnail", route: "ocr", model: "llava" })); const state = (await f.desk.evaluate(() => window.setup.state())).visual;
+    expect(state.message).toContain("Several"); expect(state.proposed).toBe(null); await expect(f.desk.getByRole("button", { name: "Open highlighted video", exact: true })).toBeDisabled();
+    await f.worker.evaluate("send({ type: 'context_changed' })"); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).visual.consent)).toBe(false);
+    await f.desk.evaluate(() => window.latham.stop()); expect((await f.desk.evaluate(() => window.setup.state())).visual).toMatchObject({ consent: false, candidates: [], proposed: null });
+    await expect(f.page.locator('[aria-label="Latham proposed video"]')).toHaveCount(0);
+  } finally { await f.close(); }
+  const denied = await visualFixture(false);
+  try { await denied.desk.evaluate(() => window.setup.visualFind({ text: "PIANO", route: "ocr", model: "llava" })); expect((await denied.desk.evaluate(() => window.setup.state())).visual.message).toContain("extension"); expect(await denied.worker.evaluate(() => (Reflect.get(globalThis, "visualAssetRequests") as string[]).length)).toBe(0); }
+  finally { await denied.close(); }
+});
+
+test("visual provider failure and a late cloud match after Stop cannot open a video", async () => {
+  test.setTimeout(90000); const f = await visualFixture();
+  try {
+    await f.app.evaluate(() => { Reflect.set(globalThis, "fetch", async () => new Response("PRIVATE_ERROR", { status: 503 })); });
+    await f.desk.evaluate(() => window.setup.key("FAKE_VISUAL_PROVIDER_KEY_123456789"));
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume()); await f.desk.evaluate(() => window.setup.visualPermission(true));
+    await f.desk.evaluate(() => window.setup.visualFind({ text: "blue circle", route: "cloud", model: "llava" })); expect((await f.desk.evaluate(() => window.setup.state())).visual.message).toContain("unavailable");
+    await f.app.evaluate(() => { Reflect.set(globalThis, "fetch", (_url: unknown, init: RequestInit) => new Promise<Response>(resolve => { const body = JSON.parse(String(init.body)); const id = JSON.parse(body.contents[0].parts[0].text).candidates[0].id; Reflect.set(globalThis, "releaseVisual", () => resolve(Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({ candidateIds: [id] }) }] } }] }))); })); });
+    const pending = f.desk.evaluate(() => window.setup.visualFind({ text: "blue circle", route: "cloud", model: "llava" }));
+    await expect.poll(() => f.app.evaluate(() => typeof Reflect.get(globalThis, "releaseVisual")), { timeout: 30000 }).toBe("function");
+    await f.desk.evaluate(() => window.latham.stop()); await f.app.evaluate(() => (Reflect.get(globalThis, "releaseVisual") as () => void)()); await pending;
+    expect((await f.desk.evaluate(() => window.setup.state())).visual).toMatchObject({ consent: false, proposed: null, candidates: [] }); await expect(f.page).toHaveURL(/\/results\?/);
+  } finally { await f.close(); }
+});
 function audioPcm(path: string): Buffer {
   const bytes = readFileSync(path); for (let at = 12; at + 8 < bytes.length;) { const length = bytes.readUInt32LE(at + 4); if (bytes.toString("ascii", at, at + 4) === "data") return bytes.subarray(at + 8, at + 8 + length); at += 8 + length + length % 2; } throw Error("missing_audio");
 }

@@ -1,4 +1,5 @@
 const sites = ["https://www.google.com", "https://www.youtube.com"];
+importScripts("visual.js");
 let port, active = false, epoch = 0, busy = false, connection = "Disconnected";
 let pageSession = crypto.randomUUID(), navigationExpected = false;
 const agents = new Map();
@@ -71,7 +72,9 @@ async function pageRequest(message) {
   const generation = { epoch, session: pageSession }; let result = { outcome: "blocked", reason: "scope_denied" }, issued = false; busy = true;
   try {
     if (!pageFence(generation)) return;
-    if (message.request?.kind === "snapshot") result = { outcome: "verified", scope: await observePage(generation) };
+    if (["visual_capture", "visual_validate", "visual_highlight", "visual_open", "visual_clear"].includes(message.request?.kind)) {
+      issued = message.request.kind === "visual_open"; result = await visualRequest(message.request, generation);
+    } else if (message.request?.kind === "snapshot") result = { outcome: "verified", scope: await observePage(generation) };
     else {
       const scope = message.request?.scope, tab = await currentPage(generation);
       if (!scope || tab.id !== scope.tabId || tab.windowId !== scope.windowId || tab.url !== scope.snapshot?.url) throw new Error("stale_target");
@@ -88,7 +91,7 @@ async function pageRequest(message) {
         if (result.destination) result = await navigateVerified(tab, result.destination, generation);
       }
     }
-  } catch (error) { result = { outcome: issued ? "unknown" : "blocked", reason: ["scope_denied", "cancelled", "stale_target", "unsupported_page", "reload_required", "page_loading"].includes(error.message) ? error.message : "document_unavailable" }; }
+  } catch (error) { result = { outcome: issued ? "unknown" : "blocked", reason: ["scope_denied", "cancelled", "stale_target", "unsupported_page", "reload_required", "page_loading", "visual_stale", "visual_scope_denied", "visual_source_denied", "visual_image_grant_required", "visual_image_unavailable", "visual_image_too_large"].includes(error.message) ? error.message : "document_unavailable" }; }
   finally { if (generation.session === pageSession) { busy = false; send({ type: "page_result", id: message.id, epoch: message.epoch, ...result }); } }
 }
 const send = value => { try { port?.postMessage(value); } catch { disconnect(); } };
@@ -154,6 +157,7 @@ async function receive(message) {
 }
 chrome.permissions.onRemoved.addListener(() => {
   active = false; epoch++;
+  send({ type: "context_changed" });
   void (async () => { const current = await grants(), kept = (await consent()).filter(origin => current.includes(origin)); await chrome.storage.local.set({ consent: kept }); send({ type: "reconcile", origins: kept }); })();
 });
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
@@ -170,7 +174,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       active = false; epoch++; await chrome.storage.local.set({ consent: (await consent()).filter(origin => origin !== message.origin) }); await chrome.permissions.remove({ origins: [message.origin + "/*"] }); await grants(); send({ type: "reconcile", origins: await consent() });
     }
     const granted = await grants(), saved = await consent();
-    reply({ connection, connected: !!port && connection.startsWith("Connected"), active, sites: sites.map(origin => ({ origin, granted: granted.includes(origin), consent: saved.includes(origin) })) });
+    reply({ connection, connected: !!port && connection.startsWith("Connected"), active, imagesGranted: await chrome.permissions.contains({ origins: ["https://i.ytimg.com/*"] }), sites: sites.map(origin => ({ origin, granted: granted.includes(origin), consent: saved.includes(origin) })) });
   })().catch(() => reply({ error: "Unable to update access. Connect Latham first, then try again." }));
   return true;
 });

@@ -1,9 +1,9 @@
 {
   "name": "latham",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "Independent Windows voice assistant — opt-in hands-free Chrome and Notepad preview",
+  "description": "Independent Windows voice assistant — scoped visual thumbnail matching preview",
   "engines": {
     "node": ">=22"
   },
@@ -17,14 +17,15 @@
     "dev": "npm run build && npm start",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "test": "vitest run",
-    "test:e2e": "npm run build && node scripts/build-native-fixture.mjs && npm run setup:electron && playwright test",
+    "test:e2e": "npm run build && node scripts/build-native-fixture.mjs && npm run setup:electron && powershell.exe -NoProfile -File scripts/generate-visual-fixtures.ps1 && playwright test",
     "evaluate": "npm run typecheck && npm test && npm run test:e2e",
     "check": "npm run typecheck && npm test && npm run build",
     "setup:electron": "node node_modules/electron/install.js",
     "setup:browser": "playwright install chromium && node scripts/setup-browser.mjs",
     "test:providers": "node scripts/evaluate-providers.mjs --model=qwen2.5:1.5b",
     "test:detectors": "node scripts/build-host.mjs && powershell.exe -NoProfile -File scripts/generate-detector-fixtures.ps1 && node scripts/evaluate-detectors.mjs",
-    "package:preview": "npm run build && node scripts/package-preview.mjs"
+    "package:preview": "npm run build && node scripts/package-preview.mjs",
+    "test:visual": "npm run build && powershell.exe -NoProfile -File scripts/generate-visual-fixtures.ps1 && playwright test --project=chrome-and-fixture --no-deps --grep visual"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

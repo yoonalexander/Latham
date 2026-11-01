@@ -1,14 +1,14 @@
 # Latham Roadmap
 
 **Updated:** October 31, 2026\
-**Status:** Phases 0–4 implemented for the documented 0.4 unsigned developer preview; measured limits in docs/evaluation.md; Phase 5 not started.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.8.
+**Status:** Phases 0–5 implemented for the documented 0.5 unsigned developer preview; measured limits in docs/evaluation.md; Phase 6 not started.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.10.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
 This roadmap covers the whole project, including later ambitions. It has acceptance gates rather than promised dates. “Public release” means a user-facing build, not a decision that the source must be public. Distribution licensing, contribution terms, and any later private/commercial release are separate decisions. The design document owns execution/privacy contracts; this roadmap owns sequence. When a milestone changes, update both without marking unverified work complete.
 
-The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notepad editing and opt-in hands-free sessions are implemented. [Evaluation](docs/evaluation.md) records automated boundaries/integration flows, real-site workflows, microphone insertion, native editing and recovery, remembered permissions, speech-detection limits and packaging. [Chrome setup](docs/phase2.md), [desktop setup](docs/phase3.md) and [hands-free setup](docs/phase4.md) publish exact support sets and limits. The current channel is an unsigned Windows developer preview.
+The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notepad editing, opt-in hands-free sessions and scoped visual thumbnail matching are implemented. [Evaluation](docs/evaluation.md) records automated boundaries/integration flows, real-site workflows, microphone insertion, native editing and recovery, remembered permissions, speech-detection limits and packaging. [Chrome setup](docs/phase2.md), [desktop setup](docs/phase3.md) and [hands-free setup](docs/phase4.md) publish exact support sets and limits. The current channel is an unsigned Windows developer preview.
 
 ## Decisions already made
 
@@ -39,7 +39,7 @@ The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notep
 | 8 | Optional Latham-managed AI and commercial delivery | Stable core plus a separately reviewed service design |
 | 9 | Broader platform reach and ongoing compatibility | Stable Windows/browser/desktop contracts |
 
-Phases 0–4 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
+Phases 0–5 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
 
 ## Phase 0 — Foundation and evaluation harness
 
@@ -125,19 +125,21 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Gate:** publish recognition/false-stop/miss results and distinguish speech-detection latency from executor cancellation latency. Mic/detector failure cancels work and ends hands-free mode. No guaranteed recognition of every spoken stop is claimed.
 
-**Implemented preview:** opt-in sessions use separate Windows offline en-US wake and stop recognizers, bounded transient capture, single-command execution and failure-triggered cancellation. [Setup](docs/phase4.md) and [evaluation](docs/evaluation.md) distinguish synthetic phrase recognition, hardware limits and executor fences. Automatic sessions never grant site/app access, resume uncertainty or persist microphone activation. Phase 5 has not started.
+**Implemented preview:** opt-in sessions use separate Windows offline en-US wake and stop recognizers, bounded transient capture, single-command execution and failure-triggered cancellation. [Setup](docs/phase4.md) and [evaluation](docs/evaluation.md) distinguish synthetic phrase recognition, hardware limits and executor fences. Automatic sessions never grant site/app access, resume uncertainty or persist microphone activation. This checkpoint excludes Phase 5.
 
 ## Phase 5 — Visual understanding and grounding
 
 **Goal:** handle visual references that DOM/UIA labels cannot resolve, such as a described thumbnail.
 
-- [ ] Add explicit screenshot consent, a scoped capture adapter, local OCR/candidate detection, and opt-in local/cloud visual providers.
-- [ ] Prove that denied content is excluded from a capture; block the whole capture when that exclusion cannot be established.
-- [ ] Bind image coordinates/regions back to the correct current window/document/target; handle scaling and page movement.
-- [ ] Add proposed-target highlights and visual clarification. Visual similarity never bypasses an effect block.
-- [ ] Evaluate thumbnail/icon/layout tasks, including ambiguous matches, overlays, private content, and model failure.
+- [x] Add explicit per-session visual consent, source-isolated thumbnail capture, Windows OCR/layout matching, and opt-in Ollama/Gemini visual providers. General viewport/desktop screenshots remain unsupported.
+- [x] Exclude denied pixels by construction: only approved matching JPEG assets enter an isolated canvas. Unknown sources/targets and surfaces without safe candidates block; frames, fields and overlays are not screenshot inputs.
+- [x] Bind images to the Chrome window/tab/document, video target, source, revision and current geometry; reject zoom, scroll, mutation, overlay and replacement staleness. Effects use the existing DOM/navigation gateway rather than coordinates.
+- [x] Add proposed-target outlines, explicit opening and multi-match clarification. Visual similarity never bypasses an effect block.
+- [x] Evaluate controlled thumbnail text/color/icon/layout cases, ambiguity, denied/private content, overlays, grants, stale targets, provider failures and late results. Publish dataset and provider/hardware limits.
 
 **Gate:** controlled visual tasks meet measured success/abstention targets and never silently use stale coordinates or transmit denied pixels. Structured adapters remain preferred. This phase does not need to delay desktop-app support or require every local model to support vision.
+
+**Implemented preview:** [Visual setup](docs/phase5.md) and [evaluation](docs/evaluation.md) publish the narrow YouTube source-capture profile. Local OCR/layout and the final live Gemini benchmark each returned the correct result on 8/8 controlled tasks, including clarification/abstention. Earlier cloud failures and ambiguity errors remain recorded. General photo/person matching, native permission-prompt UX and actual local vision-model accuracy are not established. Capture/recognition does not authorize navigation by itself. Phase 6 has not started.
 
 ## Phase 6 — Many websites and broader browser coverage
 
@@ -207,4 +209,4 @@ The product direction above is settled. The preview selects an English/CPU local
 
 ## Next milestone
 
-**Phase 5 is planned next:** visual understanding and grounding. Stop at Phase 4 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.
+**Phase 6 is planned next:** many websites and broader browser coverage. Stop at Phase 5 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.

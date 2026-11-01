@@ -2,6 +2,25 @@
 
 Status: local fixture, voice/providers, reviewed Chrome pages, scoped Notepad
 editing and opt-in hands-free sessions.
+Phase 5 adds the scoped source-image path described in [visual setup](phase5.md).
+
+## Phase 5 image ownership
+
+Main owns non-persisted capture consent, cancellation generations, OCR/provider
+selection and pending proposals. The extension gates current YouTube identity,
+both site/asset grants and active epochs before reading assets. Root-only reviewed
+video candidates bind DOM targets to matching public JPEG URLs. Only those
+assets enter an isolated OffscreenCanvas; denied frame, overlay, field and
+desktop pixels are never captured. Normalized images and minimal candidate scope
+stay within the existing 64 KiB relay frame limit.
+
+The disposable Windows OCR helper has bounded image stdin/text stdout and a
+deadline, with no screen/network/path-selection interface. Visual providers see
+only candidates and can return validated candidate-ID sets. One match proposes;
+several clarify; none abstain. User-confirmed opening repeats target/layout/epoch
+checks and uses the existing reviewed navigation/verification gateway. No model
+coordinates, arbitrary click effect or silent provider fallback is introduced.
+Stop, lost grants, expiry and late-result guards clear pending authority/images.
 The [technical design](../Latham_Design_Document.md) defines broader contracts;
 the [roadmap](../roadmap.md) defines delivery order.
 

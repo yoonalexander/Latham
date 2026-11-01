@@ -2,6 +2,7 @@ import { record } from "./index";
 import type { PageState } from "./browser";
 import type { NativeState } from "./desktop";
 import type { HandsfreeState } from "./handsfree";
+import type { VisualState, VisualRoute } from "./visual";
 
 export const sites = [
   { origin: "https://www.google.com", pattern: "https://www.google.com/*", name: "Google Search" },
@@ -19,6 +20,7 @@ export type SetupState = {
   canInsertDesktopTranscript: boolean;
   desktop: NativeState;
   handsfree: HandsfreeState;
+  visual: VisualState;
   localModel: string;
   settings: ProviderSettings; keyStored: boolean; vaultAvailable: boolean;
   voice: "idle" | "recording" | "transcribing" | "testing"; transcript: string; error: string; notice: string;
@@ -41,6 +43,10 @@ export interface SetupBridge {
   handsfreeFrame(id: string, sequence: number, pcm: ArrayBuffer): void;
   handsfreeFailure(id: string): Promise<void>;
   checkLocalModel(): Promise<void>;
+  visualPermission(allowed: boolean): Promise<void>;
+  visualFind(query: { text: string; route: VisualRoute; model: string }): Promise<void>;
+  visualHighlight(id: string): Promise<void>;
+  visualOpen(): Promise<void>;
   chromeResume(): Promise<void>;
   reconcileChrome(): Promise<void>;
   chromeRun(command: string): Promise<void>;

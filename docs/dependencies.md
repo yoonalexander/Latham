@@ -54,3 +54,12 @@ Windows Framework 4.8 `System.Speech` assembly and an installed en-US desktop
 recognizer (`MS-1033-80-DESK` on the test machine). Windows components remain
 subject to Windows terms; they are not copied into the repository/package.
 The compiled Latham helper is bundled; missing installed recognizers fail closed.
+
+Phase 5 adds an independently authored `ImageOcr.cs` helper using Windows-provided
+WinRT `Windows.Media.Ocr` and imaging components, with Framework 4.8 compilation.
+The build references installed System32 WinMetadata and Framework GAC facade
+assemblies; no Windows SDK/runtime is downloaded or redistributed. The en-US OCR
+language was available on the tested machine. Missing OCR components fail closed.
+No npm package or local vision model is added. Optional visual inference uses the
+existing Gemini service or an explicitly installed, local Ollama vision model;
+model installation, provenance and terms remain the user's explicit setup step.

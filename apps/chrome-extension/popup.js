@@ -4,6 +4,9 @@ async function refresh(message = { type: "state" }) {
   if (state.error) { error.textContent = state.error; return; }
   status.textContent = state.connection + (state.active ? " · Session active" : " · Paused");
   document.getElementById("disconnect").disabled = !state.connected;
+  document.getElementById("images").disabled = !state.connected || state.imagesGranted;
+  document.getElementById("revoke-images").disabled = !state.imagesGranted;
+  document.getElementById("images").textContent = state.imagesGranted ? "Thumbnail images approved" : "Allow YouTube thumbnail images";
   document.getElementById("sites").replaceChildren(...state.sites.map(site => {
     const row = document.createElement("div"); row.className = "site";
     const title = document.createElement("strong"); title.textContent = site.origin;
@@ -20,4 +23,6 @@ async function refresh(message = { type: "state" }) {
 }
 document.getElementById("connect").onclick = () => { void refresh({ type: "connect" }); };
 document.getElementById("disconnect").onclick = () => { void refresh({ type: "disconnect" }); };
+document.getElementById("images").onclick = () => { chrome.permissions.request({ origins: ["https://i.ytimg.com/*"] }).then(granted => { error.textContent = granted ? "Thumbnail image grant enabled. Approve capture separately in Latham." : "Thumbnail image permission denied."; void refresh(); }).catch(() => { error.textContent = "Thumbnail image permission request failed."; }); };
+document.getElementById("revoke-images").onclick = () => { void chrome.permissions.remove({ origins: ["https://i.ytimg.com/*"] }).then(() => refresh()); };
 void refresh(); setInterval(() => { void refresh(); }, 1500);

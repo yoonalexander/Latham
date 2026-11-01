@@ -17,6 +17,8 @@ import { DesktopController } from "./desktop-controller";
 import { Handsfree } from "./handsfree";
 import { localDetector } from "./local-detector";
 import { parsePageIntent } from "../../../../packages/contracts/src/browser";
+import { VisualController } from "./visual-controller";
+import { imageOcr } from "./image-ocr";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "latham", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName("Latham");
@@ -54,6 +56,7 @@ async function boot(): Promise<void> {
   });
   let voice: Voice;
   let handsfree: Handsfree;
+  let visual: VisualController;
   const microphoneAllowed = (contents: Electron.WebContents | null): boolean => !!win && contents === win.webContents && contents.getURL() === "latham://app/index.html" && (voice?.status === "recording" || handsfree?.active);
   localSession.setPermissionRequestHandler((contents, permission, callback, details) => callback(microphoneAllowed(contents) && permission === "media" && details.isMainFrame && "mediaTypes" in details && details.mediaTypes.length > 0 && details.mediaTypes.every(type => type === "audio")));
   localSession.setPermissionCheckHandler((contents, permission, origin, details) => microphoneAllowed(contents) && permission === "media" && origin === "latham://app" && details.mediaType === "audio");
@@ -83,7 +86,7 @@ async function boot(): Promise<void> {
   let browser: BrowserController;
   let desktop: DesktopController;
   let utteranceBinding: string | null = null;
-  const setupState = (): SetupState => ({ canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
+  const setupState = (): SetupState => ({ canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
   const setupSend = (): void => { if (voice && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState()); };
   voice = new Voice(providerStore, setupSend);
   const chrome = new ChromeBridge(providerStore, setupSend);
@@ -92,11 +95,11 @@ async function boot(): Promise<void> {
   const nativeApp = nativeTesting ? "fixture" : "notepad";
   desktop = new DesktopController(app.getPath("userData"), join(__dirname, "native/Latham.DesktopAgent.exe"), () => Number(win.getNativeWindowHandle().readBigUInt64LE()), setupSend, nativeTesting);
   desktop.onInvalidate = () => { voice.cancel(); if (handsfree?.state.target === "desktop") handsfree.end("Editor binding changed. Microphone off; prepare the editor again."); };
-  chrome.onInvalidate = () => { browser.stop(); voice.cancel(); if (handsfree?.state.target === "chrome") handsfree.end("Chrome context changed. Microphone off; inspect Chrome before restarting."); };
+  chrome.onInvalidate = () => { visual?.stop(); browser.stop(); voice.cancel(); if (handsfree?.state.target === "chrome") handsfree.end("Chrome context changed. Microphone off; inspect Chrome before restarting."); };
   await chrome.start();
   const hostDirectory = join(app.getPath("userData"), "native");
   chrome.writeConfig(hostDirectory);
-  const stopExecutors = (): void => { controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
+  const stopExecutors = (): void => { visual?.stop(); controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
   handsfree = new Handsfree(localDetector(join(__dirname, "native/Latham.SpeechDetector.exe")), {
     available: target => target === "chrome" ? chrome.connected && chrome.active && !chrome.needsReview : desktop.state.active && desktop.state.bound && !desktop.state.needsReview,
     transcribe: async pcm => { utteranceBinding = desktop.bindingId ?? browser.bindingId; const id = voice.begin(); await voice.finish(id, pcm); if (voice.error || !voice.transcript) throw new Error("handsfree_transcription_failed"); return voice.transcript; },
@@ -106,8 +109,9 @@ async function boot(): Promise<void> {
     },
     cancel: stopExecutors, changed: setupSend
   });
+  visual = new VisualController(chrome, (image, signal) => imageOcr(join(__dirname, "native/Latham.ImageOcr.exe"), image, signal), () => providerStore.key(), setupSend);
   const stopAll = (): void => { if (handsfree.active) handsfree.end(); else stopExecutors(); };
-  const manual = (): void => { if (handsfree.active) throw new Error("end_handsfree_first"); };
+  const manual = (): void => { if (handsfree.active || visual?.state.busy) throw new Error("end_active_mode_first"); };
   const waitFence = async (confirmed: () => boolean): Promise<void> => {
     const deadline = Date.now() + 3500;
     while (!confirmed() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
@@ -115,11 +119,13 @@ async function boot(): Promise<void> {
   };
   const useChrome = async (): Promise<void> => {
     manual();
+    visual.stop(false);
     controller.stop(); desktop.pause(); await waitFence(() => desktop.state.fenceConfirmed);
     if (desktop.state.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
   };
   const useDesktop = async (): Promise<void> => {
     manual();
+    visual.stop();
     controller.stop(); chrome.pause(); await waitFence(() => !chrome.connected || chrome.fenceConfirmed);
     if (chrome.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
   };
@@ -131,7 +137,11 @@ async function boot(): Promise<void> {
   ipcMain.handle("setup:test", event => { guard(event); manual(); return voice.test(); });
   ipcMain.handle("setup:begin", event => { guard(event); manual(); utteranceBinding = desktop.bindingId ?? browser.bindingId; return voice.begin(); });
   ipcMain.handle("setup:check-local-model", event => { guard(event); manual(); voice.checkLocalModel(); });
-  ipcMain.handle("setup:handsfree-start", (event, config: unknown) => { guard(event); if (voice.status !== "idle" || browser.state.busy || desktop.state.busy || controller.needsReview) throw new Error("voice_busy"); voice.prepareSession(); controller.stop(); return handsfree.start(config); });
+  ipcMain.handle("setup:visual-permission", (event, value: unknown) => { guard(event); if (value === false) stopAll(); else manual(); visual.permission(value); });
+  ipcMain.handle("setup:visual-find", (event, query: unknown) => { guard(event); manual(); browser.stop(); voice.cancel(); return visual.find(query); });
+  ipcMain.handle("setup:visual-highlight", (event, id: unknown) => { guard(event); manual(); return visual.highlight(id); });
+  ipcMain.handle("setup:visual-open", event => { guard(event); manual(); return visual.open(); });
+  ipcMain.handle("setup:handsfree-start", (event, config: unknown) => { guard(event); if (visual.state.busy || voice.status !== "idle" || browser.state.busy || desktop.state.busy || controller.needsReview) throw new Error("voice_busy"); voice.prepareSession(); visual.stop(); controller.stop(); return handsfree.start(config); });
   ipcMain.on("setup:handsfree-frame", (event, id: unknown, sequence: unknown, pcm: unknown) => { try { guard(event); } catch { return; } handsfree.frame(id, sequence, pcm); });
   ipcMain.handle("setup:handsfree-failure", (event, id: unknown) => { guard(event); handsfree.fail(id); });
   ipcMain.handle("setup:finish", (event, id: unknown, pcm: unknown) => { guard(event); manual(); return voice.finish(id, pcm); });

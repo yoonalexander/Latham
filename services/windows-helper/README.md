@@ -23,3 +23,10 @@ for an installed Windows System.Speech en-US engine. Two independent child
 processes consume bounded PCM pipes for stop and optional wake. They have no
 microphone, network or action API; health/progress monitoring and detector exit
 cause main to cancel hands-free sessions. See [hands-free setup](../../docs/phase4.md).
+
+`ImageOcr.cs` is the disposable Phase 5 Windows OCR adapter. It consumes one
+bounded encoded image from stdin, uses installed WinRT OCR/imaging components,
+and returns bounded English text. It cannot capture the screen or receive a file
+path. Main enforces its deadline and termination. Its Framework/WinMetadata
+compile references come from Windows; no SDK download is needed. See
+[visual setup](../../docs/phase5.md).

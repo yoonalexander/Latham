@@ -26,6 +26,8 @@ const setup: SetupBridge = {
   handsfreeFrame: (id, sequence, pcm) => ipcRenderer.send("setup:handsfree-frame", id, sequence, pcm),
   handsfreeFailure: id => ipcRenderer.invoke("setup:handsfree-failure", id),
   checkLocalModel: () => ipcRenderer.invoke("setup:check-local-model"),
+  visualPermission: allowed => ipcRenderer.invoke("setup:visual-permission", allowed), visualFind: query => ipcRenderer.invoke("setup:visual-find", query),
+  visualHighlight: id => ipcRenderer.invoke("setup:visual-highlight", id), visualOpen: () => ipcRenderer.invoke("setup:visual-open"),
   insertTranscript: mode => ipcRenderer.invoke("setup:insert-transcript", mode),
   prepareDictation: () => ipcRenderer.invoke("setup:prepare-dictation"),
   desktopPermission: (approved, denied) => ipcRenderer.invoke("setup:desktop-permission", approved, denied),

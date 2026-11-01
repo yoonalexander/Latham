@@ -1,5 +1,76 @@
 # Evaluation and acceptance
 
+## Phase 5 evidence — October 31, 2026
+
+Implemented for the **0.5 unsigned Windows developer preview**, limited to
+source-isolated, reviewed YouTube thumbnail assets. [Visual setup](phase5.md)
+describes the exact scope and remaining acceptance limits. This does not accept
+full-screen capture or arbitrary visual computer control. Phase 6 has not started.
+
+- `npm run check` passes type checking, **66 unit/boundary tests** and desktop/
+  helper builds. Visual cases cover transient consent, denied/paused scope,
+  frame/payload bounds, malformed geometry, invented/duplicate/action-bearing
+  model output, OCR/layout ambiguity, no automatic navigation, stale checks
+  before external inference, late OCR after Stop and loopback-only vision routing.
+- A separate **21-flow browser/fixture suite passed**, with no skipped/flaky
+  cases. Four new visual flows use the actual extension, native messaging,
+  normalization canvas and Windows OCR. They exercise confirmed video navigation,
+  private frame/password/overlay exclusion, recapture/scaling, scroll, replaced
+  images, occlusion, grant denial, clarification, provider failure and a late
+  visual response after Stop. Effects remain bound DOM navigation; no coordinate
+  click API exists.
+- The portable 0.5 executable passed startup/version/sandbox, protected fake-key
+  storage, hidden development key import, packaged relay/extension pairing,
+  verified tab navigation, local wake/stop startup, acknowledged Stop and desktop
+  scan. The packaged OCR executable recognized the synthetic PIANO image from
+  the package working directory, and visual consent starts off. All **five
+  executables are NotSigned**. ZIPs/checksums are local preview artifacts;
+  unrelated uncommitted planning documents were excluded from their docs.
+- The capture fixture includes visible private text, a secure field and a denied
+  frame beside the four approved images. Only the four matching public image
+  URLs are fetched. Captured OCR contains none of those private sentinels.
+  Denied image access and a fully covering unknown overlay result in **zero
+  image fetches**. Minimal visual scope and bounded normalized JPEGs remain
+  inside the existing 64 KiB relay limit. Permission/context invalidation clears
+  consent and previews; native optional-prompt/revoke UX remains unverified.
+- Image matching was benchmarked on four generated text/color/shape thumbnails
+  arranged in a 2×2 layout. Labels are identical, so they cannot identify the
+  correct image. Cloud shape tasks omit OCR text from the request. Expected
+  results include unique targets, a missing target and multi-match clarification:
+
+| Route | Controlled tasks | Correct match/clarification/abstention | Failures |
+|---|---|---|---|
+| Windows OCR + layout | 8 | 8/8 | 0 |
+| Gemini visual, final candidate-set contract | 8 | 8/8 | 0 |
+
+The final cloud set contains five unique matches, two clarifications and one
+abstention. Successful request median/sample p95 was **2,250 / 8,519 ms**.
+These are model request times, excluding capture/OCR and user confirmation.
+The small controlled corpus exceeds the design's proposed 85% target for this
+profile; it does not establish photo/person accuracy or broad icon reliability.
+
+Earlier cloud evaluation recorded a timeout and seven provider-unavailable
+responses. A later single-choice run completed but got **6/8** correct: it chose
+one image for each ambiguous circle/square query. The visual contract now requires
+all matching IDs, validates each and presents multiple matches for clarification;
+the final live set above passed. Both earlier reports remain separate evidence.
+There is no automatic product retry, provider switch or fabricated success.
+
+Local Ollama protocol/capability/remote-model rejection is tested with controlled
+responses; no installed vision model was available for live accuracy acceptance.
+The Chrome fixtures use explicit install-time grants for positive cases and a
+genuinely missing optional image grant for denial. No native permission prompt
+was automatically approved. Real public-site thumbnail-layout coverage and the
+new grant's native UI flow remain release checks. The known Phase 3 native focus
+problem is unchanged; the full native-dependent evaluation is not claimed green.
+
+Image/OCR captures are not persisted by the product. Ignored evidence includes
+`visual-captured-fixture.json`, timestamped `visual-evaluation-*.json`, the initial
+unavailable and single-choice reports, `phase5-browser-results.json`,
+`phase5-final-visual-results.json` and `phase5-visual-preview.png`. Fixture images
+are independently generated synthetic assets; only those public test images
+were sent to the authorized Gemini key during this acceptance.
+
 ## Phase 4 evidence — October 31, 2026
 
 Implemented for the **0.4 unsigned Windows developer preview**. This accepts

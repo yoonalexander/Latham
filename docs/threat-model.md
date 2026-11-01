@@ -162,3 +162,31 @@ mixed-DPI and multi-monitor hardware support is not established. See [setup](pha
   not establish physical room/speaker-loopback or broad speech reliability.
 
 See [Phase 4 setup](phase4.md) and [evaluation](evaluation.md).
+
+## Phase 5 visual boundaries
+
+- Capture consent is a non-persisted main-process permission. It intersects an
+  active approved YouTube document and the separate optional i.ytimg.com grant.
+  An absent/denied browser adapter never enables native screenshot fallback.
+- The adapter captures source assets, not composited browser/desktop pixels.
+  Only bounded public JPEG URLs matching reviewed video IDs can be fetched, with
+  credentials omitted and redirects denied. Unknown source/target/visibility
+  proof blocks; iframe, field, overlay and other-app pixels never enter the
+  canvas. No post-capture redaction is relied on.
+- Decode dimensions, network bytes, normalized JPEG size, candidate count,
+  relay frames, OCR output and provider output are bounded. Images and OCR remain
+  transient; default diagnostics/persistence contain neither. Permission loss,
+  Stop and generation changes discard late results and pending previews.
+- OCR and model content are untrusted. Providers return candidate-ID sets only;
+  invented/duplicate IDs, coordinates and extra action fields are rejected.
+  Ambiguity asks the user to choose. A proposal cannot navigate by itself.
+- Opening rechecks document/epoch/target/source/layout/occlusion and the existing
+  reviewed video-navigation effect. There is no generic coordinate click, form
+  submission or arbitrary-image action. In-flight navigation retains the same
+  uncertainty/no-replay contract as other Chrome effects.
+- Source assets may differ from the site's composed appearance or change at a
+  stable URL; users review the exact captured preview. General adversarial-site,
+  photo/person and real local vision-model accuracy are not certified. Tests
+  distinguish controlled cloud/OCR results and unavailable-provider failures.
+
+See [Phase 5 setup](phase5.md) and [evaluation](evaluation.md).

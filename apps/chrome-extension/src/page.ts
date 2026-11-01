@@ -1,9 +1,10 @@
 import type { PageAction, PageSnapshot, PageTarget } from "../../../packages/contracts/src/browser";
+import { createVisualAgent } from "./visual-page";
 declare const chrome: { runtime: { sendMessage(value: unknown): Promise<unknown> } };
 type Field = HTMLInputElement | HTMLTextAreaElement;
 type Captured = { node: HTMLElement; target: PageTarget; fingerprint: string };
 type Binding = { node: Field; focus: number; edits: number; expected: string; undo: { before: string; after: string; start: number; end: number; mode: "append" | "replace" } | null };
-type Request = { op: "snapshot" | "action" | "fence" | "verify"; session: string; epoch: number; active?: boolean; document?: string; url?: string; action?: PageAction; proof?: string };
+type Request = { op: "snapshot" | "action" | "fence" | "verify" | "visual_prepare" | "visual_validate" | "visual_highlight" | "visual_open" | "visual_clear"; session: string; epoch: number; active?: boolean; document?: string; url?: string; action?: PageAction; proof?: string; token?: string; targetId?: string };
 type Agent = { call(request: Request): unknown };
 const world = globalThis as typeof globalThis & { lathamPage?: Agent };
 if (!world.lathamPage) {
@@ -12,6 +13,7 @@ if (!world.lathamPage) {
   let binding: Binding | null = null;
   let proof: { id: string; node: Field; expected: string; focus: number; edits: number; url: string; document: string } | null = null;
   const captures = new Map<string, Captured>();
+  const visual = createVisualAgent(() => [...captures.values()]);
   const notify = (): void => { binding = null; void chrome.runtime.sendMessage({ type: "page_invalidated", document: documentToken }).catch(() => {}); };
   document.addEventListener("focusin", event => { if (binding && event.target === binding.node) return; focus++; if (binding && document.activeElement !== binding.node) notify(); }, true);
   document.addEventListener("focusout", event => {
@@ -43,7 +45,7 @@ if (!world.lathamPage) {
   }
   const fingerprint = (node: HTMLElement): string => JSON.stringify({ url: location.href, visible: visible(node), enabled: enabled(node), name: node.getAttribute("aria-label"), text: node instanceof HTMLAnchorElement ? node.textContent?.trim().slice(0, 120) : "", href: node instanceof HTMLAnchorElement ? node.href : "", value: node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement ? node.value : "", field: field() === node });
   function snapshot(): PageSnapshot {
-    captures.clear(); const p = profile(), query = field(); const targets: PageTarget[] = [];
+    visual.clear(); captures.clear(); const p = profile(), query = field(); const targets: PageTarget[] = [];
     const add = (node: HTMLElement, name: string, role: PageTarget["role"], kind: PageTarget["profile"], actions: PageTarget["actions"]): void => {
       if (!visible(node) || !enabled(node) || targets.length >= 24) return;
       const target: PageTarget = { id: crypto.randomUUID(), revision: crypto.randomUUID(), name: name.trim().slice(0, 120), role, profile: kind, actions };
@@ -107,9 +109,10 @@ if (!world.lathamPage) {
       if (request.op === "fence") {
         if (typeof request.session !== "string" || retired.has(request.session)) throw new Error("cancelled");
         if (session !== request.session) { if (retired.size >= 64) throw new Error("reload_required"); if (session) retired.add(session); session = request.session; epoch = -1; }
-        if (request.epoch < epoch) throw new Error("cancelled"); epoch = request.epoch; active = request.active === true; binding = null; proof = null; captures.clear(); return { outcome: "verified" };
+        if (request.epoch < epoch) throw new Error("cancelled"); epoch = request.epoch; active = request.active === true; binding = null; proof = null; captures.clear(); visual.clear(); return { outcome: "verified" };
       }
       if (!active || request.session !== session || request.epoch !== epoch) throw new Error("cancelled");
+      if (request.op.startsWith("visual_")) { const result = visual.call(request); return request.op === "visual_open" ? act(result as PageAction) : result; }
       if (request.op === "verify") {
         if (!proof || request.proof !== proof.id || proof.url !== location.href || proof.document !== documentToken || proof.node.value !== proof.expected || document.activeElement !== proof.node || field() !== proof.node || focus !== proof.focus || edits !== proof.edits) throw new Error("verification_failed");
         proof = null; return { outcome: "verified", bound: "Search" };

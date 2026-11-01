@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { speechLanguages, type ProviderSettings, type SetupBridge, type SetupState } from "../../../../packages/contracts/src/setup";
 import { DesktopPanel } from "./desktop";
 import { HandsfreePanel } from "./handsfree";
+import { VisualPanel } from "./visual";
 declare global { interface Window { setup: SetupBridge } }
 type Recording = { id: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
 export function SetupPanel() {
@@ -62,8 +63,8 @@ export function SetupPanel() {
   if (!state || !draft) return <section className="panel setup-panel">Loading voice and Chrome setup…</section>;
   const patch = (value: Partial<ProviderSettings>): void => setDraft({ ...draft, ...value });
   return <section className="panel setup-panel" aria-label="Voice and Chrome setup">
-    <div className="section-kicker">WINDOWS PREVIEW / 0.4</div><h2>Voice, Chrome & desktop</h2>
-    <fieldset className="manual-controls" disabled={state.handsfree.phase !== "off"}>
+    <div className="section-kicker">WINDOWS PREVIEW / 0.5</div><h2>Voice, Chrome & desktop</h2>
+    <fieldset className="manual-controls" disabled={state.handsfree.phase !== "off" || state.visual.busy}>
     <div className="setup-grid">
       <div className="setup-group"><h3>1. Choose your AI</h3>
         <label><input type="radio" name="provider" checked={draft.mode === "local"} onChange={() => patch({ mode: "local" })} /> Use local AI</label>
@@ -108,6 +109,7 @@ export function SetupPanel() {
     <DesktopPanel state={state} dirty={dirty} act={act} />
     </fieldset>
     <HandsfreePanel state={state} dirty={dirty} />
+    <VisualPanel state={state} act={act} />
     {(error || state.error) && <p className="error" role="alert">{error || state.error.replaceAll("_", " ")}</p>}
   </section>;
 }
