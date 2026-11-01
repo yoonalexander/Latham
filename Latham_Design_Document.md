@@ -39,6 +39,7 @@ Use fixtures to develop and test the infrastructure, then validate a small real-
 | Fast path before large-agent path | Simple actions should not incur model planning latency. |
 | Explicit pause and confirmation | Always-on audio and powerful OS control require visible, enforceable user authority. |
 | User-supplied cloud keys or local AI | P0 supports a validated cloud configuration and a local configuration; managed Latham accounts/service come later. |
+| Planned Handy speech backend | Integrate Handy's public transcribe.cpp library through a Latham-owned adapter; benchmark before replacing the current local default (section 6.1.1). |
 | Remember explicitly approved websites | Per-site browser permission and Latham consent persist until revoked; neither permits idle/background observation. |
 | Few websites first, broad coverage later | Validate useful real workflows before expanding toward general website support. |
 | Deny unknown effects in the MVP | A valid control ID or plausible label does not establish what activating it will do. |
@@ -413,6 +414,20 @@ Reconcile provider item IDs with the local session/turn; local ASR adapters must
 
 A local ASR backend is part of the P0 local voice path, not a promise inferred from installing Ollama. The Phase 2 preview selects whisper.cpp v1.8.2 Windows x64 CPU with Whisper base.en (English, four threads) and Ollama Qwen2.5 1.5B. Base.en improved the fixed synthetic corpus over Phase 1's tiny.en, at a latency cost. Audio/transcripts now use bounded memory-only stdin/stdout rather than temporary files. Terms, hashes, hardware, physical microphone acceptance and separate cloud/local measurements are recorded in [Phase 2 setup](docs/phase2.md) and [evaluation](docs/evaluation.md). The small clean corpus does not establish broad accent/noise accuracy, minimum hardware or the proposed sub-second voice targets. Do not conflate open model weights with a hosted model identifier.
 
+### 6.1.1 Planned Handy speech integration
+
+**Decision: use Handy's transcription stack in a future local-speech upgrade. Status: planned; implementation and acceptance have not started.** Integrate the public `transcribe-cpp` library through its official TypeScript/Node binding in a Latham-owned child process. Keep Latham's Electron shell, microphone/session ownership, routing, permission checks, field-bound dictation, independent stop/wake detectors, and execution/verification contracts. Handy remains a reference application under section 1.2; this plan selects an ordinary library dependency, without importing Handy application code, assets, or its internal worker protocol.
+
+The [Handy adoption review](docs/handy-upstream-review.md) records the inspected source versions and rationale. Handy's reviewed source uses a newer engine stack than its downloadable release; pin and validate the actual library, native runtime, and model artifacts selected during implementation. The current preview continues using whisper.cpp base.en. This future speech workstream remains separate from the roadmap's capability sequence.
+
+Implement the upgrade in bounded steps:
+
+1. **Optional backend first:** add an explicit local-backend/model choice with migration for existing Whisper settings. Start with one English Parakeet candidate, initially Parakeet Unified EN, using batch recognition with a model retained between turns. Final model/quantization and device selection depend on measurements; model loading must not activate the microphone. Preserve the existing Whisper route as a user-selectable option and prohibit silent cloud fallback.
+2. **Owned worker and lifecycle:** pass bounded in-memory 16 kHz PCM to an independently authored child process, converting PCM16 to the library's float32 input. Serialize inference, bound model lifetime/resources, expose loading/readiness/failure, and support deadlines, cancellation, worker termination, and explicit recovery. Preserve existing turn/session generation fences; accept one final per active turn and discard late or cancelled results. Partial and engine-committed text are feedback only. No temporary audio/transcript files, persistent dictation history, clipboard insertion, or new action authority are introduced.
+3. **Same-machine comparison:** replay the existing corpus and add representative physical-microphone commands/dictation, names, negation, punctuation, silence, noise, and background speech. Measure cold loading, warm median/p95 transcription, speech-end-to-verified-action latency, peak memory, and CPU use with stop/wake detectors active. Establish CPU results first; measure any supported Vulkan device separately. Published Handy/engine figures are motivation, not Latham acceptance evidence. Retain current utterance boundaries initially; evaluate streaming and endpoint tuning separately after the batch baseline.
+4. **Packaging and failure validation:** package the binding, native addon, and Windows runtime/backend files with the portable executable. Test startup without development tooling, missing/invalid models, worker hangs/crashes, Stop during loading/inference, field/permission changes, and stale results after cancellation/restart. Verify no regression in microphone opt-in, local-only behavior, independent interruption, or bound edits. Record exact library/model versions, hashes, licenses, attribution, and explicit download sizes before distribution.
+5. **Promote after acceptance:** make the new backend the recommended local route only when it gives a material, repeatable latency improvement on the target laptop, acceptable cold-start/resident resource use, representative recognition at least as useful as the current route, and passing cancellation/privacy/packaged-operation checks. Update setup, dependency provenance, decisions, and evaluation with actual evidence. Keep the current default if these gates fail; no sub-second or broad accuracy claim follows from adoption alone.
+
 ### 6.2 Mode selection and utterance routing
 
 - **Command mode:** interpret "open," "scroll," "click," "switch," and other imperatives.
@@ -569,6 +584,7 @@ and signed installers describe later work.
 | Windows helper | Own C# .NET Framework 4.8 relay and desktop supervisor/MTA worker | Separate Chrome framing and scoped Notepad execution; no .NET SDK installation. |
 | Browser helper | Chrome extension, Manifest V3, native messaging | Remembered user-granted per-site optional hosts plus Latham scopes; required for browser content. |
 | Speech | Gemini user key or whisper.cpp base.en | Both paths tested; narrow English corpus and hardware limits published. |
+| Planned local speech upgrade | Handy's transcribe.cpp via official TypeScript binding in a Latham-owned child process | Future work under section 6.1.1; resident model and Parakeet candidate require local benchmarking and packaged acceptance. |
 | Bounded decision | User-key cloud adapter or local Ollama | Same validated target-choice contract; add other providers only when needed. |
 | Planner | OpenAI Responses API with typed tools | Optional, restricted to a step-limited mode. |
 | Visual grounding | Source-isolated YouTube thumbnails, Windows OCR/layout, opt-in local/cloud vision | Candidate-ID sets, explicit clarification/highlight/open; no viewport/desktop capture or coordinate click. |
@@ -789,6 +805,8 @@ These references inform the architecture. They do **not** establish that the unb
 15. **Chrome permissions API, runtime requests/removal and change events:** https://developer.chrome.com/docs/extensions/reference/api/permissions
 16. **Ollama local chat endpoint:** https://docs.ollama.com/api/chat
 17. **Ollama structured outputs:** https://docs.ollama.com/capabilities/structured-outputs
+18. **Handy, local transcription application:** https://github.com/cjpais/handy — reviewed source commit `7bfb2e2c934b798bcf6e3627653aed2439996f89`; application remains a reference under section 1.2. [Adoption review](docs/handy-upstream-review.md) distinguishes source and released capabilities.
+19. **transcribe.cpp, planned speech-library dependency:** [official TypeScript binding](https://github.com/handy-computer/transcribe.cpp/blob/f1dcd15858c4bbba87ca97862b4e448b2cf15b8f/bindings/typescript/README.md), inspected v0.4.0 source. Public API and packaging reference for section 6.1.1; shipping versions/model terms require validation during implementation.
 
 Reference roles are distinct: jev-use informs the accessibility/decision loop; Capri informs Windows integration concepts and local-speech experiments; Clicky/HeyClicky informs resident-assistant UX and interaction concepts. All remain references under section 1.2. None establishes Latham's measured behavior, supplies authority to bypass permissions, or adds a mascot, persistent personality, or unattended workflows to P0.
 
@@ -802,6 +820,8 @@ provider/late-result handling and controlled text/icon/layout evaluation are
 documented in [visual setup](docs/phase5.md) and [evaluation](docs/evaluation.md).
 General screen capture, photo/person reliability and Phase 6 remain outside this
 preview. Existing planned speech-backend work remains separate.
+
+**v1.9 — October 31, 2026:** Recorded the planned eventual Handy speech integration through the public transcribe.cpp TypeScript binding and an independently authored Latham worker. Added staged optional-backend integration, same-machine recognition/latency/resource comparison, native packaging and cancellation/privacy acceptance, and conditional promotion of the local default. The 0.4 preview remains on whisper.cpp; the integration is unimplemented and Phase 5 has not started.
 
 **v1.8 — October 31, 2026:** Added explicit consecutive-command sessions with
 visible microphone/readiness state, separate offline Windows stop and wake

@@ -29,6 +29,7 @@ the [roadmap](../roadmap.md) defines sequence.
 | Hands-free | Explicit non-persisted sessions; 90-second idle/five-minute cap; existing app permissions only | phase4.md |
 | Stop and wake | Separate Windows System.Speech en-US processes; local fixed grammars; no idle cloud audio; detector/mic failure cancels | phase4.md |
 | Speech resources | Two CPU threads by default; preflight installed GGML model; configurable language and vocabulary; no resident ASR server or auto-download | phase4.md |
+| Planned Handy speech upgrade | Future transcribe.cpp TypeScript backend in a Latham-owned child process; retained model and Parakeet candidate; benchmark and packaged acceptance before default promotion | Design 6.1.1 and handy-upstream-review.md |
 | Playback | No assistant TTS output while hands-free is active; no speaker-identity guarantee | phase4.md |
 
 ## Phase 0 provenance and release checkpoint
