@@ -1,10 +1,12 @@
 import type { PageAction, PageSnapshot, PageTarget } from "../../../packages/contracts/src/browser";
 import { createVisualAgent } from "./visual-page";
+import { siteForPage, searchDestination } from "../../../packages/contracts/src/sites";
+import { accessibleName, rendered, searchControls, resultLinks } from "./semantics";
 declare const chrome: { runtime: { sendMessage(value: unknown): Promise<unknown> } };
 type Field = HTMLInputElement | HTMLTextAreaElement;
-type Captured = { node: HTMLElement; target: PageTarget; fingerprint: string };
+type Captured = { node: HTMLElement; target: PageTarget; fingerprint: string; frameDocument?: Document };
 type Binding = { node: Field; focus: number; edits: number; expected: string; undo: { before: string; after: string; start: number; end: number; mode: "append" | "replace" } | null };
-type Request = { op: "snapshot" | "action" | "fence" | "verify" | "visual_prepare" | "visual_validate" | "visual_highlight" | "visual_open" | "visual_clear"; session: string; epoch: number; active?: boolean; document?: string; url?: string; action?: PageAction; proof?: string; token?: string; targetId?: string };
+type Request = { op: "snapshot" | "action" | "fence" | "verify" | "visual_prepare" | "visual_validate" | "visual_highlight" | "visual_open" | "visual_clear"; session: string; epoch: number; active?: boolean; frames?: boolean; document?: string; url?: string; action?: PageAction; proof?: string; token?: string; targetId?: string };
 type Agent = { call(request: Request): unknown };
 const world = globalThis as typeof globalThis & { lathamPage?: Agent };
 if (!world.lathamPage) {
@@ -29,13 +31,15 @@ if (!world.lathamPage) {
   addEventListener("pageshow", event => { if (event.persisted) { documentToken = crypto.randomUUID(); active = false; binding = null; captures.clear(); } });
   const visible = (node: HTMLElement, viewport = true): boolean => { const style = getComputedStyle(node), rect = node.getBoundingClientRect(); return node.isConnected && rect.width > 0 && rect.height > 0 && (!viewport || (rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth)) && Number(style.opacity) > 0 && style.display !== "none" && style.visibility !== "hidden" && !node.closest('[inert],[hidden],[aria-hidden="true"]'); };
   const enabled = (node: HTMLElement): boolean => !node.matches(":disabled,[aria-disabled=true]");
-  const profile = (): "google" | "youtube" => {
-    if (location.origin === "https://www.google.com" && ["/", "/search", "/webhp"].includes(location.pathname)) return "google";
-    if (location.origin === "https://www.youtube.com" && ["/", "/results", "/watch"].includes(location.pathname)) return "youtube";
-    throw new Error("unsupported_page");
+  const profile = () => {
+    const site = siteForPage(location.href); if (!site) throw new Error("unsupported_page");
+    // A challenge/login page retaining the search URL is not evidence of task success.
+    if (/captcha|human verification|just a moment|access denied|security check|robot check/i.test(document.title) || document.querySelector('iframe[src*="captcha"],#challenge-running,#captcha-form')) throw new Error("site_restricted");
+    return site.id;
   };
   function field(viewport = true): Field | null {
     const p = profile();
+    if (p !== "google" && p !== "youtube") return null;
     const nodes = [...document.querySelectorAll<Field>(p === "google" ? 'form[action] textarea[name="q"],form[action] input[name="q"]' : 'ytd-searchbox input[name="search_query"],yt-searchbox input[name="search_query"],form#search-form input[name="search_query"]')];
     return nodes.find(node => {
       if (!visible(node, viewport) || !enabled(node) || node.readOnly || node.value.length > 2000 || (node instanceof HTMLInputElement && !["text", "search"].includes(node.type)) || /password|one-time-code|cc-|webauthn/i.test(node.autocomplete)) return false;
@@ -43,11 +47,11 @@ if (!world.lathamPage) {
       return true;
     }) ?? null;
   }
-  const fingerprint = (node: HTMLElement): string => JSON.stringify({ url: location.href, visible: visible(node), enabled: enabled(node), name: node.getAttribute("aria-label"), text: node instanceof HTMLAnchorElement ? node.textContent?.trim().slice(0, 120) : "", href: node instanceof HTMLAnchorElement ? node.href : "", value: node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement ? node.value : "", field: field() === node });
-  function snapshot(): PageSnapshot {
+  const fingerprint = (node: HTMLElement): string => JSON.stringify({ url: location.href, visible: visible(node), rendered: rendered(node), enabled: enabled(node), name: accessibleName(node), text: node instanceof HTMLAnchorElement ? node.textContent?.trim().slice(0, 120) : "", href: node instanceof HTMLAnchorElement ? node.href : node instanceof HTMLIFrameElement ? node.src : "", frameUrl: node instanceof HTMLIFrameElement ? node.contentDocument?.URL : "", value: field() === node && (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) ? node.value : "", field: field() === node });
+  function snapshot(includeFrames = false): PageSnapshot {
     visual.clear(); captures.clear(); const p = profile(), query = field(); const targets: PageTarget[] = [];
     const add = (node: HTMLElement, name: string, role: PageTarget["role"], kind: PageTarget["profile"], actions: PageTarget["actions"]): void => {
-      if (!visible(node) || !enabled(node) || targets.length >= 24) return;
+      if (!visible(node) || !enabled(node) || targets.length >= (includeFrames && kind !== "frame" ? 20 : 24)) return;
       const target: PageTarget = { id: crypto.randomUUID(), revision: crypto.randomUUID(), name: name.trim().slice(0, 120), role, profile: kind, actions };
       captures.set(target.id, { node, target, fingerprint: fingerprint(node) }); targets.push(target);
     };
@@ -56,10 +60,29 @@ if (!world.lathamPage) {
       const button = p === "google" ? [...query.form!.querySelectorAll<HTMLElement>('input[name="btnK"][type="submit"],button[type="submit"]')].find(node => visible(node)) : document.querySelector<HTMLElement>('button#search-icon-legacy,yt-searchbox button[aria-label="Search YouTube"],yt-searchbox button[aria-label="Search"]');
       if (button) add(button, "Search", "button", "search_submit", ["navigate"]);
     }
+    if (p !== "google" && p !== "youtube") {
+      for (const node of searchControls(document)) add(node, accessibleName(node), "textbox", "search_control", ["focus"]);
+      for (const node of resultLinks(document, p)) add(node, accessibleName(node), "link", "result", ["navigate"]);
+    }
     if (p === "youtube") for (const node of document.querySelectorAll<HTMLAnchorElement>('ytd-video-renderer a#video-title,ytd-rich-item-renderer a#video-title-link')) {
       try { const url = new URL(node.href); if (url.origin === location.origin && url.pathname === "/watch" && /^[\w-]{11}$/.test(url.searchParams.get("v") ?? "")) add(node, node.textContent ?? "Video", "link", "result", ["navigate"]); } catch { /* Not a reviewed video link. */ }
     }
-    return { document: documentToken, url: location.href, profile: p, searchAvailable: field(false) !== null, targets, deniedFrames: document.querySelectorAll("iframe,frame").length };
+    const frames = [...document.querySelectorAll<HTMLIFrameElement>("iframe")]; let included = 0;
+    if (includeFrames) for (const frame of frames) {
+      if (included >= 4 || !rendered(frame) || frame.hasAttribute("srcdoc")) continue;
+      try {
+        const url = new URL(frame.src), site = siteForPage(url.href), child = frame.contentDocument;
+        if (url.origin !== location.origin || !site || !child || child.URL !== url.href || child.readyState !== "complete" || /captcha|verification|access denied/i.test(child.title)) continue;
+        const count = searchControls(child).length + resultLinks(child, site.id).length;
+        if (!count) continue;
+        const before = targets.length;
+        add(frame, `Frame ${included + 1}: ${site.name} (${Math.min(24, count)} reviewed controls)`, "link", "frame", ["navigate"]);
+        const target = targets[before]; if (target) { captures.get(target.id)!.frameDocument = child; included++; }
+      } catch { /* Cross-origin and inaccessible documents remain excluded. */ }
+    }
+    const markers: Partial<Record<typeof p, string>> = { github: 'qbsearch-input,[data-target="qbsearch-input.inputButton"],button[aria-label^="Search or jump to"]', mdn: "mdn-homepage-search,mdn-site-search,mdn-search-button", duckduckgo: 'input#search_form_input[name="q"]' };
+    const readReady = targets.some(target => target.profile === "search_control" || target.profile === "result") || searchControls(document).length > 0 || !!markers[p] && !!document.querySelector(markers[p]!) || p === "usajobs" && /^\/job\/\d+/.test(location.pathname) && !!document.querySelector("main h1");
+    return { document: documentToken, url: location.href, profile: p, searchAvailable: p === "google" || p === "youtube" ? field(false) !== null : readReady, targets, deniedFrames: frames.length + document.querySelectorAll("frame").length - included };
   }
   function bound(): Binding {
     if (!binding || !binding.node.isConnected || field() !== binding.node || document.activeElement !== binding.node || focus !== binding.focus || edits !== binding.edits || binding.node.value !== binding.expected) { binding = null; throw new Error("dictation_suspended"); }
@@ -92,6 +115,12 @@ if (!world.lathamPage) {
     const captured = captures.get(action.targetId);
     if (!captured || captured.target.revision !== action.revision || !captured.node.isConnected || captured.fingerprint !== fingerprint(captured.node)) throw new Error("stale_target");
     if (action.kind === "focus" || action.kind === "bind") {
+      if (captured.target.profile === "search_control" && action.kind === "focus") {
+        if (!rendered(captured.node) || !searchControls(document).includes(captured.node)) throw new Error("stale_target");
+        captured.node.focus();
+        let focused = document.activeElement; while (focused?.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
+        if (focused !== captured.node) throw new Error("verification_failed"); return { outcome: "verified" };
+      }
       if (captured.target.profile !== "search_field" || field() !== captured.node) throw new Error("unknown_effect");
       if (action.kind === "bind" && document.activeElement !== captured.node) throw new Error("focus_search_first");
       captured.node.focus(); if (document.activeElement !== captured.node) throw new Error("verification_failed");
@@ -99,11 +128,16 @@ if (!world.lathamPage) {
       return { outcome: "verified" };
     }
     binding = null;
+    if (captured.target.profile === "frame" && captured.node instanceof HTMLIFrameElement) {
+      const frame = captured.node;
+      if (!rendered(frame) || frame.hasAttribute("srcdoc") || frame.contentDocument !== captured.frameDocument || frame.contentDocument?.URL !== frame.src || new URL(frame.src).origin !== location.origin || !siteForPage(frame.src)) throw new Error("stale_target");
+      return { outcome: "verified", destination: frame.src };
+    }
     if (captured.target.profile === "search_submit") { const query = field(); if (!query || !query.value.trim() || query.value.length > 1000) throw new Error("empty_search"); return { outcome: "verified", destination: searchUrl(query.value) }; }
     if (captured.target.profile === "result" && captured.node instanceof HTMLAnchorElement) return { outcome: "verified", destination: captured.node.href };
     throw new Error("unknown_effect");
   }
-  function searchUrl(text: string): string { const url = new URL(profile() === "google" ? "/search" : "/results", location.origin); url.searchParams.set(profile() === "google" ? "q" : "search_query", text); return url.href; }
+  function searchUrl(text: string): string { return searchDestination(profile(), text); }
   world.lathamPage = { call(request) {
     try {
       if (request.op === "fence") {
@@ -117,7 +151,7 @@ if (!world.lathamPage) {
         if (!proof || request.proof !== proof.id || proof.url !== location.href || proof.document !== documentToken || proof.node.value !== proof.expected || document.activeElement !== proof.node || field() !== proof.node || focus !== proof.focus || edits !== proof.edits) throw new Error("verification_failed");
         proof = null; return { outcome: "verified", bound: "Search" };
       }
-      if (request.op === "snapshot") return { outcome: "verified", snapshot: snapshot() };
+      if (request.op === "snapshot") return { outcome: "verified", snapshot: snapshot(request.frames === true) };
       if (request.document !== documentToken || request.url !== location.href || !request.action) throw new Error("stale_target");
       return act(request.action);
     } catch (error) { const reason = (error as Error).message; return { outcome: reason === "verification_failed" ? "unknown" : "blocked", reason }; }

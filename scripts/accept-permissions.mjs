@@ -45,9 +45,9 @@ try {
   assert.equal(await page.evaluate(async () => { try { await window.setup.chromeRun("open https://example.org"); return false; } catch { return true; } }), true);
   await page.evaluate(() => window.latham.stop());
   assert.equal((await page.evaluate(() => window.setup.state())).chromeActive, false);
-  assert.equal((await page.evaluate(() => window.setup.state())).sites.every(site => site.effective), true);
+  assert.equal((await page.evaluate(() => window.setup.state())).sites.slice(0, 2).every(site => site.effective), true);
   await close(); await launch();
-  await wait(() => page.evaluate(async () => (await window.setup.state()).sites.every(site => site.effective)));
+  await wait(() => page.evaluate(async () => (await window.setup.state()).sites.slice(0, 2).every(site => site.effective)));
   assert.equal((await page.evaluate(() => window.setup.state())).chromeActive, false);
   assert.equal(await popup.locator(".site").getByRole("button", { name: "Approve", exact: true }).first().isDisabled(), true);
   await page.evaluate(() => window.setup.revoke("https://www.google.com"));

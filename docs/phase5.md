@@ -1,4 +1,4 @@
-# Latham 0.5 visual thumbnail preview
+# Visual thumbnail matching — Phase 5
 
 Phase 5 resolves visual references within reviewed YouTube video results. It
 adds explicit image-capture consent, local Windows OCR/layout matching,
@@ -9,8 +9,8 @@ clicking. Existing text/DOM commands remain the first route for labeled controls
 ## Setup and use
 
 Build as in [Chrome setup](phase2.md), or extract the unsigned
-`Latham-0.5.0-win-x64-preview.zip`. Register this build's Chrome host and load
-extension **0.5.0**; the native relay remains protocol 2. The package includes
+`Latham-0.6.0-win-x64-preview.zip`. Register this build's Chrome host and load
+extension **0.6.0**; the native relay remains protocol 2. The package includes
 `Latham.ImageOcr.exe`, using installed Windows OCR components through Framework
 4.8. No SDK, OCR runtime or visual model is downloaded automatically. The tested
 Windows 11 machine has the en-US OCR language available.
@@ -130,7 +130,7 @@ automation. The new optional image permission's native prompt/revoke UX has not
 been manually accepted; isolated fixtures use explicit install-time grants for
 positive cases and a genuinely missing optional grant for denial cases. The
 existing native foreground-focus limitation remains separate from this Chrome
-adapter. Phase 6 has not started.
+adapter. [Phase 6](phase6.md) expands the read-query catalog; visual capture remains limited to the reviewed YouTube thumbnail profile.
 
 Platform references: [Chrome cross-origin requests and host grants](https://developer.chrome.com/docs/extensions/develop/concepts/network-requests),
 [Windows OCR](https://learn.microsoft.com/en-us/uwp/api/windows.media.ocr.ocrengine),

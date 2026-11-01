@@ -9,7 +9,8 @@ await Promise.all([
   build({ ...common, entryPoints: ["apps/desktop/src/preload/index.ts"], outfile: "dist/preload.cjs", platform: "node", format: "cjs", target: "node22", external: ["electron"] }),
   build({ ...common, entryPoints: ["apps/desktop/src/renderer/index.tsx"], outfile: "dist/renderer/renderer.js", platform: "browser", format: "esm", target: "es2022", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' } }),
   build({ ...common, entryPoints: ["tests/fixtures/browser.ts"], outfile: "dist/fixture/fixture.js", platform: "browser", format: "esm", target: "es2022" }),
-  build({ ...common, entryPoints: ["apps/chrome-extension/src/page.ts"], outfile: "dist/chrome-extension/page.js", platform: "browser", format: "iife", target: "es2022" })
+  build({ ...common, entryPoints: ["apps/chrome-extension/src/page.ts"], outfile: "dist/chrome-extension/page.js", platform: "browser", format: "iife", target: "es2022" }),
+  build({ ...common, entryPoints: ["apps/chrome-extension/src/catalog.ts"], outfile: "dist/chrome-extension/catalog.js", platform: "browser", format: "iife", target: "es2022" })
 ]);
 await Promise.all([
   copyFile("apps/desktop/src/renderer/index.html", "dist/renderer/index.html"),

@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.10\
+**Version:** 1.11\
 **Date:** October 31, 2026\
-**Status:** Phases 0–5 implemented for the documented 0.5 unsigned Windows developer preview; measured evidence and limits in docs/evaluation.md; Phase 6 not started\
+**Status:** Phases 0–6 implemented for the documented 0.6 unsigned Windows developer preview; compatibility tiers and measured limits in docs/phase6.md and docs/evaluation.md; Phase 7 unstarted\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -269,6 +269,35 @@ pending authority. No coordinate click or provider fallback is introduced.
 [Visual setup](docs/phase5.md) and [evaluation](docs/evaluation.md) distinguish
 the controlled text/color/icon/layout results from unproven general photo/person
 matching and full-screen capture.
+
+### 5.3.1 Phase 6 website expansion
+
+The 0.6 preview compiles eight exact approved origins and read-query recipes from
+one shared catalog: Google, YouTube, Wikipedia, GitHub repositories, MDN,
+USAJOBS, DuckDuckGo and Stack Overflow. Shared semantics resolve bounded labels,
+visible results and open shadow roots; effect authority remains in reviewed URL
+and control profiles. Newly added fields are focus-only. Search constructs a
+known read URL without invoking page submit/input handlers; USAJOBS remote/all
+filters never authorize an application, upload or saved search.
+
+Root-only observation remains the default. Explicit `inspect frames` may read
+bounded supported-control counts from at most four visible same-origin child
+documents with reviewed paths. `open frame N` revalidates node, child Document,
+URL and root scope before opening the reviewed frame URL in the main tab. It
+does not mutate the child. Cross-origin, hidden, srcdoc, inaccessible, nested
+and unreviewed documents remain excluded, regardless of other site approvals.
+
+Dynamic/recycled controls require current identity and fingerprints. Closed
+components and unrendered virtual rows remain unsupported. Navigation must
+match the expected loaded URL and a reviewed page marker after URL stability;
+only explicitly reviewed normalization parameters are accepted. Unexpected
+changes pause or produce an unknown outcome without replay. Per-site consent,
+active epochs and Stop still gate all observations and actions.
+
+[Coverage setup](docs/phase6.md) and [evaluation](docs/evaluation.md) publish live
+versus fixture support, restrictions and maintenance. An isolated Edge experiment
+does not change Chrome's supported-browser status. General workflows and
+consequential operations remain Phase 7; Handy remains separately planned.
 
 ### 5.4 Snapshot contract
 
@@ -589,7 +618,7 @@ and signed installers describe later work.
 | Planner | OpenAI Responses API with typed tools | Optional, restricted to a step-limited mode. |
 | Visual grounding | Source-isolated YouTube thumbnails, Windows OCR/layout, opt-in local/cloud vision | Candidate-ID sets, explicit clarification/highlight/open; no viewport/desktop capture or coordinate click. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.5.0, Chrome relay protocol 2; Latham binaries unsigned. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.6.0, Chrome relay protocol 2; Latham binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -811,6 +840,8 @@ These references inform the architecture. They do **not** establish that the unb
 Reference roles are distinct: jev-use informs the accessibility/decision loop; Capri informs Windows integration concepts and local-speech experiments; Clicky/HeyClicky informs resident-assistant UX and interaction concepts. All remain references under section 1.2. None establishes Latham's measured behavior, supplies authority to bypass permissions, or adds a mascot, persistent personality, or unattended workflows to P0.
 
 ## 16. Revision Notes
+
+**v1.11 — October 31, 2026:** Implemented the Phase 6 compiled eight-origin read-query catalog, shared accessible-name/open-root/result handling, conservative focus-only fields, reviewed search/filter URL recipes and explicit bounded same-origin frame inspection/opening. Unknown effects and new-site dictation remain blocked. Dynamic/recycled target freshness, live selector maintenance, per-site consent, URL stabilization and an isolated Edge experiment are recorded in [website coverage](docs/phase6.md) and [evaluation](docs/evaluation.md). Chrome remains the supported browser; universal coverage, Handy migration and Phase 7 remain separate future work.
 
 **v1.10 — October 31, 2026:** Implemented the Phase 5 source-isolated YouTube
 thumbnail profile with separate per-session image consent, optional asset grants,

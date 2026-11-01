@@ -4,10 +4,11 @@ import { selectCandidate } from "../../../../packages/speech/src/providers";
 import { ChromeBridge } from "./native-bridge";
 import { ProviderStore } from "./provider-store";
 import { randomUUID } from "node:crypto";
+import { searchDestination, filterDestination } from "../../../../packages/contracts/src/sites";
 
 const reasons: Record<string, string> = {
   page_loading: "Wait for the page to finish loading, then try again.",
-  scope_denied: "Approve this supported website and start a Chrome session first.", unsupported_page: "This page is outside the reviewed Google Search / YouTube profiles.",
+  scope_denied: "Approve this supported website and start a Chrome session first.", unsupported_page: "This page is outside the reviewed public search/read profiles.",
   stale_target: "The document or control changed. Inspect the page again.", cancelled: "Cancelled. No pending command will be replayed.",
   unknown_effect: "This control has no reviewed safe effect. Nothing was dispatched.", target_missing: "No supported control matches. Messages, uploads, account changes and secure fields are excluded.",
   ambiguous_target: "Several controls match. Choose a number from the list.", provider_abstained: "The model could not identify one supported target. Try its exact label.",
@@ -18,8 +19,9 @@ const reasons: Record<string, string> = {
   verification_failed: "The intended effect could not be verified. Inspect Chrome before continuing.", navigation_unverified: "Navigation was issued but the expected loaded page could not be verified.",
   navigation_changed_origin: "Navigation left the approved origin. Inspect Chrome before continuing.", authentication_failed: "The Gemini key was rejected.", quota_or_rate_limit: "The provider quota or rate limit was reached.",
   provider_unavailable: "The selected provider is unavailable. Nothing was substituted.", invalid_selection: "The provider returned an invalid target. Nothing was dispatched.", invalid_provider_response: "The provider returned an invalid response.",
-  local_model_required: "Use an installed local Ollama model.", unsupported_filter: "These filters are supported on Google Search only.",
+  local_model_required: "Use an installed local Ollama model.", unsupported_filter: "Use all/images/videos/news on Google Search, or all/remote on USAJOBS.",
   chrome_session_paused: "Start a Chrome session first.", chrome_busy: "Wait for the current Chrome operation or press Stop.", invalid_request: "Use a supported command.",
+  site_restricted: "The site requires human verification or denies access. Complete it yourself or choose another site.",
   timeout: "The selected provider timed out. Nothing was dispatched."
 };
 export class BrowserController {
@@ -37,8 +39,8 @@ export class BrowserController {
     if (value.outcome !== "verified") { if (value.outcome === "unknown") this.chrome.result = reasons[String(value.reason)] ?? reasons.verification_failed!; throw new Error(String(value.reason)); }
     return value;
   }
-  private async observe(): Promise<PageScope> {
-    const reply = await this.reply({ kind: "snapshot" }); const scope = parsePageScope(reply.scope);
+  private async observe(frames = false): Promise<PageScope> {
+    const reply = await this.reply({ kind: frames ? "frames_snapshot" : "snapshot" }); const scope = parsePageScope(reply.scope);
     if (!this.chrome.siteState.some(site => site.effective && site.origin === new URL(scope.snapshot.url).origin)) throw new Error("scope_denied");
     this.state.targets = scope.snapshot.targets.map(({ name, role }) => ({ name, role })); this.state.status = `${scope.snapshot.profile} · main frame · ${scope.snapshot.deniedFrames} excluded frames`; this.changed(); return scope;
   }
@@ -62,25 +64,22 @@ export class BrowserController {
         if (intent.kind === "unbind") { this.binding = null; this.bindingId = null; this.state.dictation = null; }
       } else {
         this.clarification = null; this.state.clarification = [];
-        const scope = await this.observe(); signal.throwIfAborted();
+        const scope = await this.observe(intent.kind === "frames" || intent.kind === "click" && intent.label === "@frame"); signal.throwIfAborted();
         if (intent.kind === "scroll") await this.action(scope, intent);
         else if (intent.kind === "filter") {
           if (!scope.snapshot.searchAvailable) throw new Error("target_missing");
-          if (scope.snapshot.profile !== "google") throw new Error("unsupported_filter");
-          const url = new URL(scope.snapshot.url); if (url.pathname !== "/search" || !url.searchParams.get("q")) throw new Error("empty_search");
-          const destination = new URL("/search", url.origin); destination.searchParams.set("q", url.searchParams.get("q")!);
-          const filter = { all: "", images: "2", videos: "7", news: "12" }[intent.filter]; if (filter) destination.searchParams.set("udm", filter);
-          await this.reply({ kind: "navigate", scope, destination: destination.href }, true); this.binding = null; this.bindingId = null; this.state.dictation = null;
+          const destination = filterDestination(scope.snapshot.url, intent.filter);
+          await this.reply({ kind: "navigate", scope, destination }, true); this.binding = null; this.bindingId = null; this.state.dictation = null;
         } else if (intent.kind === "search") {
           if (!scope.snapshot.searchAvailable) throw new Error("target_missing");
-          const destination = new URL(scope.snapshot.profile === "google" ? "/search" : "/results", new URL(scope.snapshot.url).origin); destination.searchParams.set(scope.snapshot.profile === "google" ? "q" : "search_query", intent.text);
-          await this.reply({ kind: "navigate", scope, destination: destination.href }, true); this.binding = null; this.bindingId = null; this.state.dictation = null;
-        } else if (intent.kind !== "observe") {
+          const destination = searchDestination(scope.snapshot.profile, intent.text);
+          await this.reply({ kind: "navigate", scope, destination }, true); this.binding = null; this.bindingId = null; this.state.dictation = null;
+        } else if (intent.kind !== "observe" && intent.kind !== "frames") {
           const kind = intent.kind === "bind" ? "bind" : intent.kind;
-          let candidates = scope.snapshot.targets.filter(target => kind === "focus" || kind === "bind" ? target.actions.includes("focus") : target.actions.includes("navigate"));
+          let candidates = scope.snapshot.targets.filter(target => kind === "bind" ? target.actions.includes("edit") : kind === "focus" ? target.actions.includes("focus") : target.actions.includes("navigate"));
           if (intent.kind !== "bind") {
             const label = intent.label.trim().toLowerCase().replace(/[.!]$/, "");
-            const exact = candidates.filter(target => label === "@result" ? target.profile === "result" : target.name.toLowerCase().replace(/[.!]$/, "") === label);
+            const exact = candidates.filter(target => label === "@result" ? target.profile === "result" : label === "@frame" ? target.profile === "frame" : target.name.toLowerCase().replace(/[.!]$/, "") === label);
             if (intent.ordinal !== undefined) candidates = exact[intent.ordinal] ? [exact[intent.ordinal]!] : [];
             else if (exact.length) candidates = exact;
             else if (candidates.length) {

@@ -13,14 +13,16 @@ the [roadmap](../roadmap.md) defines sequence.
 | AI access | Gemini user key; whisper.cpp base.en plus Ollama Qwen2.5 1.5B locally; no silent fallback | phase2.md |
 | Cancellation | Local controller fence; preserve in-flight uncertainty and require reset | core |
 | Logs | Off-by-default bounded metadata, no command/page values | storage and evaluation |
-| Website grants | Remembered optional Google/YouTube grants intersect Latham consent; start paused | phase2.md |
+| Website grants | Remembered exact optional grants for eight catalog origins intersect Latham consent; start paused | phase6.md |
 | Native relay | Own C# .NET Framework stdio/duplex-pipe Chrome relay; separate desktop agent | NativeHost.cs |
 | Final utterances | Push-to-talk uses reviewed explicit dispatch; opt-in hands-free automatically dispatches one final command at a time | phase4.md |
-| Chrome page scope | Root-only compiled profiles for signed-out English Google Search/YouTube; current document/control/epoch required | phase2.md |
+| Chrome page scope | Compiled public read-query profiles; explicit bounded same-origin frame inspection; current document/control/epoch required | phase6.md |
+| New website effects | Shared search/result recipes; focus-only fields; never infer edit/submit authority from labels | phase6.md |
+| Browser expansion | Edge isolated experiment; Chrome remains supported; Firefox untested | phase6.md |
 | Dictation | Prepare Search, record under that binding, explicitly append/replace; guarded correction/undo | phase2.md |
 | Unknown effects | Persist uncertainty before mutation; reconcile explicitly after failed verification/restart; never replay | browser-controller and native-bridge |
 | Local speech retention | Bounded stdin/stdout; no temporary audio/transcript files | speech/providers.ts |
-| Preview distribution | 0.5.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase5.md |
+| Preview distribution | 0.6.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase6.md |
 | Visual capture | Per-session consent and separate optional image grant; approved YouTube thumbnail assets only; no full-screen/desktop capture | phase5.md |
 | Visual grounding | Local OCR/layout, opt-in installed Ollama vision or Gemini; candidate-ID sets, explicit clarification/highlight/open and fresh DOM navigation checks | phase5.md |
 | Native scope | Same-user unelevated Notepad document text only; per-app approval and block override; browsers/other apps excluded | phase3.md |

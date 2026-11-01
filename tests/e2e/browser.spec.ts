@@ -4,6 +4,7 @@ import { resolve, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { extensionId, hostName } from "../../apps/desktop/src/main/native-bridge";
 import { wav } from "../../packages/speech/src/providers";
+import { sites, searchDestination, type SiteId } from "../../packages/contracts/src/sites";
 
 const google = `<!doctype html><html><head><title>Search fixture</title></head><body style="min-height:2400px"><form action="https://www.google.com/search" method="get"><label>Search<textarea name="q" aria-label="Search"></textarea></label><input type="submit" name="btnK" aria-label="Google Search" value="Google Search"></form><label>Password<input type="password" value="PRIVATE_PASSWORD_SENTINEL"></label><input type="file"><button id="continue">Continue</button><button>Apply for job</button><label>Nickname<input id="autosave"></label><button>Easy Apply</button><iframe src="https://denied.example/frame"></iframe><output id="effects">0</output><script>document.querySelector('#continue').onclick=()=>document.querySelector('#effects').textContent='1';document.querySelector('#autosave').oninput=()=>document.querySelector('#effects').textContent='1';</script></body></html>`;
 const youtube = `<!doctype html><html><head><title>YouTube fixture</title></head><body style="min-height:2400px"><yt-searchbox><form action="/results" method="get"><label>Search<input name="search_query" type="text"></label></form><button aria-label="Search">Search</button></yt-searchbox><ytd-video-renderer><a id="video-title" href="/watch?v=abcdefghijk">Piano lesson</a></ytd-video-renderer><ytd-video-renderer><a id="video-title" href="/watch?v=lmnopqrstuv">Piano lesson</a></ytd-video-renderer><button>Send message</button></body></html>`;
@@ -11,7 +12,7 @@ function backupRegistry(): () => void {
   const values = ["Google\\Chrome", "Chromium"].map(browser => { const path = `HKCU\\Software\\${browser}\\NativeMessagingHosts\\${hostName}`; try { return { path, value: execFileSync("reg.exe", ["QUERY", path, "/ve"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).match(/REG_SZ\s+(.+)/)?.[1]?.trim() }; } catch { return { path }; } });
   return () => { for (const item of values) { try { if (item.value) execFileSync("reg.exe", ["ADD", item.path, "/ve", "/t", "REG_SZ", "/d", item.value, "/f"], { stdio: "ignore" }); else execFileSync("reg.exe", ["DELETE", item.path, "/f"], { stdio: "ignore" }); } catch {} } };
 }
-async function setup(imageGrant = true) {
+async function setup(imageGrant = true, allSites = false, browser: "chrome" | "edge" = "chrome") {
   mkdirSync(".test-artifacts", { recursive: true }); const restore = backupRegistry(), directory = mkdtempSync(resolve(".test-artifacts/page-app-"));
   const env = Object.fromEntries(Object.entries(process.env).filter((pair): pair is [string, string] => pair[1] !== undefined && pair[0] !== "ELECTRON_RUN_AS_NODE"));
   const tone = new Int16Array(32000); for (let i = 0; i < tone.length; i++) tone[i] = Math.round(8000 * Math.sin(i * Math.PI * 880 / 16000)); const capture = join(directory, "capture.wav"); writeFileSync(capture, wav(new Uint8Array(tone.buffer)));
@@ -20,18 +21,122 @@ async function setup(imageGrant = true) {
   const desk = app.context().pages().find(page => page.url() === "latham://app/index.html")!; await desk.evaluate(() => window.setup.installHost());
   // Install-time grants are an isolated fixture arrangement. Production optional prompts have separate native acceptance.
   const extension = mkdtempSync(resolve(".test-artifacts/page-extension-")); cpSync("dist/chrome-extension", extension, { recursive: true }); const manifest = JSON.parse(readFileSync(join(extension, "manifest.json"), "utf8")); manifest.host_permissions = manifest.optional_host_permissions.filter((origin: string) => imageGrant || !origin.includes("ytimg")); manifest.optional_host_permissions = manifest.optional_host_permissions.filter((origin: string) => !manifest.host_permissions.includes(origin)); writeFileSync(join(extension, "manifest.json"), JSON.stringify(manifest));
-  const context = await chromium.launchPersistentContext(mkdtempSync(resolve(".test-artifacts/page-browser-")), { executablePath: resolve(".test-artifacts/chromium-runtime/latham-test-browser.exe"), headless: false, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
+  const context = await chromium.launchPersistentContext(mkdtempSync(resolve(`.test-artifacts/page-${browser}-`)), { executablePath: browser === "edge" ? "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" : resolve(".test-artifacts/chromium-runtime/latham-test-browser.exe"), headless: false, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
   await context.route("https://www.google.com/**", route => route.fulfill({ contentType: "text/html", body: google })); await context.route("https://www.youtube.com/**", route => route.fulfill({ contentType: "text/html", body: youtube })); await context.route("https://denied.example/**", route => route.fulfill({ body: "DENIED_FRAME_SENTINEL" }));
   const popup = await context.newPage(); await popup.goto(`chrome-extension://${extensionId}/popup.html`); await popup.getByRole("button", { name: "Connect to Latham" }).click();
   await expect.poll(() => desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true);
-  for (let index = 0; index < 2; index++) await popup.locator(".site").nth(index).getByRole("button", { name: "Approve", exact: true }).click();
-  await expect.poll(() => desk.evaluate(async () => (await window.setup.state()).sites.every(site => site.effective))).toBe(true);
+  for (let index = 0; index < (allSites ? 8 : 2); index++) await popup.locator(".site").nth(index).getByRole("button", { name: "Approve", exact: true }).click();
+  await expect.poll(() => desk.evaluate(async allSites => (await window.setup.state()).sites.filter((_, index) => allSites || index < 2).every(site => site.effective), allSites)).toBe(true);
   const page = await context.newPage(); await page.goto("https://www.google.com/");
   await desk.evaluate(() => window.setup.chromeResume());
   return { desk, page, context, app, directory, close: async () => { for (const worker of context.serviceWorkers()) await worker.evaluate("port?.disconnect()").catch(() => {}); await context.close(); await app.close(); restore(); } };
 }
 async function run(desk: Page, command: string): Promise<void> { await desk.evaluate(command => window.setup.chromeRun(command), command); }
 async function verified(desk: Page): Promise<void> { const result = (await desk.evaluate(() => window.setup.state())).page.last; expect(result?.outcome, result?.reason).toBe("verified"); }
+test("edge experiment: isolated pairing, catalog search, acknowledged Stop and revocation", async () => {
+  test.setTimeout(90000); const f = await setup(true, true, "edge");
+  try {
+    await run(f.desk, "search piano"); await verified(f.desk); await expect(f.page).toHaveURL("https://www.google.com/search?q=piano");
+    await f.context.route("https://en.wikipedia.org/**", route => route.fulfill({ contentType: "text/html", body: '<html><title>Edge fixture</title><label>Search<input type="search"></label></html>' }));
+    await f.desk.evaluate(() => window.latham.stop()); await f.page.goto("https://en.wikipedia.org/"); await f.page.bringToFront(); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume());
+    await run(f.desk, "search piano"); await verified(f.desk);
+    await f.desk.evaluate(() => window.latham.stop()); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true);
+    await f.desk.evaluate(() => window.setup.chromeResume()); await f.desk.evaluate(() => window.setup.revoke("https://en.wikipedia.org"));
+    const state = await f.desk.evaluate(() => window.setup.state()); expect(state.chromeActive).toBe(false); expect(state.sites.find(site => site.origin === "https://en.wikipedia.org")?.effective).toBe(false); expect(state.page.targets).toEqual([]);
+    // After grant removal a live document may require reload before a new fence can be acknowledged.
+    writeFileSync(".test-artifacts/phase6-edge-adapter.json", JSON.stringify({ at: new Date().toISOString(), browser: "installed Microsoft Edge", channel: "isolated install-time fixture grants", passed: ["native_pairing_via_documented_chrome_registry_fallback", "search_and_navigation_readback", "expanded_catalog", "acknowledged_stop_before_revocation", "per_site_revocation_pauses_and_discards_targets"], publicSupport: false }, null, 2));
+  } finally { await f.close(); }
+});
+const catalogCases: { id: SiteId; path: string; markup: string }[] = [
+  { id: "wikipedia", path: "/wiki/Piano", markup: '<div class="mw-search-result-heading"><a href="/wiki/Piano">Piano reference</a></div>' },
+  { id: "github", path: "/acme/piano", markup: '<div data-testid="results-list"><a href="/acme/piano">Piano reference</a><a href="/acme/piano/issues/new">Create issue</a></div>' },
+  { id: "mdn", path: "/en-US/docs/Web/API", markup: `<header>${"<menu-panel></menu-panel>".repeat(20)}</header><mdn-site-search></mdn-site-search><script>document.querySelectorAll('menu-panel').forEach(node=>node.attachShadow({mode:'open'}));document.querySelector('mdn-site-search').attachShadow({mode:'open'}).innerHTML='<section class="site-search__results"><h2><a href="/en-US/docs/Web/API">Piano reference</a></h2></section>';</script>` },
+  { id: "usajobs", path: "/job/123456789", markup: '<a data-search-result="0" href="/job/123456789">Piano reference</a>' },
+  { id: "duckduckgo", path: "", markup: '<a href="https://unapproved.example/">External result</a>' },
+  { id: "stackoverflow", path: "/questions/12345/piano", markup: '<div class="s-post-summary--content-title"><a href="/questions/12345/piano">Piano reference</a></div>' }
+];
+for (const entry of catalogCases) test(`catalog ${entry.id}: shared search, safe result and conservative field effects`, async () => {
+  test.setTimeout(70000); const f = await setup(true, true), site = sites.find(site => site.id === entry.id)!;
+  try {
+    const html = `<!doctype html><html><head><title>Public search fixture</title></head><body><label id="label">Search</label><input type="search" aria-labelledby="label" oninput="document.body.dataset.autosaved='yes'"><button onclick="document.body.dataset.submitted='yes'">Search</button><button>Apply</button><input type="password" value="PRIVATE_CATALOG_SENTINEL">${entry.markup}</body></html>`;
+    await f.context.route(site.origin + "/**", route => route.fulfill({ contentType: "text/html", body: html }));
+    await f.desk.evaluate(() => window.latham.stop()); await f.page.goto(site.origin + "/"); await f.page.bringToFront();
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume());
+    if (entry.id === "github") await f.context.serviceWorkers()[0]!.evaluate("(async () => { const [tab] = await chrome.tabs.query({active:true,lastFocusedWindow:true}); await chrome.scripting.executeScript({target:{tabId:tab.id,frameIds:[0]},world:'ISOLATED',func:() => Object.defineProperty(HTMLInputElement.prototype,'value',{get(){throw new Error('unbound_value_read');},configurable:true})}); })()");
+    await run(f.desk, "inspect page"); await verified(f.desk);
+    expect(JSON.stringify((await f.desk.evaluate(() => window.setup.state())).page.targets)).not.toMatch(/PRIVATE|Create issue|Apply/);
+    await run(f.desk, "focus Search"); await verified(f.desk); expect(await f.page.locator("input[type=search]").evaluate(node => node === document.activeElement)).toBe(true);
+    await run(f.desk, "start dictation"); expect((await f.desk.evaluate(() => window.setup.state())).page.last?.outcome).toBe("blocked");
+    await run(f.desk, "click Apply"); expect((await f.desk.evaluate(() => window.setup.state())).page.last?.outcome).toBe("blocked");
+    expect(await f.page.evaluate(() => [document.body.dataset.autosaved, document.body.dataset.submitted])).toEqual([undefined, undefined]);
+    await run(f.desk, "search piano & music"); await verified(f.desk); await expect(f.page).toHaveURL(searchDestination(entry.id, "piano & music"));
+    if (entry.id === "usajobs") { await run(f.desk, "filter remote"); await verified(f.desk); await expect(f.page).toHaveURL(searchDestination(entry.id, "piano & music") + "&rmi=true"); await run(f.desk, "filter all"); await verified(f.desk); }
+    await run(f.desk, "open first result");
+    if (entry.path) { await verified(f.desk); await expect(f.page).toHaveURL(site.origin + entry.path); }
+    else { expect((await f.desk.evaluate(() => window.setup.state())).page.last?.outcome).toBe("blocked"); await expect(f.page).toHaveURL(searchDestination(entry.id, "piano & music")); }
+  } finally { await f.close(); }
+});
+
+test("catalog dynamic lists, labelled open shadows and dialogs expose only current rendered controls", async () => {
+  test.setTimeout(80000); const f = await setup(true, true);
+  try {
+    const html = `<!doctype html><html><head><title>Dynamic search fixture</title></head><body><div hidden>${"<span></span>".repeat(4100)}</div><main><dialog open><search-box></search-box></dialog></main><div class="mw-search-result-heading"><a id="row" href="/wiki/Piano">Piano reference</a></div><div class="mw-search-result-heading" style="display:none"><a href="/wiki/Hidden">Hidden row</a></div><closed-box></closed-box><script>document.querySelector('search-box').attachShadow({mode:'open'}).innerHTML='<label for="q">Search</label><input type="search" id="q">';document.querySelector('closed-box').attachShadow({mode:'closed'}).innerHTML='<input type="search" aria-label="Private closed search">';</script></body></html>`;
+    await f.context.route("https://en.wikipedia.org/**", route => route.fulfill({ contentType: "text/html", body: html }));
+    await f.desk.evaluate(() => window.latham.stop()); await f.page.goto("https://en.wikipedia.org/"); await f.page.bringToFront(); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume());
+    await run(f.desk, "inspect page"); await verified(f.desk); const targets = (await f.desk.evaluate(() => window.setup.state())).page.targets;
+    expect(targets.map(t => t.name)).toContain("Search"); expect(targets.map(t => t.name)).not.toContain("Hidden row"); expect(JSON.stringify(targets)).not.toContain("Private closed");
+    await run(f.desk, "focus Search"); await verified(f.desk);
+    // Retain a real isolated-world receipt, then recycle the same DOM node as virtual lists do.
+    const worker = f.context.serviceWorkers()[0]!;
+    await worker.evaluate("(async () => { globalThis.catalogScope = await observePage({ epoch, session: pageSession }); })()");
+    await f.page.locator("#row").evaluate(node => { node.textContent = "Different reference"; (node as HTMLAnchorElement).href = "/wiki/Different"; });
+    const result = await worker.evaluate("(async () => { const scope = globalThis.catalogScope, target = scope.snapshot.targets.find(t => t.profile === 'result'); return callPage(scope, { op: 'action', epoch, document: scope.snapshot.document, url: scope.snapshot.url, action: { kind: 'click', targetId: target.id, revision: target.revision } }); })()");
+    expect(result).toMatchObject({ outcome: "blocked", reason: "stale_target" });
+    await run(f.desk, "open first result"); await verified(f.desk); await expect(f.page).toHaveURL("https://en.wikipedia.org/wiki/Different");
+  } finally { await f.close(); }
+});
+
+test("catalog frames need an explicit inspection and exclude cross-origin, hidden and srcdoc documents", async () => {
+  test.setTimeout(80000); const f = await setup(true, true);
+  try {
+    await f.context.route("https://en.wikipedia.org/**", route => route.fulfill({ contentType: "text/html", body: new URL(route.request().url()).pathname === "/wiki/Piano" ? '<html><title>Piano</title><label>Search<input type="search"></label></html>' : '<html><title>Frame fixture</title><iframe src="/wiki/Piano"></iframe><iframe src="https://denied.example/frame"></iframe><iframe src="/wiki/Piano" hidden></iframe><iframe srcdoc="<input aria-label=PRIVATE_FRAME_VALUE>"></iframe></html>' }));
+    await f.desk.evaluate(() => window.latham.stop()); await f.page.goto("https://en.wikipedia.org/"); await f.page.bringToFront(); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume());
+    await run(f.desk, "inspect page"); await verified(f.desk); expect((await f.desk.evaluate(() => window.setup.state())).page.targets).toEqual([]);
+    await run(f.desk, "inspect frames"); await verified(f.desk); const state = (await f.desk.evaluate(() => window.setup.state())).page;
+    expect(state.targets).toHaveLength(1); expect(state.targets[0]?.name).toContain("Frame 1: Wikipedia"); expect(state.status).toContain("3 excluded frames"); expect(JSON.stringify(state)).not.toMatch(/PRIVATE|DENIED/);
+    await run(f.desk, "open frame 1"); await verified(f.desk); await expect(f.page).toHaveURL("https://en.wikipedia.org/wiki/Piano");
+  } finally { await f.close(); }
+});
+
+test("catalog approvals remain per-site and revocation fences the expanded adapter", async () => {
+  test.setTimeout(70000); const f = await setup();
+  try {
+    await f.context.route("https://en.wikipedia.org/**", route => route.fulfill({ contentType: "text/html", body: '<html><title>Denied fixture</title><input type="search" aria-label="PRIVATE_UNAPPROVED_SEARCH"></html>' }));
+    await f.desk.evaluate(() => window.latham.stop()); await f.page.goto("https://en.wikipedia.org/"); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume()); await run(f.desk, "inspect page");
+    expect((await f.desk.evaluate(() => window.setup.state())).page.last?.outcome).toBe("blocked"); expect((await f.desk.evaluate(() => window.setup.state())).page.targets).toEqual([]);
+    const popup = await f.context.newPage(); await popup.goto(`chrome-extension://${extensionId}/popup.html`); await popup.locator(".site").nth(2).getByRole("button", { name: "Approve", exact: true }).click(); await f.page.bringToFront();
+    await run(f.desk, "inspect page"); await verified(f.desk);
+    await f.desk.evaluate(() => window.setup.revoke("https://en.wikipedia.org"));
+    await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeActive)).toBe(false);
+    expect((await f.desk.evaluate(() => window.setup.state())).sites.find(site => site.origin === "https://en.wikipedia.org")?.effective).toBe(false);
+    expect((await f.desk.evaluate(() => window.setup.state())).page.targets).toEqual([]);
+  } finally { await f.close(); }
+});
+
+test("catalog navigation settles known normalization and never replays an unknown destination", async () => {
+  test.setTimeout(90000); const f = await setup(true, true); let searches = 0;
+  try {
+    await f.context.route("https://en.wikipedia.org/**", route => {
+      const url = new URL(route.request().url()); if (url.pathname === "/w/index.php") searches++;
+      return route.fulfill({ contentType: "text/html", body: `<html><title>Search fixture</title><label>Search<input type="search"></label><script>if(location.pathname==='/w/index.php')setTimeout(()=>{const u=new URL(location.href);u.searchParams.set(u.searchParams.get('search')==='unknown'?'unexpected':'ns0','1');history.replaceState(null,'',u.href)},20)</script></html>` });
+    });
+    await f.desk.evaluate(() => window.latham.stop()); await f.page.goto("https://en.wikipedia.org/"); await f.page.bringToFront(); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true); await f.desk.evaluate(() => window.setup.chromeResume());
+    await run(f.desk, "search piano"); await verified(f.desk); expect(new URL(f.page.url()).searchParams.get("ns0")).toBe("1"); expect((await f.desk.evaluate(() => window.setup.state())).chromeActive).toBe(true);
+    await run(f.desk, "search unknown"); const state = await f.desk.evaluate(() => window.setup.state()); expect(state.chromeNeedsReview).toBe(true); expect(state.chromeActive).toBe(false); expect(searches).toBe(2);
+    await expect(f.desk.evaluate(() => window.setup.chromeResume())).rejects.toThrow(); expect(searches).toBe(2);
+  } finally { await f.close(); }
+});
+
 const visualIds = ["abcdefghijk", "lmnopqrstuv", "12345678901", "ZXCVBNMasdf"];
 async function visualFixture(imageGrant = true) {
   const f = await setup(imageGrant);

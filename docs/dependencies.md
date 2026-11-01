@@ -63,3 +63,10 @@ language was available on the tested machine. Missing OCR components fail closed
 No npm package or local vision model is added. Optional visual inference uses the
 existing Gemini service or an explicitly installed, local Ollama vision model;
 model installation, provenance and terms remain the user's explicit setup step.
+
+Phase 6 adds no library, model, reference-app code or runtime download. The
+catalog, semantic/frame handling and compatibility tools are independently
+authored Latham code. Website routes/markup were checked against public primary
+pages; reference links and restrictions are in [coverage setup](phase6.md).
+The installed Microsoft Edge 156.0.4314.50 is used only for an isolated adapter
+experiment and is not bundled. Chrome remains the supported browser.

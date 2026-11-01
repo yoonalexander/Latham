@@ -10,7 +10,7 @@ const env = Object.fromEntries(Object.entries(process.env).filter(([key, value])
 const wait = async check => { for (let n = 0; n < 150; n++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); } throw new Error("preview_acceptance_timeout"); };
 let app, context;
 try {
-  for (const file of ["SETUP.md", "docs/phase5.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
+  for (const file of ["SETUP.md", "docs/phase6.md", "docs/phase5.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
   const data = mkdtempSync(join(root, "packaged-app-"));
   app = await _electron.launch({ executablePath: join(packageRoot, "Latham.exe"), args: ["--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
   await wait(() => app.context().pages().some(page => page.url() === "latham://app/index.html"));
@@ -21,6 +21,8 @@ try {
   assert.deepEqual(await desk.evaluate(() => window.latham.runtime), { sandboxed: true, contextIsolated: true });
   assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "off");
   assert.equal((await desk.evaluate(() => window.setup.state())).visual.consent, false);
+  const catalog = (await desk.evaluate(() => window.setup.state())).sites;
+  assert.equal(catalog.length, 8); assert.equal(catalog.every(site => !site.consent && !site.effective), true);
   const ocr = JSON.parse(execFileSync(join(packageRoot, "resources/app/native/Latham.ImageOcr.exe"), [], { cwd: packageRoot, input: readFileSync(join(root, "visual-corpus/0.jpg")), encoding: "utf8", windowsHide: true, timeout: 5000 })); assert.match(ocr.text, /PIANO/);
   await desk.evaluate(() => window.setup.key("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")); assert.equal(readFileSync(join(data, "provider-key.bin")).includes(Buffer.from("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")), false);
   await desk.evaluate(async () => window.setup.save({ ...(await window.setup.state()).settings, mode: "cloud" }));

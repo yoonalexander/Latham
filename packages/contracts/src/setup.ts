@@ -4,10 +4,8 @@ import type { NativeState } from "./desktop";
 import type { HandsfreeState } from "./handsfree";
 import type { VisualState, VisualRoute } from "./visual";
 
-export const sites = [
-  { origin: "https://www.google.com", pattern: "https://www.google.com/*", name: "Google Search" },
-  { origin: "https://www.youtube.com", pattern: "https://www.youtube.com/*", name: "YouTube" }
-] as const;
+import { siteForPage } from "./sites";
+export { sites } from "./sites";
 export const speechLanguages = ["en", "es", "fr", "de", "it", "pt", "ko", "ja", "zh", "auto"] as const;
 export type ProviderSettings = { mode: "local" | "cloud"; microphoneId: string; whisperExecutable: string; whisperModel: string; ollamaModel: string; speechLanguage: string; speechVocabulary: string; speechThreads: number };
 export const providerDefaults: ProviderSettings = { mode: "local", microphoneId: "", whisperExecutable: "", whisperModel: "", ollamaModel: "qwen2.5:1.5b", speechLanguage: "en", speechVocabulary: "", speechThreads: 2 };
@@ -80,7 +78,7 @@ export function parseChromeCommand(input: unknown): ChromeCommand {
   if (commands[text]) return commands[text];
   if (/^open /i.test(input.trim())) {
     const url = new URL(input.trim().slice(5));
-    if (url.protocol === "https:" && sites.some(site => site.origin === url.origin) && !url.username && !url.password && url.href.length <= 2000) return { kind: "navigate", url: url.href };
+    if (siteForPage(url.href) && url.href.length <= 2000) return { kind: "navigate", url: url.href };
   }
   throw new Error("unsupported_chrome_command");
 }

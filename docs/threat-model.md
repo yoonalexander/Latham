@@ -3,6 +3,33 @@
 Status: implementation-backed boundary notes and regression coverage, not a
 complete independent security audit.
 
+## Phase 6 additions
+
+Eight exact optional origins replace the two-entry catalog; grants still
+intersect remembered Latham consent and an explicit active session. One compiled
+catalog owns reviewed read routes/query recipes and result shapes in both the
+desktop and worker. Providers cannot extend it. New fields advertise focus
+only, never edit or submit authority. Search/filter requests navigate reviewed
+read URLs without executing page click/input handlers. Unknown/autosave and
+consequential controls remain excluded.
+
+Open-root discovery, labels and results are bounded. Visible-only collection
+does not infer virtual rows. A recycled node's changed label/href, replacement,
+occlusion or changed scope invalidates its receipt. Explicit frame inspection
+reads minimal supported-control counts only from visible same-origin reviewed
+documents. Child values/arbitrary text are omitted; frame opening rechecks node,
+child Document and URL, then uses top-level reviewed navigation. Cross-origin,
+hidden, srcdoc, sandbox-inaccessible, nested and auth documents remain excluded.
+Default observation remains root-only. No broad host grant or fallback exists.
+
+URL verification checks duplicate query values and fragments, known fixed
+normalizations, loaded state, stability and reviewed page evidence. Transient
+observations may repeat; navigation itself does not. Challenges, missing evidence
+and unknown outcomes cannot authorize retries. Revoking a live grant can prevent
+fence acknowledgement until reload; the session remains paused. Edge's separate
+fixture experiment does not grant public browser compatibility. See
+[coverage limits](phase6.md) and [evaluation](evaluation.md).
+
 ## Assets and entry points
 
 Typed commands and allowed field values are transient. Stored settings contain

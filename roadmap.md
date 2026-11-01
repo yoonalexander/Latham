@@ -1,8 +1,8 @@
 # Latham Roadmap
 
 **Updated:** October 31, 2026\
-**Status:** Phases 0–5 implemented for the documented 0.5 unsigned developer preview; measured limits in docs/evaluation.md; Phase 6 not started.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.10.
+**Status:** Phases 0–6 implemented for the documented 0.6 unsigned developer preview; compatibility tiers and limits in docs/phase6.md and docs/evaluation.md; Phase 7 unstarted.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.11.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
@@ -39,7 +39,7 @@ The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notep
 | 8 | Optional Latham-managed AI and commercial delivery | Stable core plus a separately reviewed service design |
 | 9 | Broader platform reach and ongoing compatibility | Stable Windows/browser/desktop contracts |
 
-Phases 0–5 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
+Phases 0–6 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
 
 ## Phase 0 — Foundation and evaluation harness
 
@@ -139,20 +139,22 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Gate:** controlled visual tasks meet measured success/abstention targets and never silently use stale coordinates or transmit denied pixels. Structured adapters remain preferred. This phase does not need to delay desktop-app support or require every local model to support vision.
 
-**Implemented preview:** [Visual setup](docs/phase5.md) and [evaluation](docs/evaluation.md) publish the narrow YouTube source-capture profile. Local OCR/layout and the final live Gemini benchmark each returned the correct result on 8/8 controlled tasks, including clarification/abstention. Earlier cloud failures and ambiguity errors remain recorded. General photo/person matching, native permission-prompt UX and actual local vision-model accuracy are not established. Capture/recognition does not authorize navigation by itself. Phase 6 has not started.
+**Implemented preview:** [Visual setup](docs/phase5.md) and [evaluation](docs/evaluation.md) publish the narrow YouTube source-capture profile. Local OCR/layout and the final live Gemini benchmark each returned the correct result on 8/8 controlled tasks, including clarification/abstention. Earlier cloud failures and ambiguity errors remain recorded. General photo/person matching, native permission-prompt UX and actual local vision-model accuracy are not established. Capture/recognition does not authorize navigation by itself. Phase 6 coverage is recorded below.
 
 ## Phase 6 — Many websites and broader browser coverage
 
 **Goal:** grow beyond a handful of individually supported sites toward general, user-directed website interaction.
 
-- [ ] Expand the named site/action catalog with regression fixtures and clear compatibility reports; include job-search/filter workflows when validated.
-- [ ] Generalize reusable semantic control handling, labels, navigation, text fields, and safe search/filter patterns while keeping effect classifications local and conservative.
-- [ ] Define evidence for enabling general patterns versus needing a site-specific profile; test page changes, misleading labels, unknown handlers, and autosave effects.
-- [ ] Improve permitted frames, dynamic pages, virtualized lists, dialogs, and web components where browser APIs allow access; publish unsupported cases.
-- [ ] Maintain remembered, explicit per-site consent as coverage expands. Broader capability does not imply blanket permission or idle monitoring.
-- [ ] Evaluate additional browsers once Chrome behavior is stable; treat browser/platform differences as new adapters with their own tests.
+- [x] Expand the named site/action catalog with regression fixtures and clear compatibility reports; include job-search/filter workflows when validated.
+- [x] Generalize reusable semantic control handling, labels, navigation, text fields, and safe search/filter patterns while keeping effect classifications local and conservative.
+- [x] Define evidence for enabling general patterns versus needing a site-specific profile; test page changes, misleading labels, unknown handlers, and autosave effects.
+- [x] Improve permitted frames, dynamic pages, virtualized lists, dialogs, and web components where browser APIs allow access; publish unsupported cases.
+- [x] Maintain remembered, explicit per-site consent as coverage expands. Broader capability does not imply blanket permission or idle monitoring.
+- [x] Evaluate additional browsers once Chrome behavior is stable; treat browser/platform differences as new adapters with their own tests.
 
 **Gate:** demonstrate a diverse, published website evaluation set beyond the original profiles, with task success, wrong actions, abstentions, maintenance effort, and site restrictions reported separately. Unknown consequential effects remain blocked unless a later dedicated operation is enabled.
+
+**Implemented preview:** [Coverage setup](docs/phase6.md) and [evaluation](docs/evaluation.md) distinguish live successes, fixture-only operations, abstentions and site restrictions. New fields are focus-only, frames are same-origin/read-only and Edge remains experimental. This milestone establishes expansion mechanics and a diverse measured catalog; it does not complete universal compatibility.
 
 **Long-term ambition:** ideally every website is usable through Latham. Treat this as a direction for expanding capability, not a guarantee that secure pages, restricted APIs, inaccessible controls, CAPTCHAs, or sites that prohibit a flow can be controlled. Never bypass those boundaries to satisfy a compatibility claim.
 
@@ -209,4 +211,4 @@ The product direction above is settled. The preview selects an English/CPU local
 
 ## Next milestone
 
-**Phase 6 is planned next:** many websites and broader browser coverage. Stop at Phase 5 until the user requests the next phase. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.
+**Phase 6 is implemented:** reviewed eight-origin coverage, bounded frame inspection and a separately tested Edge experiment. Stop before Phase 7 until the user requests it. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.

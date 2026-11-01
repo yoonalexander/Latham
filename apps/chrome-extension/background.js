@@ -1,4 +1,5 @@
-const sites = ["https://www.google.com", "https://www.youtube.com"];
+importScripts("catalog.js");
+const sites = lathamCatalog.sites.map(site => site.origin);
 importScripts("visual.js");
 let port, active = false, epoch = 0, busy = false, connection = "Disconnected";
 let pageSession = crypto.randomUUID(), navigationExpected = false;
@@ -32,7 +33,7 @@ async function currentPage(generation) {
   if (!pageFence(generation) || !tab?.id || !tab.url || !await approved(tab.url)) throw new Error("scope_denied");
   if (tab.status !== "complete") throw new Error("page_loading"); return tab;
 }
-async function observePage(generation) {
+async function observePage(generation, frames = false) {
   const tab = await currentPage(generation);
   const loaded = await chrome.scripting.executeScript({ target: { tabId: tab.id, frameIds: [0] }, world: "ISOLATED", files: ["page.js"] });
   const documentId = loaded.find(result => result.frameId === 0)?.documentId;
@@ -44,24 +45,27 @@ async function observePage(generation) {
   if (!pageFence(generation)) throw new Error("cancelled");
   if (old?.epoch !== generation.epoch || old?.session !== generation.session) { const initialized = await callPage(scope, { op: "fence", session: generation.session, epoch: generation.epoch, active: true }); if (initialized.outcome !== "verified") throw new Error("reload_required"); }
   if (!pageFence(generation)) throw new Error("cancelled");
-  const result = await callPage(scope, { op: "snapshot", session: generation.session, epoch: generation.epoch });
+  const result = await callPage(scope, { op: "snapshot", frames, session: generation.session, epoch: generation.epoch });
   if (!pageFence(generation) || result.outcome !== "verified" || result.snapshot?.url !== tab.url) throw new Error(result.reason ?? "stale_target");
   return { ...scope, snapshot: result.snapshot };
 }
 async function navigateVerified(tab, destination, generation) {
   if (typeof destination !== "string" || destination.length > 4096 || !await approved(destination) || !pageFence(generation)) return { outcome: "blocked", reason: "scope_denied" };
-  const url = new URL(destination); if (url.protocol !== "https:" || url.username || url.password) return { outcome: "blocked", reason: "scope_denied" };
+  const url = new URL(destination); if (!lathamCatalog.siteForPage(destination)) return { outcome: "blocked", reason: "scope_denied" };
   navigationExpected = true;
   try {
     await chrome.tabs.update(tab.id, { url: destination });
     const deadline = Date.now() + 12000;
+    let stableUrl = "", stableSince = 0;
     while (Date.now() < deadline && pageFence(generation)) {
       const current = await chrome.tabs.get(tab.id);
       if (!current.url || new URL(current.url).origin !== url.origin) return { outcome: "unknown", reason: "navigation_changed_origin" };
-      const actual = new URL(current.url), keys = url.pathname === "/watch" ? ["v"] : url.pathname === "/search" ? ["q", "udm"] : ["search_query"];
-      if (current.status === "complete" && actual.pathname === url.pathname && keys.every(key => actual.searchParams.get(key) === url.searchParams.get(key))) {
-        const scope = await observePage(generation);
-        if (scope.tabId === tab.id && scope.snapshot.searchAvailable) return { outcome: "verified", reason: "navigation_verified", scope };
+      if (current.url !== stableUrl || current.status !== "complete") { stableUrl = current.url; stableSince = Date.now(); }
+      if (current.status === "complete" && Date.now() - stableSince >= 400 && lathamCatalog.navigationMatches(destination, current.url)) {
+        try {
+          const scope = await observePage(generation);
+          if (scope.tabId === tab.id && scope.snapshot.searchAvailable) return { outcome: "verified", reason: "navigation_verified", scope };
+        } catch (error) { if (!["stale_target", "page_loading"].includes(error.message)) throw error; }
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -74,7 +78,7 @@ async function pageRequest(message) {
     if (!pageFence(generation)) return;
     if (["visual_capture", "visual_validate", "visual_highlight", "visual_open", "visual_clear"].includes(message.request?.kind)) {
       issued = message.request.kind === "visual_open"; result = await visualRequest(message.request, generation);
-    } else if (message.request?.kind === "snapshot") result = { outcome: "verified", scope: await observePage(generation) };
+    } else if (["snapshot", "frames_snapshot"].includes(message.request?.kind)) result = { outcome: "verified", scope: await observePage(generation, message.request.kind === "frames_snapshot") };
     else {
       const scope = message.request?.scope, tab = await currentPage(generation);
       if (!scope || tab.id !== scope.tabId || tab.windowId !== scope.windowId || tab.url !== scope.snapshot?.url) throw new Error("stale_target");
@@ -91,7 +95,7 @@ async function pageRequest(message) {
         if (result.destination) result = await navigateVerified(tab, result.destination, generation);
       }
     }
-  } catch (error) { result = { outcome: issued ? "unknown" : "blocked", reason: ["scope_denied", "cancelled", "stale_target", "unsupported_page", "reload_required", "page_loading", "visual_stale", "visual_scope_denied", "visual_source_denied", "visual_image_grant_required", "visual_image_unavailable", "visual_image_too_large"].includes(error.message) ? error.message : "document_unavailable" }; }
+  } catch (error) { result = { outcome: issued ? "unknown" : "blocked", reason: ["scope_denied", "cancelled", "stale_target", "unsupported_page", "site_restricted", "reload_required", "page_loading", "visual_stale", "visual_scope_denied", "visual_source_denied", "visual_image_grant_required", "visual_image_unavailable", "visual_image_too_large"].includes(error.message) ? error.message : "document_unavailable" }; }
   finally { if (generation.session === pageSession) { busy = false; send({ type: "page_result", id: message.id, epoch: message.epoch, ...result }); } }
 }
 const send = value => { try { port?.postMessage(value); } catch { disconnect(); } };
@@ -146,7 +150,7 @@ async function receive(message) {
       await chrome.tabs.update(target.id, { active: true }); outcome = (await chrome.tabs.get(target.id)).active ? "verified" : "unknown";
     } else if (command.kind === "navigate" && tab && typeof command.url === "string" && command.url.length <= 2000) {
       const url = new URL(command.url);
-      if (url.protocol !== "https:" || url.username || url.password || !await approved(url.href) || !fence()) return;
+      if (!lathamCatalog.siteForPage(url.href) || !await approved(url.href) || !fence()) return;
       await chrome.tabs.update(tab.id, { url: url.href }); outcome = "dispatched";
     } else if (["back", "forward"].includes(command.kind) && tab?.url && await approved(tab.url) && fence()) {
       if (command.kind === "back") await chrome.tabs.goBack(tab.id); else await chrome.tabs.goForward(tab.id);

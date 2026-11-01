@@ -1,5 +1,104 @@
 # Evaluation and acceptance
 
+## Phase 6 evidence — October 31, 2026
+
+Implemented for the **0.6 unsigned Windows developer preview**, with eight exact
+catalog origins and conservative read-query operations. [Coverage setup](phase6.md)
+defines paths, effects, frame behavior, compatibility tiers and restrictions.
+Chrome remains supported; Edge is experimental. Phase 7 has not started.
+
+- `npm run check`: type checking, **72 unit/boundary tests**, desktop/native builds
+  pass. New tests cover catalog/optional-host alignment, encoded literal queries,
+  reviewed paths versus edit/account/application paths, job remote/all filters,
+  duplicate/unexpected queries, fixed normalization values and fabricated editing
+  privileges on new profiles.
+- The separate **31-flow browser/fixture suite passed**, including the Edge
+  experiment, new catalog fixtures and all prior visual/hands-free/Chrome/fixture
+  flows. The added normalization/no-replay test and strengthened large-page case
+  passed separately. A final **four-case affected-path recheck passed** after root
+  prioritization and value minimization: GitHub, MDN, dynamic large pages and
+  URL normalization/unknown outcomes. There are **32 distinct integration cases**
+  in this browser/fixture set, not a randomized accuracy sample.
+- The **seven native acceptance flows passed** separately, including 100 targeted
+  editor operations, wrong-field/manual-edit protection, stalled providers,
+  worker/supervisor loss, Stop and no replay. Earlier Windows foreground failures
+  below remain historical evidence of an intermittent limitation; this phase did
+  not change or relax the foreground guard. No single combined `npm run evaluate`
+  invocation is claimed for this phase.
+- Fixture checks use isolated Chrome/Edge profiles with clearly identified
+  install-time grants. Production still requests individual optional grants from
+  a popup user gesture. New-site native permission-prompt UX, signed-in/private
+  content, localization and physical-microphone use on new fields are not accepted.
+  New fields remain focus-only. The GitHub fixture replaces the isolated world's
+  input-value getter with a throwing getter: observation/focus/search still pass,
+  proving the new profile does not read those values. Autosave/input and misleading
+  submission handlers remain untouched.
+- Root-only observation excludes frames by default. Explicit inspection exposes
+  one eligible same-origin frame while excluding cross-origin, hidden and srcdoc
+  frames; opening verifies top-level navigation. Open components/already-open
+  dialogs, a page with 4,100 extra nodes, 20 competing menu roots, hidden rows and
+  recycled result nodes have regressions. Unknown URL changes persist uncertainty
+  and block resume; the test observes exactly one dispatch per requested search.
+
+### Live public-site measurement
+
+Chrome for Testing **156.0.8078.4**, signed out, synthetic `piano`, `fetch` and
+`software` queries; no live AI/provider calls. `scripts/evaluate-catalog.mjs`
+uses the actual desktop/extension/relay and install-time fixture grants. It
+records read, search, scroll, filter and open operations separately. The last
+six-site run had **23 verified operations / 25 attempts**, with two abstentions
+(MDN result discovery and Stack Overflow loading/verification). A subsequent
+targeted MDN run after the tested root-order fix passed **5/5** operations.
+
+| Site | Latest measured result | Restrictions / abstention |
+|---|---|---|
+| Wikipedia | 5/5: inspect, search, scroll, inspect, open visible article | Fulltext search normalizes `ns0=1`; special namespaces excluded |
+| GitHub | 5/5: inspect, repository search, scroll, inspect, open visible repository | Signed-out public set only; no issue/account operations |
+| MDN | 5/5 targeted follow-up: inspect, search, scroll, inspect, open documentation | Async results must render; open components compete with header menus |
+| USAJOBS | 6/6: inspect, search, remote filter, scroll, inspect, open announcement | Job applications, resumes and saved searches remain excluded |
+| DuckDuckGo | 3/3: inspect, search, inspect | `ia=web` normalization; external result navigation excluded |
+| Stack Overflow | 0/1 in last full run: loading blocked | Human verification/Cloudflare also observed in earlier visits; no challenge interaction or bypass |
+
+**Wrong actions:** zero unexpected destinations were observed among verified
+operations; fixture unsafe handlers recorded no effect. This is not a statistical
+wrong-action rate, and unknown outcomes are never counted as successes. Earlier
+passes had unverified normalized URLs, absent results and loading interruptions;
+their reports were retained, not folded into a favorable percentage. Original
+Google/YouTube real-site acceptance remains in the Phase 2 section below.
+
+**Maintenance:** this phase needed two explicitly reviewed normalization cases,
+GitHub's current search-header marker, MDN's open-component result selector and
+USAJOBS `data-search-result` links. Large menus required main/body root priority;
+fixtures reproduce those changes. New sites reuse query/name/freshness logic but
+still need site-specific route/selector evidence. No unknown effect classifier
+was relaxed to obtain a passing result. Search/open measurements here range from
+roughly 0.7–3.2 seconds in individual visits; they are not p95 or voice latency.
+
+**Additional browser:** installed Edge **156.0.4314.50** loads the extension in an
+isolated profile. Its separate fixture passes native pairing via the documented
+Chrome-registry fallback, Google and Wikipedia search, acknowledged Stop before
+revocation, and revocation's paused/cleared state. An initial test incorrectly
+expected a removed grant to retain fence acknowledgement; that expectation was
+corrected, preserving reload/reconciliation when injection is denied. Public
+Edge permission prompts, browser selection/launch, store identity and its full
+live/regression matrix remain unaccepted. Firefox/Safari are untested.
+
+Reports are ignored artifacts: `phase6-full-browser-results.json`,
+`phase6-navigation-large-page-results.json`, `phase6-final-focused-results.json`,
+`phase6-native-results.json`, `phase6-live-catalog.json`,
+`phase6-live-catalog-mdn.json` and `phase6-edge-adapter.json` under
+`.test-artifacts/`. They contain explicit synthetic/public evaluation content,
+not default application logging. No new local model or third-party code was
+downloaded. Handy integration remains planned separately.
+
+The local **0.6 portable package passed** startup/version/sandbox, hidden env-key
+import, protected fake-key storage, eight unapproved catalog entries, bundled
+guides/native helpers, packaged OCR, native host/extension pairing, verified tab
+navigation, local wake/stop, native scan and acknowledged Stop. The package has
+no user secrets or native fixture executable. All five executables are
+**NotSigned**. Final guides are included in the refreshed ZIP/checksum manifest;
+these remain ignored local artifacts, not a published release.
+
 ## Phase 5 evidence — October 31, 2026
 
 Implemented for the **0.5 unsigned Windows developer preview**, limited to
