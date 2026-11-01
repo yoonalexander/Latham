@@ -1,6 +1,7 @@
 importScripts("catalog.js");
 const sites = lathamCatalog.sites.map(site => site.origin);
 importScripts("visual.js");
+importScripts("workflow.js");
 let port, active = false, epoch = 0, busy = false, connection = "Disconnected";
 let pageSession = crypto.randomUUID(), navigationExpected = false;
 const agents = new Map();
@@ -33,8 +34,9 @@ async function currentPage(generation) {
   if (!pageFence(generation) || !tab?.id || !tab.url || !await approved(tab.url)) throw new Error("scope_denied");
   if (tab.status !== "complete") throw new Error("page_loading"); return tab;
 }
-async function observePage(generation, frames = false) {
+async function observePage(generation, frames = false, flowId) {
   const tab = await currentPage(generation);
+  if (flowId && (!workflowFence(generation, flowId) || tab.id !== workflowLease.tabId || tab.windowId !== workflowLease.windowId || lathamCatalog.siteForPage(tab.url)?.id !== workflowLease.site)) throw new Error("workflow_stale");
   const loaded = await chrome.scripting.executeScript({ target: { tabId: tab.id, frameIds: [0] }, world: "ISOLATED", files: ["page.js"] });
   const documentId = loaded.find(result => result.frameId === 0)?.documentId;
   if (!documentId || !pageFence(generation)) throw new Error("cancelled");
@@ -45,26 +47,32 @@ async function observePage(generation, frames = false) {
   if (!pageFence(generation)) throw new Error("cancelled");
   if (old?.epoch !== generation.epoch || old?.session !== generation.session) { const initialized = await callPage(scope, { op: "fence", session: generation.session, epoch: generation.epoch, active: true }); if (initialized.outcome !== "verified") throw new Error("reload_required"); }
   if (!pageFence(generation)) throw new Error("cancelled");
+  if (flowId) {
+    if (!workflowFence(generation, flowId)) throw new Error("workflow_stale");
+    const claimed = await callPage(scope, { op: "workflow_begin", flowId, epoch: generation.epoch });
+    if (claimed.outcome !== "verified" || !workflowFence(generation, flowId)) throw new Error("workflow_interrupted");
+  }
   const result = await callPage(scope, { op: "snapshot", frames, session: generation.session, epoch: generation.epoch });
   if (!pageFence(generation) || result.outcome !== "verified" || result.snapshot?.url !== tab.url) throw new Error(result.reason ?? "stale_target");
   return { ...scope, snapshot: result.snapshot };
 }
-async function navigateVerified(tab, destination, generation) {
-  if (typeof destination !== "string" || destination.length > 4096 || !await approved(destination) || !pageFence(generation)) return { outcome: "blocked", reason: "scope_denied" };
+async function navigateVerified(tab, destination, generation, flowId) {
+  const fence = () => flowId ? workflowFence(generation, flowId) : pageFence(generation);
+  if (typeof destination !== "string" || destination.length > 4096 || !await approved(destination) || !fence()) return { outcome: "blocked", reason: "scope_denied" };
   const url = new URL(destination); if (!lathamCatalog.siteForPage(destination)) return { outcome: "blocked", reason: "scope_denied" };
   navigationExpected = true;
   try {
     await chrome.tabs.update(tab.id, { url: destination });
     const deadline = Date.now() + 12000;
     let stableUrl = "", stableSince = 0;
-    while (Date.now() < deadline && pageFence(generation)) {
+    while (Date.now() < deadline && fence()) {
       const current = await chrome.tabs.get(tab.id);
       if (!current.url || new URL(current.url).origin !== url.origin) return { outcome: "unknown", reason: "navigation_changed_origin" };
       if (current.url !== stableUrl || current.status !== "complete") { stableUrl = current.url; stableSince = Date.now(); }
       if (current.status === "complete" && Date.now() - stableSince >= 400 && lathamCatalog.navigationMatches(destination, current.url)) {
         try {
-          const scope = await observePage(generation);
-          if (scope.tabId === tab.id && scope.snapshot.searchAvailable) return { outcome: "verified", reason: "navigation_verified", scope };
+          const scope = await observePage(generation, false, flowId);
+          if (fence() && scope.tabId === tab.id && scope.snapshot.searchAvailable) return { outcome: "verified", reason: "navigation_verified", scope };
         } catch (error) { if (!["stale_target", "page_loading"].includes(error.message)) throw error; }
       }
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -76,7 +84,10 @@ async function pageRequest(message) {
   const generation = { epoch, session: pageSession }; let result = { outcome: "blocked", reason: "scope_denied" }, issued = false; busy = true;
   try {
     if (!pageFence(generation)) return;
-    if (["visual_capture", "visual_validate", "visual_highlight", "visual_open", "visual_clear"].includes(message.request?.kind)) {
+    if (["workflow_begin", "workflow_start", "workflow_observe", "workflow_step", "workflow_end"].includes(message.request?.kind)) {
+      result = await workflowRequest(message.request, generation);
+    } else if (workflowLease) throw new Error("workflow_busy");
+    else if (["visual_capture", "visual_validate", "visual_highlight", "visual_open", "visual_clear"].includes(message.request?.kind)) {
       issued = message.request.kind === "visual_open"; result = await visualRequest(message.request, generation);
     } else if (["snapshot", "frames_snapshot"].includes(message.request?.kind)) result = { outcome: "verified", scope: await observePage(generation, message.request.kind === "frames_snapshot") };
     else {
@@ -95,11 +106,11 @@ async function pageRequest(message) {
         if (result.destination) result = await navigateVerified(tab, result.destination, generation);
       }
     }
-  } catch (error) { result = { outcome: issued ? "unknown" : "blocked", reason: ["scope_denied", "cancelled", "stale_target", "unsupported_page", "site_restricted", "reload_required", "page_loading", "visual_stale", "visual_scope_denied", "visual_source_denied", "visual_image_grant_required", "visual_image_unavailable", "visual_image_too_large"].includes(error.message) ? error.message : "document_unavailable" }; }
+  } catch (error) { result = { outcome: issued ? "unknown" : "blocked", reason: ["workflow_context", "workflow_stale", "workflow_interrupted", "workflow_busy", "request_budget", "action_budget", "unsupported_goal", "target_missing", "scope_denied", "cancelled", "stale_target", "unsupported_page", "site_restricted", "reload_required", "page_loading", "visual_stale", "visual_scope_denied", "visual_source_denied", "visual_image_grant_required", "visual_image_unavailable", "visual_image_too_large"].includes(error.message) ? error.message : "document_unavailable" }; }
   finally { if (generation.session === pageSession) { busy = false; send({ type: "page_result", id: message.id, epoch: message.epoch, ...result }); } }
 }
 const send = value => { try { port?.postMessage(value); } catch { disconnect(); } };
-function disconnect() { const previous = port; port = undefined; active = false; busy = false; navigationExpected = false; pageSession = crypto.randomUUID(); epoch++; connection = "Disconnected — open Latham and connect again"; try { previous?.disconnect(); } catch {} }
+function disconnect() { const previous = port; port = undefined; active = false; workflowLease = null; busy = false; navigationExpected = false; pageSession = crypto.randomUUID(); epoch++; connection = "Disconnected — open Latham and connect again"; try { previous?.disconnect(); } catch {} }
 async function grants() { const origins = []; for (const origin of sites) if (await chrome.permissions.contains({ origins: [origin + "/*"] })) origins.push(origin); send({ type: "grants", origins }); return origins; }
 async function consent() { const stored = await chrome.storage.local.get("consent"); return Array.isArray(stored.consent) ? stored.consent.filter(origin => sites.includes(origin)) : []; }
 async function approved(url) {
@@ -114,7 +125,7 @@ function connect() {
 }
 async function receive(message) {
   if (!message || typeof message !== "object") return;
-  if (message.type === "pause") { active = false; epoch = message.epoch; const generation = epoch, session = pageSession; if (await fencePages(generation) && generation === epoch && session === pageSession) send({ type: "paused", epoch }); return; }
+  if (message.type === "pause") { active = false; workflowLease = null; epoch = message.epoch; const generation = epoch, session = pageSession; if (await fencePages(generation) && generation === epoch && session === pageSession) send({ type: "paused", epoch }); return; }
   if (message.type === "resume" && Number.isSafeInteger(message.epoch)) { active = true; epoch = message.epoch; return; }
   if (message.type === "sync" && Array.isArray(message.consent)) {
     if (message.protocol !== 2) { active = false; connection = "Incompatible Latham desktop. Update the desktop and register its host."; return; }
@@ -131,6 +142,7 @@ async function receive(message) {
   }
   if (message.type === "page_request" && typeof message.id === "string" && message.id.length <= 64 && message.epoch === epoch && !busy) { await pageRequest(message); return; }
   if (message.type !== "command" || typeof message.id !== "string" || message.id.length > 64 || message.epoch !== epoch || busy) return;
+  if (workflowLease) { send({ type: "result", id: message.id, epoch, outcome: "blocked" }); return; }
   const generation = epoch, session = pageSession, command = message.command;
   const fence = () => active && epoch === generation && pageSession === session && port;
   let outcome = "blocked";
@@ -165,6 +177,7 @@ chrome.permissions.onRemoved.addListener(() => {
   void (async () => { const current = await grants(), kept = (await consent()).filter(origin => current.includes(origin)); await chrome.storage.local.set({ consent: kept }); send({ type: "reconcile", origins: kept }); })();
 });
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
+  if (message?.type === "workflow_intervened" && sender.id === chrome.runtime.id && sender.tab?.id === workflowLease?.tabId && sender.frameId === 0 && agents.has(sender.documentId) && message.flowId === workflowLease?.id) { interruptWorkflow(); return; }
   if (message?.type === "page_invalidated" && sender.id === chrome.runtime.id && sender.tab?.id && sender.frameId === 0 && agents.has(sender.documentId) && active) { send({ type: "context_changed" }); return; }
   if (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL("popup.html")) return;
   void (async () => {
@@ -183,6 +196,10 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   return true;
 });
 function contextChanged(tabId) { if (!navigationExpected && active && [...agents.values()].some(scope => scope.tabId === tabId)) send({ type: "context_changed" }); }
-chrome.tabs.onActivated.addListener(({ tabId, windowId }) => { if ([...agents.values()].some(scope => scope.windowId === windowId && scope.tabId !== tabId)) contextChanged([...agents.values()].find(scope => scope.windowId === windowId).tabId); });
-chrome.tabs.onUpdated.addListener((tabId, change) => { if (!navigationExpected && (change.url || change.status === "loading")) contextChanged(tabId); });
+chrome.tabs.onActivated.addListener(({ tabId, windowId }) => { if (workflowLease?.valid && (workflowLease.tabId !== tabId || workflowLease.windowId !== windowId)) interruptWorkflow(); if ([...agents.values()].some(scope => scope.windowId === windowId && scope.tabId !== tabId)) contextChanged([...agents.values()].find(scope => scope.windowId === windowId).tabId); });
+chrome.windows.onFocusChanged.addListener(windowId => { if (workflowLease?.valid && windowId !== chrome.windows.WINDOW_ID_NONE && windowId !== workflowLease.windowId) interruptWorkflow(); });
+chrome.tabs.onUpdated.addListener((tabId, change) => {
+  if (workflowLease?.valid && workflowLease.tabId === tabId && (change.url || change.status === "loading") && (!workflowLease.destination || change.url && !lathamCatalog.navigationMatches(workflowLease.destination, change.url))) interruptWorkflow();
+  if (!navigationExpected && (change.url || change.status === "loading")) contextChanged(tabId);
+});
 chrome.tabs.onRemoved.addListener(tabId => { contextChanged(tabId); for (const [id, scope] of agents) if (scope.tabId === tabId) agents.delete(id); void rememberAgents(); });

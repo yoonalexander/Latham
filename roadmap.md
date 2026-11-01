@@ -1,8 +1,8 @@
 # Latham Roadmap
 
 **Updated:** October 31, 2026\
-**Status:** Phases 0–6 implemented for the documented 0.6 unsigned developer preview; compatibility tiers and limits in docs/phase6.md and docs/evaluation.md; Phase 7 unstarted.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.11.
+**Status:** Phases 0–7 implemented for the documented 0.7 unsigned developer preview; bounded read-query workflows and limits in docs/phase7.md and docs/evaluation.md; Phase 8 unstarted.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.12.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
@@ -39,7 +39,7 @@ The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notep
 | 8 | Optional Latham-managed AI and commercial delivery | Stable core plus a separately reviewed service design |
 | 9 | Broader platform reach and ongoing compatibility | Stable Windows/browser/desktop contracts |
 
-Phases 0–6 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
+Phases 0–7 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
 
 ## Phase 0 — Foundation and evaluation harness
 
@@ -162,12 +162,14 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Goal:** carry out a user goal over several verified steps, then selectively add higher-consequence operations with explicit authority.
 
-- [ ] Add a bounded planner, per-run action/time/request budgets, visible progress, supported typed tools, and honest completion/failure states.
-- [ ] Begin with navigation/search/filter workflows, using existing supported controls. Do not equate searching jobs with applying for them.
-- [ ] Test interruption, user intervention, navigation changes, stale plans, prompt injection, and unknown outcomes. Never replay an uncertain mutation.
-- [ ] Add editable/revocable user-approved shortcuts only after the underlying workflow is reliable.
-- [ ] Separately design and review each proposed send/upload/account-changing integration, including its typed operation, exact payload/recipient UI, single-use approval, focus restoration/revalidation, expiry, and duplicate prevention.
-- [ ] Keep purchases, payments, destructive operations, permission grants, and unattended work excluded unless a future separately scoped design and trusted authorization process is approved. Broad automation is not implied by this milestone.
+- [x] Add a bounded planner, per-run action/time/request budgets, visible progress, supported typed tools, and honest completion/failure states.
+- [x] Begin with navigation/search/filter workflows, using existing supported controls. Do not equate searching jobs with applying for them.
+- [x] Test interruption, user intervention, navigation changes, stale plans, prompt injection, and unknown outcomes. Never replay an uncertain mutation.
+- [x] Add editable/revocable user-approved shortcuts only after the underlying workflow is reliable.
+- [x] Separately design and review each proposed send/upload/account-changing integration, including its typed operation, exact payload/recipient UI, single-use approval, focus restoration/revalidation, expiry, and duplicate prevention.
+- [x] Keep purchases, payments, destructive operations, permission grants, and unattended work excluded unless a future separately scoped design and trusted authorization process is approved. Broad automation is not implied by this milestone.
+
+**Implemented preview:** [Workflow setup](docs/phase7.md) records the typed goal compiler, 8 action/20 request/60-second budgets, single-use review, exact context leases, partial/unknown results and explicit encrypted shortcuts. The consequential-integration review enables none: each proposed effect remains blocked until it has a dedicated approved design and acceptance suite. This completes the read-query workflow milestone, not a generic autonomous agent or a send/upload integration.
 
 **Gate:** supported workflows complete within configured budgets and report partial/unverified outcomes accurately. Any newly enabled consequential integration passes its own approval and recovery suite. P0 exclusions stay in force for every operation not explicitly introduced by such a release.
 
@@ -211,4 +213,4 @@ The product direction above is settled. The preview selects an English/CPU local
 
 ## Next milestone
 
-**Phase 6 is implemented:** reviewed eight-origin coverage, bounded frame inspection and a separately tested Edge experiment. Stop before Phase 7 until the user requests it. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.
+**Phase 7 is implemented:** reviewed bounded search workflows and explicitly saved encrypted shortcuts. No consequential integration is enabled. Stop before Phase 8 until the user requests it. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.

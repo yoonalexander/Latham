@@ -1,9 +1,9 @@
 {
   "name": "latham",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
-  "description": "Independent Windows voice assistant — reviewed many-site search and navigation preview",
+  "description": "Independent Windows voice assistant — bounded reviewed search workflows preview",
   "engines": {
     "node": ">=22"
   },

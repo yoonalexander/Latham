@@ -70,3 +70,8 @@ authored Latham code. Website routes/markup were checked against public primary
 pages; reference links and restrictions are in [coverage setup](phase6.md).
 The installed Microsoft Edge 156.0.4314.50 is used only for an isolated adapter
 experiment and is not bundled. Chrome remains the supported browser.
+
+Phase 7 adds no package, model or third-party runtime. Its goal compiler,
+workflow controller/lease, UI, tests and shortcut store are independently
+authored. Shortcut encryption reuses Electron's existing Windows DPAPI-backed
+safeStorage; no credential or model is required by the deterministic planner.

@@ -6,12 +6,27 @@ declare const chrome: { runtime: { sendMessage(value: unknown): Promise<unknown>
 type Field = HTMLInputElement | HTMLTextAreaElement;
 type Captured = { node: HTMLElement; target: PageTarget; fingerprint: string; frameDocument?: Document };
 type Binding = { node: Field; focus: number; edits: number; expected: string; undo: { before: string; after: string; start: number; end: number; mode: "append" | "replace" } | null };
-type Request = { op: "snapshot" | "action" | "fence" | "verify" | "visual_prepare" | "visual_validate" | "visual_highlight" | "visual_open" | "visual_clear"; session: string; epoch: number; active?: boolean; frames?: boolean; document?: string; url?: string; action?: PageAction; proof?: string; token?: string; targetId?: string };
+type Request = { op: "snapshot" | "action" | "fence" | "verify" | "workflow_begin" | "workflow_check" | "workflow_end" | "visual_prepare" | "visual_validate" | "visual_highlight" | "visual_open" | "visual_clear"; session: string; epoch: number; active?: boolean; frames?: boolean; flowId?: string; document?: string; url?: string; action?: PageAction; proof?: string; token?: string; targetId?: string };
 type Agent = { call(request: Request): unknown };
 const world = globalThis as typeof globalThis & { lathamPage?: Agent };
 if (!world.lathamPage) {
+  const initialRoot = document.documentElement;
   let epoch = -1, active = false, documentToken = crypto.randomUUID(), focus = 0, edits = 0;
   let session = ""; const retired = new Set<string>();
+  let flowId: string | null = null;
+  let expectedFlowScroll: { y: number; until: number } | null = null;
+  const retiredFlows = new Set<string>();
+  const intervene = (event: Event): void => {
+    if (!event.isTrusted || !flowId || !active) return;
+    const interrupted = flowId; retiredFlows.add(interrupted); flowId = null;
+    void chrome.runtime.sendMessage({ type: "workflow_intervened", flowId: interrupted, document: documentToken }).catch(() => {});
+  };
+  for (const name of ["pointerdown", "keydown", "wheel", "touchstart", "beforeinput", "input", "change"]) document.addEventListener(name, intervene, { capture: true, passive: true });
+  document.addEventListener("scroll", event => {
+    if (expectedFlowScroll && Date.now() <= expectedFlowScroll.until && scrollY === expectedFlowScroll.y && event.target === document) { expectedFlowScroll = null; return; }
+    intervene(event);
+  }, { capture: true, passive: true });
+  addEventListener("blur", event => { if (document.activeElement instanceof HTMLIFrameElement) intervene(event); });
   let binding: Binding | null = null;
   let proof: { id: string; node: Field; expected: string; focus: number; edits: number; url: string; document: string } | null = null;
   const captures = new Map<string, Captured>();
@@ -27,7 +42,7 @@ if (!world.lathamPage) {
   }, true);
   document.addEventListener("input", event => { if (event.isTrusted) { edits++; if (binding) notify(); } }, true);
   document.addEventListener("change", event => { if (event.isTrusted) { edits++; if (binding) notify(); } }, true);
-  addEventListener("pagehide", () => { active = false; binding = null; proof = null; captures.clear(); });
+  addEventListener("pagehide", () => { active = false; flowId = null; binding = null; proof = null; captures.clear(); });
   addEventListener("pageshow", event => { if (event.persisted) { documentToken = crypto.randomUUID(); active = false; binding = null; captures.clear(); } });
   const visible = (node: HTMLElement, viewport = true): boolean => { const style = getComputedStyle(node), rect = node.getBoundingClientRect(); return node.isConnected && rect.width > 0 && rect.height > 0 && (!viewport || (rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth)) && Number(style.opacity) > 0 && style.display !== "none" && style.visibility !== "hidden" && !node.closest('[inert],[hidden],[aria-hidden="true"]'); };
   const enabled = (node: HTMLElement): boolean => !node.matches(":disabled,[aria-disabled=true]");
@@ -97,7 +112,7 @@ if (!world.lathamPage) {
   }
   function act(action: PageAction): object {
     if (action.kind === "unbind") { binding = null; return { outcome: "verified" }; }
-    if (action.kind === "scroll") { const before = scrollY; scrollBy({ top: action.direction === "down" ? 600 : -600, behavior: "instant" }); return { outcome: "verified", reason: scrollY === before ? "scroll_boundary" : "scrolled" }; }
+    if (action.kind === "scroll") { const before = scrollY; scrollBy({ top: action.direction === "down" ? 600 : -600, behavior: "instant" }); if (flowId) expectedFlowScroll = { y: scrollY, until: Date.now() + 200 }; return { outcome: "verified", reason: scrollY === before ? "scroll_boundary" : "scrolled" }; }
     if (action.kind === "edit" || action.kind === "undo") {
       const b = bound();
       if (action.kind === "undo") {
@@ -143,9 +158,21 @@ if (!world.lathamPage) {
       if (request.op === "fence") {
         if (typeof request.session !== "string" || retired.has(request.session)) throw new Error("cancelled");
         if (session !== request.session) { if (retired.size >= 64) throw new Error("reload_required"); if (session) retired.add(session); session = request.session; epoch = -1; }
-        if (request.epoch < epoch) throw new Error("cancelled"); epoch = request.epoch; active = request.active === true; binding = null; proof = null; captures.clear(); visual.clear(); return { outcome: "verified" };
+        if (request.epoch < epoch) throw new Error("cancelled"); epoch = request.epoch; active = request.active === true; flowId = null; binding = null; proof = null; captures.clear(); visual.clear(); return { outcome: "verified" };
       }
       if (!active || request.session !== session || request.epoch !== epoch) throw new Error("cancelled");
+      if (request.op === "workflow_begin") {
+        if (document.documentElement !== initialRoot) throw new Error("reload_required");
+        if (typeof request.flowId !== "string" || !/^[\w-]{36}$/.test(request.flowId) || retiredFlows.has(request.flowId) || retiredFlows.size >= 64 || flowId !== null && flowId !== request.flowId) throw new Error("workflow_stale");
+        flowId = request.flowId; binding = null; proof = null; visual.clear(); return { outcome: "verified" };
+      }
+      if (request.flowId && flowId !== request.flowId) throw new Error("workflow_interrupted");
+      if (request.op === "workflow_check" || request.op === "workflow_end") {
+        if (document.documentElement !== initialRoot) throw new Error("reload_required");
+        if (!flowId || request.flowId !== flowId || request.document !== documentToken || request.url !== location.href) throw new Error("workflow_stale");
+        if (request.op === "workflow_end") { retiredFlows.add(flowId); flowId = null; }
+        return { outcome: "verified" };
+      }
       if (request.op.startsWith("visual_")) { const result = visual.call(request); return request.op === "visual_open" ? act(result as PageAction) : result; }
       if (request.op === "verify") {
         if (!proof || request.proof !== proof.id || proof.url !== location.href || proof.document !== documentToken || proof.node.value !== proof.expected || document.activeElement !== proof.node || field() !== proof.node || focus !== proof.focus || edits !== proof.edits) throw new Error("verification_failed");

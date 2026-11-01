@@ -32,6 +32,7 @@ export class ChromeBridge {
   private pending: { id: string; timer: ReturnType<typeof setTimeout>; mutation: boolean; resolve: (value?: unknown) => void } | undefined;
   readonly pipe = "\\\\.\\pipe\\latham-" + randomUUID();
   readonly token = randomBytes(32).toString("hex");
+  get sessionEpoch(): number { return this.epoch; }
   constructor(private store: ProviderStore, private changed: () => void) { this.needsReview = store.chromeUncertain; }
   get siteState(): SetupState["sites"] { return sites.map(site => ({ origin: site.origin, name: site.name, consent: this.store.consent.includes(site.origin), chromeGranted: this.grants.has(site.origin), effective: this.connected && this.store.consent.includes(site.origin) && this.grants.has(site.origin) })); }
   start(): Promise<void> {
@@ -90,7 +91,7 @@ export class ChromeBridge {
   private send(value: unknown): void { if (this.socket?.writable) this.socket.write(frame(value)); }
   private receive(value: unknown): void {
     if (!record(value)) throw new Error("invalid_message");
-    if (value.type === "ready") { this.connected = value.protocol === 2 && value.version === "0.6.0"; if (!this.connected) { this.pause(); this.result = "Incompatible extension. Load Latham extension 0.6.0 and register the current host."; }
+    if (value.type === "ready") { this.connected = value.protocol === 2 && value.version === "0.7.0"; if (!this.connected) { this.pause(); this.result = "Incompatible extension. Load Latham extension 0.7.0 and register the current host."; }
     } else if (value.type === "context_changed") { this.pause(); this.result = "Page focus, edit, tab or document changed. Start a new session and rebind dictation.";
     } else if (value.type === "page_result" && value.id === this.pending?.id && value.epoch === this.epoch) {
       const pending = this.pending!; this.pending = undefined; clearTimeout(pending.timer);

@@ -3,6 +3,41 @@
 Status: implementation-backed boundary notes and regression coverage, not a
 complete independent security audit.
 
+## Phase 7 workflow boundaries
+
+- A strict structured goal compiles locally to search, optional filter and optional
+  result opening. No model, page instruction, arbitrary tool list, selector or
+  script can extend the plan. Literal query text never becomes action grammar.
+  Goal/site/filter/result combinations are validated before execution.
+- Preparation checks the selected origin/path before injecting/reading labels,
+  establishes a current tab/window/document/session lease and displays the plan.
+  A main-owned, expiring, single-use Run ID starts only that plan. Both main and
+  worker cap action attempts, requests and elapsed time; the worker also requires
+  an explicit start before accepting a tool. No persisted plan can resume.
+- Each observation/action checks the lease, consent, epochs, Chrome document ID,
+  isolated token and URL. Opens require a current result receipt and reviewed
+  same-site read URL. Root replacement, unexpected navigation, trusted input or
+  scrolling, iframe focus, tab/window changes and revoked access invalidate work.
+  New-document pre-injection events are not a certified interaction history;
+  fresh URL/identity/control evidence remains mandatory.
+- Stop, timeout, hidden/crashed renderer, connection loss and user intervention
+  discard late replies and remaining steps. Unknown effects retain the existing
+  durable reconciliation marker; no navigation is blindly replayed. Partial
+  completion keeps earlier verified steps distinct from a failed current step.
+  Manual, visual, dictation and hands-free execution cannot race a live plan.
+- Only a completed goal can be explicitly saved. Shortcuts contain validated
+  goal/name/ID only, use DPAPI and have no plaintext fallback. Corrupt stores lock
+  without overwrite; deletion cancels active authority. Startup/loading/editing
+  cannot run a shortcut. Names/queries persist only by explicit save, not logs.
+- No consequential integration was selected for enablement. A workflow Run ID
+  cannot approve sending, uploads/applications, account changes, purchases,
+  destructive actions, grants or scheduled unattended work. The separate review
+  requirements and disabled candidates are recorded in [Phase 7](phase7.md).
+
+The compiled catalog still limits possible read effects; it does not sandbox a
+remote website or authenticate its internals. This is bounded preview support,
+not general adversarial-site assurance. See [evaluation](evaluation.md).
+
 ## Phase 6 additions
 
 Eight exact optional origins replace the two-entry catalog; grants still

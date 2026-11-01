@@ -3,6 +3,8 @@ import { speechLanguages, type ProviderSettings, type SetupBridge, type SetupSta
 import { DesktopPanel } from "./desktop";
 import { HandsfreePanel } from "./handsfree";
 import { VisualPanel } from "./visual";
+import { WorkflowPanel } from "./workflow";
+import { workflowActive } from "../../../../packages/contracts/src/workflow";
 declare global { interface Window { setup: SetupBridge } }
 type Recording = { id: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
 export function SetupPanel() {
@@ -64,7 +66,7 @@ export function SetupPanel() {
   const patch = (value: Partial<ProviderSettings>): void => setDraft({ ...draft, ...value });
   return <section className="panel setup-panel" aria-label="Voice and Chrome setup">
     <div className="section-kicker">WINDOWS PREVIEW / 0.5</div><h2>Voice, Chrome & desktop</h2>
-    <fieldset className="manual-controls" disabled={state.handsfree.phase !== "off" || state.visual.busy}>
+    <fieldset className="manual-controls" disabled={workflowActive(state.workflow.phase) || state.handsfree.phase !== "off" || state.visual.busy}>
     <div className="setup-grid">
       <div className="setup-group"><h3>1. Choose your AI</h3>
         <label><input type="radio" name="provider" checked={draft.mode === "local"} onChange={() => patch({ mode: "local" })} /> Use local AI</label>
@@ -110,6 +112,7 @@ export function SetupPanel() {
     </fieldset>
     <HandsfreePanel state={state} dirty={dirty} />
     <VisualPanel state={state} act={act} />
+    <WorkflowPanel state={state} dirty={dirty} />
     {(error || state.error) && <p className="error" role="alert">{error || state.error.replaceAll("_", " ")}</p>}
   </section>;
 }

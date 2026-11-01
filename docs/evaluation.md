@@ -1,5 +1,97 @@
 # Evaluation and acceptance
 
+## Phase 7 evidence — October 31, 2026
+
+Implemented for the **0.7 unsigned Windows developer preview**. The
+[workflow guide](phase7.md) defines the deterministic goal compiler, explicit
+review/Run boundary, independent limits, exact-context leases and encrypted
+shortcuts. **No consequential integration is enabled.** Phase 8 is unstarted.
+
+- `npm run check` passes type checking, **85 unit/boundary tests** and builds.
+  Thirteen new unit cases cover literal queries versus arbitrary tools, strict
+  goal combinations, preview nonce/expiry, epoch/permission loss, partial results,
+  action/request/time budgets, Stop/late replies, completed-goal-only saving and
+  encrypted bounded editable/deletable storage. Corrupt/unavailable encryption
+  locks storage without a plaintext fallback or silent overwrite.
+- All **eight new workflow integration cases pass** through real Electron,
+  MV3/native messaging and isolated Chrome. They cover GUI review before Run,
+  verified search/filter/open, actual DPAPI storage/restart with no automatic
+  execution, edits/deletion, user/tab/window/reload/revoke interruption, bounded
+  missing-result behavior, delayed-step Stop/no replay, unexpected navigation,
+  wrong-origin denial before injection, root replacement, explicit executor
+  start, rejected consequential tools and independently enforced worker budgets.
+- The broad browser/fixture run passed **39/40 cases**. The failing older case
+  exposed a fixture recovery race: UI Paused preceded completion of reset, so a
+  new Start could arrive while reset was still in progress. Reset now disables
+  Start/Run until its acknowledgement, uncertain fixture Resume does not wait on
+  unrelated adapters, and mode activation checks a generation/epoch after fences
+  so Stop/reset cannot revive a waiting activation. A **12-case final focused
+  run passed** all fixture and workflow cases, including that recovery case.
+- The aggregate `npm run evaluate` attempt is **not a green aggregate report**:
+  four native cases passed and three stopped at the existing Windows foreground
+  guard; the dependent 40 browser cases did not run in that invocation. A final
+  **native-only follow-up passed all seven**, including 100 targeted editor
+  operations, after the activation fix. The focus guard was not weakened and
+  intermittent Windows foreground failures remain a preview limitation.
+  Earlier failed reports are retained rather than hidden by these follow-ups.
+- Initial GUI/fence test failures were corrected to wait for preparation and
+  pause acknowledgements. One initial shortcut unit write hit Windows EPERM
+  during atomic rename; subsequent unit and actual DPAPI save/update/delete
+  checks passed. Writes retain the prior file/list on error and surface failure.
+  This does not establish clean-account DPAPI migration or hostile filesystem
+  behavior. The shared browser fixture was extracted for reuse without changing
+  its isolated permission arrangement or serial execution requirement.
+
+### Live workflow measurement
+
+`node scripts/evaluate-workflows.mjs` tested signed-out public pages in isolated
+Chrome for Testing, using explicit install-time fixture grants. It invokes the
+actual prepare → single-use Run → scoped verification path. No model request,
+provider key, physical voice sample, CAPTCHA interaction or native permission
+prompt acceptance is part of this measurement.
+
+| Goal | Result | Action attempts / requests | Measured run time |
+|---|---|---|---|
+| USAJOBS: software, remote, first visible announcement | Completed; 3/3 steps verified; numeric job announcement reached | 3 / 8 | 3,622 ms |
+| Wikipedia: piano, first visible reviewed article | Completed; 2/2 steps verified; Piano article reached | 2 / 7 | 3,111 ms |
+| MDN: fetch, first visible reviewed documentation | Completed; 2/2 steps verified; Fetch API documentation reached | 2 / 7 | 2,376 ms |
+
+These **three visits / seven verified steps** are measured examples, not p95,
+speech accuracy, a statistical task-success rate or general-site assurance. No
+unexpected destination was observed in these runs. Synthetic negative cases
+separately prove that apply/send/autosave handlers stay untouched, missing
+results stop partially and unknown outcomes cannot resume/replay. Query/page
+instruction text cannot create a tool. Closed components, site restrictions,
+alternate accounts/locales and broader visual/native workflows remain outside
+this acceptance. Edge has only the earlier basic adapter experiment; workflows
+are accepted on Chrome.
+
+Explicit shortcuts are the only newly persisted goals. Default application
+diagnostics still omit query text, plans, snapshots and raw media. Test artifacts
+contain deliberate synthetic/public data and are ignored: `phase7-full-evaluation.json`,
+`phase7-browser-first-results.json`, `phase7-focused-results.json`,
+`phase7-native-followup-results.json`, `phase7-live-workflows.json`,
+`phase7-workflow-preview.png` and their retained Playwright traces. No package,
+model or reference-repository implementation was added.
+
+The final **five-case mode regression passed**: 100 bound DOM operations,
+hands-free commands, spoken Stop during verification, stale/late responses and
+user intervention including a denied cross-origin iframe and another Chrome
+window. This follows the activation fix and preserves scoped cancellation.
+`phase7-mode-regression-results.json` records that run.
+
+The **0.7 portable package passed** startup/version/sandbox, protected fake-key
+storage, hidden development-key import, idle workflow state, eight initially
+unapproved sites, bundled helpers/OCR, native host/extension pairing, local
+wake/stop, native scan and acknowledged Stop. A copied packaged extension with
+an explicit install-time **Google fixture grant** verified a prepared two-step
+search/images workflow against a synthetic page. It then saved a DPAPI-encrypted
+shortcut and deleted it, with no automatic execution. This is not native
+permission-prompt acceptance. The packaged workflow UI was visually checked;
+the bundle excludes user keys/configuration/shortcuts and native fixtures.
+The Windows executable plus four helpers remain **NotSigned**. ZIPs/checksums
+are local ignored preview artifacts, not a published release.
+
 ## Phase 6 evidence — October 31, 2026
 
 Implemented for the **0.6 unsigned Windows developer preview**, with eight exact

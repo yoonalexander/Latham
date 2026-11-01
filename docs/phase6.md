@@ -1,13 +1,13 @@
-# Latham 0.6 website coverage preview
+# Website coverage — Phase 6
 
 Phase 6 expands the compiled catalog to eight origins. Chrome on Windows remains
 the supported browser. Microsoft Edge has a separately measured experiment;
 this does not promote Edge to public support. See [evaluation](evaluation.md)
-for fixture versus live results and restrictions. Phase 7 is unstarted.
+for fixture versus live results and restrictions. [Phase 7](phase7.md) adds bounded read-query workflows.
 
 ## Setup and commands
 
-Build/register the current desktop host and load extension **0.6.0**, protocol 2.
+Build/register the current desktop host and load extension **0.7.0**, protocol 2.
 Use [Chrome setup](phase2.md) for installation, key/local speech configuration and
 recovery. Each origin requires its own optional Chrome grant **and** Latham
 consent through the extension popup. Existing approvals remain remembered;

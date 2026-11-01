@@ -1,8 +1,12 @@
 # @latham/planner
 
-Optional bounded multi-step goal planning over approved tools.
+Optional deterministic planning for reviewed single-site search goals.
 
-Deferred to Phase 7. This placeholder must not become a Chrome-MVP dependency.
+`compileWorkflow` validates a structured goal and emits search, optional filter
+and optional visible-result opening steps. It accepts no arbitrary tool list,
+page instruction, code, selector or consequential operation. The main controller
+and extension separately own scope, budgets, execution and verification.
 
-The source entry point is an empty scaffold module. See the root design and
-roadmap before implementing this boundary.
+Manual Chrome commands do not depend on a model planner. See
+[Phase 7 setup](../../docs/phase7.md) for review, cancellation, shortcut storage
+and the explicitly disabled consequential integrations.

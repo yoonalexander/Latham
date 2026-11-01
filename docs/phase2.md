@@ -1,6 +1,6 @@
 # Chrome workflows — Phase 2
 
-The current Windows preview is **0.6.0**, with [expanded website coverage](phase6.md), including [Phase 3 desktop editing](phase3.md) and [Phase 4 hands-free sessions](phase4.md).
+The current Windows preview is **0.7.0**, with [expanded website coverage](phase6.md), including [Phase 3 desktop editing](phase3.md) and [Phase 4 hands-free sessions](phase4.md).
 The supported Chrome operations below remain the Phase 2 profile set.
 
 Latham's Phase 2 adapter adds reviewed Chrome page actions and field-bound
@@ -36,7 +36,7 @@ npm run setup:electron
 npm run dev
 ```
 
-For a prepared preview, extract `Latham-0.6.0-win-x64-preview.zip` into a stable
+For a prepared preview, extract `Latham-0.7.0-win-x64-preview.zip` into a stable
 folder and run `Latham.exe`. No administrator access or global Node/.NET SDK
 installation is required. The package includes Electron, its notices and
 Latham's small .NET Framework relay; Windows .NET Framework 4.8 is the tested
@@ -45,7 +45,7 @@ helper runtime.
 1. Configure **Use my API key** (Gemini) or **Use local AI**. Save changes before
    recording. Changing saved provider settings pauses work and clears old speech.
 2. Choose **Register Chrome host**. In Chrome's extension developer screen,
-   load the extracted `Latham-extension-0.6.0.zip` directory, or the included
+   load the extracted `Latham-extension-0.7.0.zip` directory, or the included
    `resources/app/chrome-extension` directory. A source build uses
    `dist/chrome-extension`.
 3. Open the extension, choose **Connect to Latham**, and approve the supported
@@ -55,7 +55,7 @@ helper runtime.
    **Prepare Search dictation** to explicitly start a ready session, focus Search
    and bind that field. No page snapshots are collected while paused.
 
-Desktop/extension version **0.6.0**, relay protocol **2**, and Chrome **120+**
+Desktop/extension version **0.7.0**, relay protocol **2**, and Chrome **120+**
 must agree. An incompatible extension stays disconnected. Reload the extension
 and register the current host after updating. The fixed unpacked extension ID
 uses a public key; no private signing key is included.

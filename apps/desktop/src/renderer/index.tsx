@@ -56,7 +56,8 @@ function App() {
     try { await window.latham.updateSettings(next); }
     catch { setError("Settings could not be saved."); setState(await window.latham.getState()); }
   };
-  const busy = state && ["observing", "acting", "verifying", "stopping"].includes(state.status);
+  const [fixtureResetting, setFixtureResetting] = useState(false);
+  const busy = fixtureResetting || state && ["observing", "acting", "verifying", "stopping"].includes(state.status);
   const run = (event: FormEvent): void => { event.preventDefault(); void act(() => window.latham.run(command)); };
   const result = state?.lastResult;
   return <div className="app-shell">
@@ -72,7 +73,7 @@ function App() {
           <div className="result" aria-live="polite" aria-atomic="true" data-testid="action-result"><span className="section-kicker">LAST ACTION</span><strong>{result ? result.outcome.replaceAll("_", " ") : "Nothing dispatched"}</strong><p>{result?.reason ? reasons[result.reason] : result ? "The expected local effect was observed." : "Allow the fixture and start a session to begin."}</p>{result && <span className="dispatch">Dispatch: {result.dispatch.replaceAll("_", " ")}</span>}</div>
         </section>
         <section className="panel settings-panel"><div className="section-kicker">02 / SESSION SETTINGS</div><label className="check-row"><input type="checkbox" checked={state?.settings.fixtureAllowed ?? false} onChange={event => void settings({ fixtureAllowed: event.target.checked })} /><span>Allow local fixture<small>Only this bundled test page. No website access.</small></span></label>
-          <div className="session-buttons"><button onClick={() => void act(() => window.latham.resume())} disabled={!state?.settings.fixtureAllowed || !!busy}>Start session</button><button onClick={() => void act(() => window.latham.resetFixture())}>Reset fixture</button></div>
+          <div className="session-buttons"><button onClick={() => void act(() => window.latham.resume())} disabled={!state?.settings.fixtureAllowed || !!busy}>Start session</button><button disabled={fixtureResetting} onClick={() => { setFixtureResetting(true); void act(async () => { try { await window.latham.resetFixture(); } finally { setFixtureResetting(false); } }); }}>Reset fixture</button></div>
           <label htmlFor="delay" className="range-label">Test dispatch delay <output>{state?.settings.delayMs ?? 0} ms</output></label><input id="delay" type="range" min={0} max={3000} step={100} value={state?.settings.delayMs ?? 0} onChange={event => void settings({ delayMs: Number(event.target.value) })} />
           <label className="check-row"><input type="checkbox" checked={state?.settings.diagnosticsEnabled ?? false} onChange={event => void settings({ diagnosticsEnabled: event.target.checked })} /><span>Save diagnostic metadata<small>Codes and timings only; never command text.</small></span></label>
           <button className="quiet" onClick={() => void act(() => window.latham.clearDiagnostics())}>Clear diagnostics</button>

@@ -3,6 +3,7 @@ import type { PageState } from "./browser";
 import type { NativeState } from "./desktop";
 import type { HandsfreeState } from "./handsfree";
 import type { VisualState, VisualRoute } from "./visual";
+import type { WorkflowState, WorkflowGoal, WorkflowShortcut } from "./workflow";
 
 import { siteForPage } from "./sites";
 export { sites } from "./sites";
@@ -19,6 +20,10 @@ export type SetupState = {
   desktop: NativeState;
   handsfree: HandsfreeState;
   visual: VisualState;
+  workflow: WorkflowState;
+  shortcuts: WorkflowShortcut[];
+  shortcutStorageAvailable: boolean;
+  shortcutStorageLocked: boolean;
   localModel: string;
   settings: ProviderSettings; keyStored: boolean; vaultAvailable: boolean;
   voice: "idle" | "recording" | "transcribing" | "testing"; transcript: string; error: string; notice: string;
@@ -45,6 +50,12 @@ export interface SetupBridge {
   visualFind(query: { text: string; route: VisualRoute; model: string }): Promise<void>;
   visualHighlight(id: string): Promise<void>;
   visualOpen(): Promise<void>;
+  prepareWorkflow(goal: WorkflowGoal): Promise<void>;
+  runWorkflow(previewId: string): Promise<void>;
+  cancelWorkflow(): Promise<void>;
+  saveWorkflowShortcut(name: string, id: string | null): Promise<void>;
+  deleteWorkflowShortcut(id: string): Promise<void>;
+  clearWorkflowShortcuts(): Promise<void>;
   chromeResume(): Promise<void>;
   reconcileChrome(): Promise<void>;
   chromeRun(command: string): Promise<void>;

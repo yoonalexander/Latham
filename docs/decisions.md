@@ -19,10 +19,14 @@ the [roadmap](../roadmap.md) defines sequence.
 | Chrome page scope | Compiled public read-query profiles; explicit bounded same-origin frame inspection; current document/control/epoch required | phase6.md |
 | New website effects | Shared search/result recipes; focus-only fields; never infer edit/submit authority from labels | phase6.md |
 | Browser expansion | Edge isolated experiment; Chrome remains supported; Firefox untested | phase6.md |
+| Workflow planner | Deterministic reviewed single-site goals; no model requests; 8 action attempts, 20 requests, 60 seconds | phase7.md |
+| Workflow authority | Expiring single-use Run IDs, exact context lease, verified steps, partial/unknown outcomes, no replay | phase7.md |
+| Workflow shortcuts | Explicit save after success, DPAPI goals only, edit/review/run before update, deletion cancels, no startup execution | phase7.md |
+| Consequential integrations | None enabled; separate operation/payload/recipient approval and recovery acceptance required | phase7.md |
 | Dictation | Prepare Search, record under that binding, explicitly append/replace; guarded correction/undo | phase2.md |
 | Unknown effects | Persist uncertainty before mutation; reconcile explicitly after failed verification/restart; never replay | browser-controller and native-bridge |
 | Local speech retention | Bounded stdin/stdout; no temporary audio/transcript files | speech/providers.ts |
-| Preview distribution | 0.6.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase6.md |
+| Preview distribution | 0.7.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase7.md |
 | Visual capture | Per-session consent and separate optional image grant; approved YouTube thumbnail assets only; no full-screen/desktop capture | phase5.md |
 | Visual grounding | Local OCR/layout, opt-in installed Ollama vision or Gemini; candidate-ID sets, explicit clarification/highlight/open and fresh DOM navigation checks | phase5.md |
 | Native scope | Same-user unelevated Notepad document text only; per-app approval and block override; browsers/other apps excluded | phase3.md |

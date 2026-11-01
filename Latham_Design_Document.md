@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.11\
+**Version:** 1.12\
 **Date:** October 31, 2026\
-**Status:** Phases 0–6 implemented for the documented 0.6 unsigned Windows developer preview; compatibility tiers and measured limits in docs/phase6.md and docs/evaluation.md; Phase 7 unstarted\
+**Status:** Phases 0–7 implemented for the documented 0.7 unsigned Windows developer preview; bounded read-query workflows and limits in docs/phase7.md and docs/evaluation.md; Phase 8 unstarted\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -507,7 +507,7 @@ Onboarding first offers **Use my API key** or **Use local AI**. Configure speech
 |---|---|---|
 | Tier 0: deterministic | Fixed shortcuts, tab actions, bounded scroll, simple URLs | Local intent rules and typed actions |
 | Tier 1: bounded decision | Select one of N observed targets, distinguish command/dictation | User-key cloud or local Ollama adapter chooses candidate IDs or abstains |
-| Tier 2: planning agent | Multi-step goals, complex navigation, recovery | Responses model chooses among approved tools, one step at a time |
+| Tier 2: bounded workflows | Reviewed multi-step search/filter/navigation goals | Implemented deterministic goal compiler and scoped typed executor; a general model planner remains future work |
 
 Tier 1 must include a `CLARIFY`/`NONE` choice. Phase 1's Gemini/Ollama adapters use a strict candidate-ID enum plus reserved `ABSTAIN`, normalized to an internal null selection. Unknown IDs, extra fields, oversized output and incomplete/refused responses are rejected. Indistinguishable same-role labels force local abstention even if a model chooses one. Selection has no action authority and does not execute website controls in Phase 1. Other provider APIs remain references; no OpenAI key is required by the implemented route. Any future confidence value is a ranking signal requiring calibration, not a safety guarantee.
 
@@ -527,13 +527,45 @@ The model selects `e2`. The local executor independently verifies that `e2` stil
 
 ### 7.3 Agent planning rules
 
-- Give the planner a user goal, a minimal current observation, a list of allowed tool schemas, and previous step results.
-- Require a bounded plan budget, e.g., maximum 15 actions and five minutes for a first prototype; make limits configurable.
+- The implemented Phase 7 planner compiles a structured single-site goal into search, optional filter and optional visible-result opening. It makes no model requests and consumes no page instructions. Any future model planner must receive only scoped observations and allowed typed tools, with independent policy enforcement.
+- Enforce fixed per-run budgets in main and extension: 8 action attempts, 20 extension requests and 60 seconds, with a separately expiring 60-second preview. These limits cannot be increased by renderer/provider input.
 - Execute only one validated UI mutation per tool call, then observe again.
 - Do not permit the model to relax permissions, impersonate the user, or grant itself additional access.
 - Treat webpage content as **data**, not as a higher-priority instruction.
 - Return `DONE`, `BLOCKED`, `NEEDS_USER`, `CANCELLED`, or `FAILED` with a human-readable explanation.
 - Check site-specific restrictions before enabling automated flows. Never solve CAPTCHAs or bypass anti-bot controls.
+
+### 7.3.1 Implemented workflow authority and shortcuts
+
+Preparation checks the selected approved origin/path before page injection and
+pins the active tab/window/document/session/epoch. The trusted UI displays the
+steps, limits and expiry; an opaque single-use Run ID accepts only that prepared
+goal. Each step revalidates its lease and fresh target references. Typed tools
+construct reviewed search/filter URLs or open a current reviewed result; they
+cannot type, send, upload, change accounts or grant permissions. Unknown effects
+retain the existing persisted uncertainty and no-replay boundary.
+
+User pointer/key/input/wheel/scroll events, iframe focus, tab/window changes,
+unexpected navigation, replaced roots, revocation, disconnect, app hiding and
+Stop cancel remaining authority. Programmatic scrolling has a bounded expected
+event allowance. New-document events before injection are not a certified
+interaction history; current URL/identity/control checks still gate every step.
+At most two short waits and three scrolls can find a visible result. Failure
+reports partial/cancelled/unknown state with earlier verified steps retained.
+
+Only a fully verified goal can be explicitly saved as a shortcut. Up to ten
+validated goals/names are DPAPI encrypted; no run token, approval, scope or plan
+is persisted. Edits require a new reviewed successful run. Deletion cancels
+active/prepared work; loading/restarting never executes a shortcut. Corruption
+locks storage without a plaintext fallback or silent overwrite.
+
+The [consequential-integration review](docs/phase7.md) enables **none** in 0.7:
+sending, uploads/applications and account changes lack their dedicated typed
+operation, exact payload/recipient approval, focus/freshness, idempotency and
+recovery acceptance. Purchases/payments, destructive actions, permission grants
+and scheduled unattended work remain excluded. Run is not a generic approval
+override. A general natural-language planner, hosted service and Handy migration
+remain separate work.
 
 ### 7.4 Verification and recovery
 
@@ -615,10 +647,10 @@ and signed installers describe later work.
 | Speech | Gemini user key or whisper.cpp base.en | Both paths tested; narrow English corpus and hardware limits published. |
 | Planned local speech upgrade | Handy's transcribe.cpp via official TypeScript binding in a Latham-owned child process | Future work under section 6.1.1; resident model and Parakeet candidate require local benchmarking and packaged acceptance. |
 | Bounded decision | User-key cloud adapter or local Ollama | Same validated target-choice contract; add other providers only when needed. |
-| Planner | OpenAI Responses API with typed tools | Optional, restricted to a step-limited mode. |
+| Planner | Deterministic structured search-goal compiler and scoped typed tools | Optional reviewed workflow mode; 8 actions, 20 requests, 60 seconds; no model requests. |
 | Visual grounding | Source-isolated YouTube thumbnails, Windows OCR/layout, opt-in local/cloud vision | Candidate-ID sets, explicit clarification/highlight/open; no viewport/desktop capture or coordinate click. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.6.0, Chrome relay protocol 2; Latham binaries unsigned. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.7.0, Chrome relay protocol 2; Latham binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -840,6 +872,8 @@ These references inform the architecture. They do **not** establish that the unb
 Reference roles are distinct: jev-use informs the accessibility/decision loop; Capri informs Windows integration concepts and local-speech experiments; Clicky/HeyClicky informs resident-assistant UX and interaction concepts. All remain references under section 1.2. None establishes Latham's measured behavior, supplies authority to bypass permissions, or adds a mascot, persistent personality, or unattended workflows to P0.
 
 ## 16. Revision Notes
+
+**v1.12 — October 31, 2026:** Implemented Phase 7 reviewed search/filter/result workflows, one-use expiring previews, scoped tab/document leases, independent main/worker budgets, visible verified/partial/cancelled/unknown progress and no replay. Added explicit encrypted editable/revocable shortcuts with no startup execution. The consequential-integration review enables none: sending, uploads, applications, account changes, payments/destructive actions and generic approval overrides remain excluded. [Workflow setup](docs/phase7.md) and [evaluation](docs/evaluation.md) distinguish actual acceptance and limits. Handy and Phase 8 remain unimplemented.
 
 **v1.11 — October 31, 2026:** Implemented the Phase 6 compiled eight-origin read-query catalog, shared accessible-name/open-root/result handling, conservative focus-only fields, reviewed search/filter URL recipes and explicit bounded same-origin frame inspection/opening. Unknown effects and new-site dictation remain blocked. Dynamic/recycled target freshness, live selector maintenance, per-site consent, URL stabilization and an isolated Edge experiment are recorded in [website coverage](docs/phase6.md) and [evaluation](docs/evaluation.md). Chrome remains the supported browser; universal coverage, Handy migration and Phase 7 remain separate future work.
 

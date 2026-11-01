@@ -19,4 +19,4 @@ await Promise.all([
 ]);
 const metadata = JSON.parse(await readFile("package.json", "utf8"));
 await writeFile("dist/package.json", JSON.stringify({ name: "latham", version: metadata.version, type: "commonjs", main: "main.cjs" }) + "\n");
-await Promise.all(["manifest.json", "background.js", "visual.js", "popup.html", "popup.js", "popup.css"].map(file => copyFile("apps/chrome-extension/" + file, "dist/chrome-extension/" + file)));
+await Promise.all(["manifest.json", "background.js", "visual.js", "workflow.js", "popup.html", "popup.js", "popup.css"].map(file => copyFile("apps/chrome-extension/" + file, "dist/chrome-extension/" + file)));

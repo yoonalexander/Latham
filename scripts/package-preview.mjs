@@ -13,7 +13,7 @@ const app = join(target, "resources/app"); await mkdir(app, { recursive: true })
 await writeFile(join(app, "package.json"), JSON.stringify({ name: "latham", productName: "Latham", version, main: "main.cjs" }, null, 2));
 await cp(resolve("docs"), join(target, "docs"), { recursive: true });
 for (const file of ["Latham_Design_Document.md", "Latham_Design_Review.md", "roadmap.md"]) await cp(resolve(file), join(target, file));
-await writeFile(join(target, "SETUP.md"), `# Latham ${version} Windows preview\n\nRead [website coverage](docs/phase6.md), [visual setup](docs/phase5.md), [hands-free setup](docs/phase4.md), [desktop setup and recovery](docs/phase3.md) and [Chrome/provider setup](docs/phase2.md) before running Latham.exe.\n\nThis is an unsigned Windows x64 developer preview.\n`);
+await writeFile(join(target, "SETUP.md"), `# Latham ${version} Windows preview\n\nRead [bounded workflows](docs/phase7.md), [website coverage](docs/phase6.md), [visual setup](docs/phase5.md), [hands-free setup](docs/phase4.md), [desktop setup and recovery](docs/phase3.md) and [Chrome/provider setup](docs/phase2.md) before running Latham.exe.\n\nThis is an unsigned Windows x64 developer preview.\n`);
 const archive = join(root, name + ".zip");
 execFileSync("tar.exe", ["-a", "-c", "-f", archive, "-C", root, name], { windowsHide: true, stdio: "inherit" });
 const extensionArchive = join(root, `Latham-extension-${version}.zip`);

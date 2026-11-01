@@ -19,6 +19,8 @@ import { localDetector } from "./local-detector";
 import { parsePageIntent } from "../../../../packages/contracts/src/browser";
 import { VisualController } from "./visual-controller";
 import { imageOcr } from "./image-ocr";
+import { WorkflowController } from "./workflow-controller";
+import { WorkflowShortcuts } from "./workflow-shortcuts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "latham", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName("Latham");
@@ -76,6 +78,8 @@ async function boot(): Promise<void> {
   });
   controller.setPermission(storage.settings.fixtureAllowed);
   let resetting = false;
+  // A completed fence cannot revive an activation invalidated by Stop or reset.
+  let activation = 0;
   const state = (): DesktopState => ({ ...controller.getState(), settings: { ...storage.settings }, stopShortcutRegistered });
   const send = (): void => { if (!win.webContents.isDestroyed()) win.webContents.send("latham:state", state()); };
   controller.subscribe(send);
@@ -83,23 +87,26 @@ async function boot(): Promise<void> {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame || event.senderFrame.url !== "latham://app/index.html") throw new Error("forbidden_sender");
   };
   const providerStore = new ProviderStore(app.getPath("userData"), safeStorage);
+  const shortcuts = new WorkflowShortcuts(app.getPath("userData"), safeStorage);
+  let workflow: WorkflowController;
   let browser: BrowserController;
   let desktop: DesktopController;
   let utteranceBinding: string | null = null;
-  const setupState = (): SetupState => ({ canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
+  const setupState = (): SetupState => ({ canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, workflow: workflow.state, shortcuts: shortcuts.list, shortcutStorageAvailable: shortcuts.available, shortcutStorageLocked: shortcuts.locked, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
   const setupSend = (): void => { if (voice && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState()); };
   voice = new Voice(providerStore, setupSend);
   const chrome = new ChromeBridge(providerStore, setupSend);
   browser = new BrowserController(chrome, providerStore, setupSend);
+  workflow = new WorkflowController(chrome, setupSend);
   const nativeTesting = !app.isPackaged && process.argv.includes("--latham-test") && process.env.LATHAM_TEST_NATIVE_FIXTURE === "1";
   const nativeApp = nativeTesting ? "fixture" : "notepad";
   desktop = new DesktopController(app.getPath("userData"), join(__dirname, "native/Latham.DesktopAgent.exe"), () => Number(win.getNativeWindowHandle().readBigUInt64LE()), setupSend, nativeTesting);
   desktop.onInvalidate = () => { voice.cancel(); if (handsfree?.state.target === "desktop") handsfree.end("Editor binding changed. Microphone off; prepare the editor again."); };
-  chrome.onInvalidate = () => { visual?.stop(); browser.stop(); voice.cancel(); if (handsfree?.state.target === "chrome") handsfree.end("Chrome context changed. Microphone off; inspect Chrome before restarting."); };
+  chrome.onInvalidate = () => { workflow.cancel("workflow_interrupted"); visual?.stop(); browser.stop(); voice.cancel(); if (handsfree?.state.target === "chrome") handsfree.end("Chrome context changed. Microphone off; inspect Chrome before restarting."); };
   await chrome.start();
   const hostDirectory = join(app.getPath("userData"), "native");
   chrome.writeConfig(hostDirectory);
-  const stopExecutors = (): void => { visual?.stop(); controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
+  const stopExecutors = (): void => { activation++; workflow.cancel(); visual?.stop(); controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
   handsfree = new Handsfree(localDetector(join(__dirname, "native/Latham.SpeechDetector.exe")), {
     available: target => target === "chrome" ? chrome.connected && chrome.active && !chrome.needsReview : desktop.state.active && desktop.state.bound && !desktop.state.needsReview,
     transcribe: async pcm => { utteranceBinding = desktop.bindingId ?? browser.bindingId; const id = voice.begin(); await voice.finish(id, pcm); if (voice.error || !voice.transcript) throw new Error("handsfree_transcription_failed"); return voice.transcript; },
@@ -111,7 +118,7 @@ async function boot(): Promise<void> {
   });
   visual = new VisualController(chrome, (image, signal) => imageOcr(join(__dirname, "native/Latham.ImageOcr.exe"), image, signal), () => providerStore.key(), setupSend);
   const stopAll = (): void => { if (handsfree.active) handsfree.end(); else stopExecutors(); };
-  const manual = (): void => { if (handsfree.active || visual?.state.busy) throw new Error("end_active_mode_first"); };
+  const manual = (): void => { if (workflow.active || handsfree.active || visual?.state.busy) throw new Error("end_active_mode_first"); };
   const waitFence = async (confirmed: () => boolean): Promise<void> => {
     const deadline = Date.now() + 3500;
     while (!confirmed() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
@@ -119,17 +126,32 @@ async function boot(): Promise<void> {
   };
   const useChrome = async (): Promise<void> => {
     manual();
+    const turn = ++activation, epoch = chrome.sessionEpoch;
     visual.stop(false);
     controller.stop(); desktop.pause(); await waitFence(() => desktop.state.fenceConfirmed);
+    if (turn !== activation || epoch !== chrome.sessionEpoch) throw new Error("cancelled");
     if (desktop.state.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
   };
   const useDesktop = async (): Promise<void> => {
     manual();
+    const turn = ++activation;
     visual.stop();
-    controller.stop(); chrome.pause(); await waitFence(() => !chrome.connected || chrome.fenceConfirmed);
+    controller.stop(); chrome.pause(); const epoch = chrome.sessionEpoch; await waitFence(() => !chrome.connected || chrome.fenceConfirmed);
+    if (turn !== activation || epoch !== chrome.sessionEpoch) throw new Error("cancelled");
     if (chrome.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
   };
   ipcMain.handle("setup:state", event => { guard(event); return setupState(); });
+  ipcMain.handle("setup:workflow-prepare", async (event, goal: unknown) => {
+    guard(event);
+    const idle = (): void => { if (handsfree.active || visual.state.busy || voice.status !== "idle" || browser.state.busy || desktop.state.busy) throw new Error("end_active_mode_first"); };
+    idle(); if (workflow.state.phase !== "prepared") await useChrome(); idle();
+    browser.stop(); voice.cancel(); return workflow.prepare(goal);
+  });
+  ipcMain.handle("setup:workflow-run", (event, id: unknown) => { guard(event); return workflow.run(id); });
+  ipcMain.handle("setup:workflow-cancel", event => { guard(event); stopAll(); });
+  ipcMain.handle("setup:workflow-shortcut-save", (event, name: unknown, id: unknown) => { guard(event); manual(); const goal = workflow.completedGoal(); shortcuts.save(name, goal, id); stopAll(); setupSend(); });
+  ipcMain.handle("setup:workflow-shortcut-delete", (event, id: unknown) => { guard(event); stopAll(); shortcuts.remove(id); setupSend(); });
+  ipcMain.handle("setup:workflow-shortcut-clear", event => { guard(event); stopAll(); shortcuts.clear(); setupSend(); });
   ipcMain.handle("setup:save", (event, input: unknown) => { guard(event); stopAll(); voice.save(input); });
   ipcMain.handle("setup:key", (event, input: unknown) => { guard(event); stopAll(); providerStore.setKey(input); setupSend(); });
   ipcMain.handle("setup:remove-key", event => { guard(event); stopAll(); providerStore.removeKey(); setupSend(); });
@@ -141,7 +163,7 @@ async function boot(): Promise<void> {
   ipcMain.handle("setup:visual-find", (event, query: unknown) => { guard(event); manual(); browser.stop(); voice.cancel(); return visual.find(query); });
   ipcMain.handle("setup:visual-highlight", (event, id: unknown) => { guard(event); manual(); return visual.highlight(id); });
   ipcMain.handle("setup:visual-open", event => { guard(event); manual(); return visual.open(); });
-  ipcMain.handle("setup:handsfree-start", (event, config: unknown) => { guard(event); if (visual.state.busy || voice.status !== "idle" || browser.state.busy || desktop.state.busy || controller.needsReview) throw new Error("voice_busy"); voice.prepareSession(); visual.stop(); controller.stop(); return handsfree.start(config); });
+  ipcMain.handle("setup:handsfree-start", (event, config: unknown) => { guard(event); if (workflow.active || visual.state.busy || voice.status !== "idle" || browser.state.busy || desktop.state.busy || controller.needsReview) throw new Error("voice_busy"); voice.prepareSession(); visual.stop(); controller.stop(); return handsfree.start(config); });
   ipcMain.on("setup:handsfree-frame", (event, id: unknown, sequence: unknown, pcm: unknown) => { try { guard(event); } catch { return; } handsfree.frame(id, sequence, pcm); });
   ipcMain.handle("setup:handsfree-failure", (event, id: unknown) => { guard(event); handsfree.fail(id); });
   ipcMain.handle("setup:finish", (event, id: unknown, pcm: unknown) => { guard(event); manual(); return voice.finish(id, pcm); });
@@ -164,18 +186,18 @@ async function boot(): Promise<void> {
   ipcMain.handle("setup:desktop-reconcile", event => { guard(event); desktop.reconcile(); });
   ipcMain.handle("latham:state", event => { guard(event); return state(); });
   ipcMain.handle("latham:run", (event, command: unknown) => { guard(event); if (resetting || desktop.state.active || desktop.state.busy || chrome.active) throw new Error("executor_unavailable"); return controller.run(command); });
-  ipcMain.handle("latham:resume", async event => { guard(event); if (resetting) throw new Error("executor_unavailable"); desktop.pause(); chrome.pause(); await waitFence(() => desktop.state.fenceConfirmed && (!chrome.connected || chrome.fenceConfirmed)); if (desktop.state.needsReview || chrome.needsReview) throw new Error("executor_reconciliation_required"); controller.resume(); });
+  ipcMain.handle("latham:resume", async event => { guard(event); manual(); if (resetting) throw new Error("executor_unavailable"); if (controller.needsReview) { controller.resume(); return; } const turn = ++activation; desktop.pause(); chrome.pause(); const epoch = chrome.sessionEpoch; await waitFence(() => desktop.state.fenceConfirmed && (!chrome.connected || chrome.fenceConfirmed)); if (turn !== activation || epoch !== chrome.sessionEpoch || resetting) throw new Error("cancelled"); if (desktop.state.needsReview || chrome.needsReview) throw new Error("executor_reconciliation_required"); controller.resume(); });
   ipcMain.handle("latham:stop", event => { guard(event); stopAll(); });
   ipcMain.handle("latham:settings", (event, input: unknown) => {
     guard(event);
-    const settings = parseSettings(input), changed = settings.fixtureAllowed !== storage.settings.fixtureAllowed;
+    manual(); const settings = parseSettings(input), changed = settings.fixtureAllowed !== storage.settings.fixtureAllowed;
     storage.save(settings);
     if (changed) controller.setPermission(settings.fixtureAllowed);
     send();
   });
   ipcMain.handle("latham:clear", event => { guard(event); storage.clearDiagnostics(); controller.clearDiagnostics(); });
   ipcMain.handle("latham:reset", async event => {
-    guard(event); if (resetting) return; resetting = true; controller.stop();
+    guard(event); manual(); if (resetting) return; activation++; resetting = true; controller.stop();
     try { await fixture.webContents.loadURL("latham://fixture/index.html"); controller.resetExecutor(); }
     finally { resetting = false; send(); }
   });
@@ -194,7 +216,7 @@ async function boot(): Promise<void> {
   tray.setToolTip("Latham — Windows assistant");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Show Latham", click: () => win.show() },
-    { label: "Start fixture session", click: () => controller.resume() },
+    { label: "Start fixture session", click: () => { if (!workflow.active) controller.resume(); } },
     { label: "Pause / Stop", click: stopAll },
     { type: "separator" }, { label: "Quit Latham", click: () => app.quit() }
   ]));
