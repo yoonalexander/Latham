@@ -9,8 +9,8 @@ clicking. Existing text/DOM commands remain the first route for labeled controls
 ## Setup and use
 
 Build as in [Chrome setup](phase2.md), or extract the unsigned
-`Latham-0.8.0-win-x64-preview.zip`. Register this build's Chrome host and load
-extension **0.8.0**; the native relay remains protocol 2. The package includes
+`Latham-0.9.0-win-x64-preview.zip`. Register this build's Chrome host and load
+extension **0.9.0**; the native relay remains protocol 3. The package includes
 `Latham.ImageOcr.exe`, using installed Windows OCR components through Framework
 4.8. No SDK, OCR runtime or visual model is downloaded automatically. The tested
 Windows 11 machine has the en-US OCR language available.

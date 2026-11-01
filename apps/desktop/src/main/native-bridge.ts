@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { record } from "../../../../packages/contracts/src/index";
 import { parseChromeCommand, sites, type SetupState } from "../../../../packages/contracts/src/setup";
 import { ProviderStore } from "./provider-store";
+import { appVersion, nativeProtocol } from "../../../../packages/contracts/src/compatibility";
 
 export const extensionId = "plggaillpeoabjjmpjedmblaakepbhdb";
 export const hostName = "com.latham.host";
@@ -43,10 +44,10 @@ export class ChromeBridge {
         socket.on("data", chunk => {
           try { reader.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk), value => {
             if (!authenticated) {
-              if (!record(value) || value.type !== "hello" || value.protocol !== 2 || value.token !== this.token || value.origin !== `chrome-extension://${extensionId}/` || this.socket) { socket.destroy(); return; }
-              authenticated = true; clearTimeout(timeout); this.socket = socket; this.pause(); this.send({ type: "sync", protocol: 2, consent: this.store.consent }); this.changed(); return;
+              if (!record(value) || value.type !== "hello" || value.protocol !== nativeProtocol || value.browser !== this.store.browser || value.token !== this.token || value.origin !== `chrome-extension://${extensionId}/` || this.socket) { socket.destroy(); return; }
+              authenticated = true; clearTimeout(timeout); this.socket = socket; this.pause(); this.send({ type: "sync", protocol: nativeProtocol, consent: this.store.consent }); this.changed(); return;
             }
-            this.receive(value);
+            if (this.socket === socket) this.receive(value);
           }); } catch { socket.destroy(); }
         });
         socket.on("error", () => socket.destroy());
@@ -55,8 +56,9 @@ export class ChromeBridge {
       this.server.once("error", reject); this.server.listen(this.pipe, () => { this.server?.removeListener("error", reject); resolve(); });
     });
   }
-  writeConfig(directory: string): void { mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, "connection.json"), JSON.stringify({ pipe: this.pipe.replace("\\\\.\\pipe\\", ""), token: this.token, origin: `chrome-extension://${extensionId}/` }), { mode: 0o600 }); }
-  close(): void { this.pause(); this.socket?.destroy(); this.server?.close(); }
+  writeConfig(directory: string): void { mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, "connection.json"), JSON.stringify({ pipe: this.pipe.replace("\\\\.\\pipe\\", ""), token: this.token, browser: this.store.browser, origin: `chrome-extension://${extensionId}/` }), { mode: 0o600 }); }
+  disconnect(): void { this.pause(); const socket = this.socket; this.socket = undefined; this.connected = false; this.grants.clear(); socket?.destroy(); this.changed(); }
+  close(): void { this.disconnect(); this.server?.close(); }
   pause(): void {
     this.onInvalidate();
     this.active = false; this.fenceConfirmed = false; this.epoch++; this.send({ type: "pause", epoch: this.epoch });
@@ -91,7 +93,7 @@ export class ChromeBridge {
   private send(value: unknown): void { if (this.socket?.writable) this.socket.write(frame(value)); }
   private receive(value: unknown): void {
     if (!record(value)) throw new Error("invalid_message");
-    if (value.type === "ready") { this.connected = value.protocol === 2 && value.version === "0.8.0"; if (!this.connected) { this.pause(); this.result = "Incompatible extension. Load Latham extension 0.8.0 and register the current host."; }
+    if (value.type === "ready") { this.connected = value.protocol === nativeProtocol && value.version === appVersion; if (!this.connected) { this.pause(); this.result = `Incompatible extension. Load Latham extension ${appVersion} and register the current host.`; }
     } else if (value.type === "context_changed") { this.pause(); this.result = "Page focus, edit, tab or document changed. Start a new session and rebind dictation.";
     } else if (value.type === "page_result" && value.id === this.pending?.id && value.epoch === this.epoch) {
       const pending = this.pending!; this.pending = undefined; clearTimeout(pending.timer);
@@ -110,7 +112,7 @@ export class ChromeBridge {
     } else if (value.type === "consent" && typeof value.origin === "string" && sites.some(site => site.origin === value.origin) && value.granted === true) {
       if (!this.store.consent.includes(value.origin)) { this.store.consent.push(value.origin); this.store.save(); }
     } else if (value.type === "result" && value.id === this.pending?.id && value.epoch === this.epoch) {
-      const results: Record<string, string> = { verified: "Verified Chrome result", dispatched: "Dispatched; page navigation outcome not verified", blocked: "Blocked by scope, permission, or session", failed: "Chrome operation failed", unknown: "Chrome result unknown; inspect Chrome before continuing" };
+      const results: Record<string, string> = { verified: "Verified browser result", dispatched: "Dispatched; page navigation outcome not verified", blocked: "Blocked by scope, permission, or session", failed: "Chrome operation failed", unknown: "Chrome result unknown; inspect Chrome before continuing" };
       this.result = results[String(value.outcome)] ?? results.unknown!;
       const pending = this.pending!; this.pending = undefined; clearTimeout(pending.timer); pending.resolve();
       if (value.outcome === "unknown" || !results[String(value.outcome)]) { this.needsReview = true; this.pause(); }

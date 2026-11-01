@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.13\
+**Version:** 1.14\
 **Date:** November 1, 2026\
-**Status:** Phases 0–7 and owner-scoped local Phase 8 implemented for the 0.8 unsigned preview; billing disabled, public hosting/commercial launch/trusted signing remain external gates in docs/release-operations.md\
+**Status:** Phases 0–7, local Phase 8 and owner-scoped Windows Phase 9 implemented for the 0.9 unsigned preview; other-platform/hardware acceptance and public launch gates remain open\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -632,7 +632,7 @@ Microsoft UI Automation coverage varies by application and developer implementat
 
 ### 9.1 Stack and later proposals
 
-The current 0.8 preview uses Electron/React, lightweight JSON settings with
+The current 0.9 preview uses Electron/React, lightweight JSON settings with
 DPAPI-protected keys/sessions, Gemini or local speech/Ollama, and an optional
 local managed speech/selection service with billing disabled. It includes the
 Chrome relay, scoped Notepad supervisor/worker, independent wake/stop detectors,
@@ -653,7 +653,7 @@ signing and automatic updates remain gated future work.
 | Planner | Deterministic structured search-goal compiler and scoped typed tools | Optional reviewed workflow mode; 8 actions, 20 requests, 60 seconds; no model requests. |
 | Visual grounding | Source-isolated YouTube thumbnails, Windows OCR/layout, opt-in local/cloud vision | Candidate-ID sets, explicit clarification/highlight/open; no viewport/desktop capture or coordinate click. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.8.0, Chrome relay protocol 2; Latham binaries unsigned. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.9.0, native protocol 3; Latham binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -877,6 +877,8 @@ These references inform the architecture. They do **not** establish that the unb
 Reference roles are distinct: jev-use informs the accessibility/decision loop; Capri informs Windows integration concepts and local-speech experiments; Clicky/HeyClicky informs resident-assistant UX and interaction concepts. All remain references under section 1.2. None establishes Latham's measured behavior, supplies authority to bypass permissions, or adds a mascot, persistent personality, or unattended workflows to P0.
 
 ## 16. Revision Notes
+
+**v1.14 — November 1, 2026:** Implemented the owner's Windows-only Phase 9 scope: explicit Chrome/Edge choice with separate native registration and consent, protocol-3 browser-family checks including the verified Windows cmd intermediary, fenced switching and stale-connection rejection. Added keyboard/focus/compact layout improvements, Stop on display changes, bounded window recovery, schema-2 consent migration/newer-schema protection, explicit local non-content task feedback and repeatable browser/version reports. [Phase 9](docs/phase9.md) records exact support and ongoing macOS/Linux, language/speaker, assistive-technology and physical display gates. Public hosting/signing and Handy remain separate.
 
 **v1.13 — November 1, 2026:** Implemented the owner's local-only Phase 8 scope with billing disabled: separate invitation-account service, server-side provider credentials, exact transcription/selection API, transactional account/global budgets, rate/concurrency limits, DPAPI desktop sessions, explicit routing choice, usage and cancellation/deletion/recovery. Added offline signed-manifest verification, Windows signature preflight, manual rollback/migration and commercial release gates. No public hosting, trusted signing identity, paid plans, managed vision or automatic updater is claimed. Local/BYOK and independent Stop remain available; Handy and Phase 9 are not included.
 

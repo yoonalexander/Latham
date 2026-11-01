@@ -1,5 +1,91 @@
 # Evaluation and acceptance
 
+## Phase 9 Windows evidence — November 1, 2026
+
+The owner selected **Windows only for now; keep other platform gates open**.
+The **0.9.0** implementation and support matrix are in [Phase 9](phase9.md).
+This is an unsigned developer preview, not universal website/platform support,
+trusted signing, physical hardware certification or a public managed-service
+launch. Billing remains disabled.
+
+- `npm run check` passes **108 unit/boundary tests**, type checking and the
+  Windows build. Eight new cases cover legacy consent/key/mode migration,
+  Chrome/Edge consent separation, future/corrupt/invalid-uncertainty settings
+  locks, exact browser choices/registry paths, wrong-browser/old-protocol denial,
+  retired sockets, negative/offscreen/small work areas, and explicit bounded
+  non-content evaluation storage/restart/clear.
+- Real **Chrome and Edge native pairing passes** using protocol 3, the selected
+  browser family and separate registrations. The Windows Chromium cmd.exe
+  intermediary is handled with bounded ancestry and verified system shell path.
+  A dedicated Edge case deliberately makes its host claim Chrome while main
+  selects Chrome: the actual Edge ancestor is rejected before pairing. Switching
+  back preserves Edge consent while requiring a paused fresh connection; Chrome
+  starts without that consent. No personal browser profile is used.
+- The keyboard/display/evaluation Electron case passes: Tab/Enter skip without
+  changing the privileged URL, local Escape Stop, cancellation and window
+  recovery after a **simulated** display-removal event, narrow 680×520 layout
+  without horizontal overflow, explicit save consent, restart persistence and
+  clear. These are controlled UI/data tests, not actual multi-display, mixed-DPI,
+  Narrator or real-user-study results. Feedback screenshot:
+  `.test-artifacts/phase9-keyboard-feedback.png`.
+- The first full Chrome/fixture project passes **42/43** cases, including the
+  100-operation DOM benchmark and existing provider, account, visual, hands-free,
+  permission, dictation, scope and workflow boundaries. One intervention case
+  reported `blocked` instead of `cancelled`; it had not asserted that preparation
+  succeeded before intervening. The test now checks that precondition explicitly.
+  Its focused follow-up passes (**9.6 seconds**); the earlier failure remains
+  recorded and is not relabelled a green aggregate or a proven production fix.
+- The independent Edge matrix passes **35/36** on **156.0.4314.50**, including
+  its separate 100-operation benchmark, visual/hands-free/dictation and browser
+  isolation/UI cases. Its more precise assertion identifies the same remaining
+  issue at the **denied iframe preparation** precondition. The fixture had waited
+  for the main page's old load event after inserting a new child frame. It now
+  verifies the actual synthetic child has loaded and waits for browser tab
+  readiness before preparing; production still excludes that child from reads.
+  Final focused checks pass **3/3 on the Chrome/default route** (family isolation,
+  keyboard/display/feedback and all six workflow interventions) and **1/1 on
+  Edge** (all six interventions, 20.0 seconds). Broad first-run failures are
+  preserved separately; no guard, expiry, permission or executor limit is relaxed.
+- **Live signed-out Edge workflows pass 3/3**: USAJOBS software/remote/first job
+  (**3,482 ms**, three steps), Wikipedia piano/first article (**3,529 ms**, two
+  steps) and MDN fetch/first documentation (**2,120 ms**, two steps). All seven
+  steps verify. These public synthetic queries use no model or API key. There
+  is no challenge bypass or user-account automation. Install-time fixture grants
+  are distinct from native optional-permission-prompt acceptance.
+- **Packaged 0.9 smoke checks pass separately for Chrome and Edge**: actual
+  version/startup/sandbox, matching extension/protocol/host, explicit browser
+  choice with fresh site consent, idle/off states, incognito disabled, HTTPS-only
+  managed setup, no service/user credentials/evaluation data bundled, real DPAPI
+  key/shortcut protection, OCR/detectors, tab operation, reviewed search/filter
+  workflow and acknowledged Stop. No signing identity or automatic updater is
+  configured. The final archives are refreshed with these evidence notes and
+  all packaged runtime file hashes are checked unchanged.
+- Native-only regression is **not green**: all seven cases stop at the existing
+  Windows refusal to focus the fixture editor before editing. No focus guard,
+  secure-field policy or native effect check is relaxed. The new browser/UI
+  results do not establish a new native editing acceptance claim.
+
+Reports are separate: `phase9-native-results.json`,
+`phase9-chrome-results.json`/`phase9-chrome-summary.json`,
+`phase9-workflow-followup-results.json` and the Edge/live/package reports produced
+by the commands in the guide. Browser metadata identifies the actually measured
+runtime; the Chrome fixture version is **156.0.8078.4**. Synthetic speech/grants
+and live signed-out site evidence must be read separately from physical
+microphone/permission prompts or stable personal-profile/store acceptance.
+Final reports: `phase9-final-focused-{chrome|edge}-results.json`,
+`phase9-live-edge-workflows.json`, `preview-acceptance-{chrome|edge}.json` and
+`phase9-final-package.json`. Full-region and viewport captures are saved
+separately; `phase9-keyboard-window.png` retains the actual viewport controls.
+Final TypeScript/build and all **108 unit tests pass**. Markdown links were
+checked with **184 targets, zero missing** before packaging.
+
+No new npm package, model, paid API enrollment, reference-app code or managed
+billing is introduced. Older unpacked 0.2/0.3 build staging duplicates were
+removed only after every file matched their retained ZIPs (106/108 files);
+all archives, newer rollback builds, reports and personal/earlier profiles remain.
+The fixture helper now cleans only its own disposable browser profile after
+closing, and restores registrations/resources even if setup fails.
+
 ## Phase 8 evidence — November 1, 2026
 
 Implemented for **0.8.0** within the owner's selected **local build/testing,

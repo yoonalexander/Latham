@@ -1,6 +1,6 @@
 # Release and service launch gates
 
-The 0.8 channel is an unsigned local developer preview. Billing is disabled.
+The 0.9 channel is an unsigned Windows developer preview. Billing is disabled.
 This checklist records outstanding owner/external work; local fixture tests do
 not close it. Keep the name Latham and preserve local/user-key modes.
 
@@ -28,3 +28,5 @@ not close it. Keep the name Latham and preserve local/user-key modes.
 No billing/payment implementation is included. Offering paid plans needs a
 separate approved billing/refund/tax/support design and acceptance suite.
 See [Phase 8](phase8.md) for current architecture, setup and manual rollback.
+See [Phase 9](phase9.md) for protocol-3 browser consent migration, Windows
+compatibility and open platform/hardware/language/accessibility acceptance.

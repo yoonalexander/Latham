@@ -100,14 +100,14 @@ describe("native messaging boundary", () => {
     const client = connect(chrome.pipe), responses: unknown[] = [], reader = new FrameReader(); client.on("data", chunk => reader.push(Buffer.from(chunk), value => { responses.push(value); const message = value as { type: string; epoch: number }; if (message.type === "pause") client.write(frame({ type: "paused", epoch: message.epoch })); }));
     const send = (value: unknown) => client.write(frame(value));
     try {
-      send({ type: "hello", protocol: 2, token: chrome.token, origin: `chrome-extension://${extensionId}/` }); send({ type: "ready", protocol: 2, version: "0.8.0" }); await vi.waitFor(() => expect(chrome.connected).toBe(true));
+      send({ type: "hello", protocol: 3, browser: "chrome", token: chrome.token, origin: `chrome-extension://${extensionId}/` }); send({ type: "ready", protocol: 3, version: "0.9.0" }); await vi.waitFor(() => expect(chrome.connected).toBe(true));
       expect(chrome.active).toBe(false);
       await vi.waitFor(() => expect(chrome.fenceConfirmed).toBe(true));
       send({ type: "consent", origin: "https://www.google.com", granted: true }); send({ type: "grants", origins: ["https://www.google.com"] }); await vi.waitFor(() => expect(chrome.siteState[0]!.effective).toBe(true));
       chrome.resume(); const running = chrome.run("new tab"); await vi.waitFor(() => expect(responses.some(value => (value as { type: string }).type === "command")).toBe(true));
       chrome.pause(); await running; expect(chrome.active).toBe(false); expect(chrome.result).toContain("in-flight");
       expect(() => chrome.resume()).toThrow("chrome_reconciliation_required"); await vi.waitFor(() => expect(chrome.fenceConfirmed).toBe(true)); chrome.reconcile();
-      chrome.resume(); chrome.revoke("https://www.google.com"); expect(chrome.siteState[0]!.effective).toBe(false); expect(JSON.parse(readFileSync(join(storage.directory, "providers.json"), "utf8")).consent).toEqual([]);
+      chrome.resume(); chrome.revoke("https://www.google.com"); expect(chrome.siteState[0]!.effective).toBe(false); expect(JSON.parse(readFileSync(join(storage.directory, "providers.json"), "utf8")).browserConsent.chrome).toEqual([]);
       await vi.waitFor(() => expect(chrome.fenceConfirmed).toBe(true)); chrome.resume(); await expect(chrome.run("open https://www.google.com")).rejects.toThrow("site_denied");
       client.destroy(); await vi.waitFor(() => expect(chrome.connected).toBe(false)); expect(chrome.active).toBe(false);
     } finally { client.destroy(); chrome.close(); }

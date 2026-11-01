@@ -128,9 +128,9 @@ async function receive(message) {
   if (message.type === "pause") { active = false; workflowLease = null; epoch = message.epoch; const generation = epoch, session = pageSession; if (await fencePages(generation) && generation === epoch && session === pageSession) send({ type: "paused", epoch }); return; }
   if (message.type === "resume" && Number.isSafeInteger(message.epoch)) { active = true; epoch = message.epoch; return; }
   if (message.type === "sync" && Array.isArray(message.consent)) {
-    if (message.protocol !== 2) { active = false; connection = "Incompatible Latham desktop. Update the desktop and register its host."; return; }
-    active = false; connection = "Connected — start a Chrome session in Latham";
-    send({ type: "ready", protocol: 2, version: chrome.runtime.getManifest().version });
+    if (message.protocol !== lathamCatalog.nativeProtocol) { active = false; connection = "Incompatible Latham desktop. Update the desktop and register its host."; return; }
+    active = false; connection = "Connected — start a browser session in Latham";
+    send({ type: "ready", protocol: lathamCatalog.nativeProtocol, version: chrome.runtime.getManifest().version });
     const saved = await consent(), kept = saved.filter(origin => message.consent.includes(origin));
     await chrome.storage.local.set({ consent: kept });
     // A grant removed while disconnected also removes Latham's mirror on this reconnect.

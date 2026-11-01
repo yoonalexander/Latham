@@ -36,7 +36,7 @@ access and cannot work around a denied Chrome extension.
 Build/run from source as in [Chrome/provider setup](phase2.md), or extract the
 **unsigned** `Latham-0.3.0-win-x64-preview.zip` and run `Latham.exe`. Load the
 matching extension 0.3.0 and register this build's host when using Chrome. The
-Chrome relay retains protocol 2; the desktop agent is bundled separately.
+The current browser relay uses protocol 3 (see [Phase 9](phase9.md)); the desktop agent is bundled separately.
 The native helper uses Windows .NET Framework 4.8, with no .NET SDK installation.
 Run Latham normally, without **Run as administrator**; the desktop helper also
 rejects an elevated token of its own.

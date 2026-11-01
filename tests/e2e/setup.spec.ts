@@ -35,16 +35,16 @@ test("real native messaging host pairs an MV3 worker, starts paused, executes de
     await page.evaluate(() => window.setup.chromeResume()); const before = context.pages().length;
     await page.evaluate(() => window.setup.chromeRun("new tab"));
     await expect.poll(() => context!.pages().length).toBe(before + 1);
-    expect((await page.evaluate(() => window.setup.state())).chromeResult).toBe("Verified Chrome result");
+    expect((await page.evaluate(() => window.setup.state())).chromeResult).toBe("Verified browser result");
     await page.evaluate(() => window.setup.chromeRun("previous tab"));
-    expect((await page.evaluate(() => window.setup.state())).chromeResult).toBe("Verified Chrome result");
+    expect((await page.evaluate(() => window.setup.state())).chromeResult).toBe("Verified browser result");
     await page.evaluate(() => window.latham.stop()); expect((await page.evaluate(() => window.setup.state())).chromeActive).toBe(false);
     const denied = await page.evaluate(async () => { try { await window.setup.chromeRun("new tab"); return false; } catch { return true; } }); expect(denied).toBe(true);
     for (const worker of context.serviceWorkers()) await worker.evaluate("port?.disconnect()");
     await context.close(); context = undefined;
     await expect.poll(() => page.evaluate(async () => (await window.setup.state()).chromeConnected)).toBe(false);
     expect((await page.evaluate(() => window.setup.state())).chromeActive).toBe(false);
-    expect(readFileSync(join(directory, "native/com.latham.host.json"), "utf8")).toContain(extensionId);
+    expect(readFileSync(join(directory, "native/chrome/com.latham.host.json"), "utf8")).toContain(extensionId);
   } finally { for (const worker of context?.serviceWorkers() ?? []) await worker.evaluate("port?.disconnect()").catch(() => {}); await app.close(); await context?.close(); restore(); }
 });
 

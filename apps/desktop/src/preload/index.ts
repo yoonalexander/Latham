@@ -19,6 +19,7 @@ const bridge: DesktopBridge = {
 };
 contextBridge.exposeInMainWorld("latham", bridge);
 const setup: SetupBridge = {
+  chooseBrowser: browser => ipcRenderer.invoke("setup:choose-browser", browser), addEvaluation: trial => ipcRenderer.invoke("setup:evaluation-add", trial), clearEvaluation: () => ipcRenderer.invoke("setup:evaluation-clear"),
   managedSignIn: input => ipcRenderer.invoke("setup:managed-sign-in", input), managedAccount: operation => ipcRenderer.invoke("setup:managed-account", operation),
   state: () => ipcRenderer.invoke("setup:state"), save: value => ipcRenderer.invoke("setup:save", value),
   key: value => ipcRenderer.invoke("setup:key", value), removeKey: () => ipcRenderer.invoke("setup:remove-key"), importEnvironmentKey: () => ipcRenderer.invoke("setup:import-key"),
@@ -39,7 +40,7 @@ const setup: SetupBridge = {
   desktopPrepare: id => ipcRenderer.invoke("setup:desktop-prepare", id), desktopRun: command => ipcRenderer.invoke("setup:desktop-run", command),
   desktopInsertTranscript: mode => ipcRenderer.invoke("setup:desktop-insert", mode), desktopReconcile: () => ipcRenderer.invoke("setup:desktop-reconcile"),
   finishTurn: (id, pcm) => ipcRenderer.invoke("setup:finish", id, pcm), cancelTurn: () => ipcRenderer.invoke("setup:cancel"), clearTranscript: () => ipcRenderer.invoke("setup:clear-transcript"),
-  chromeResume: () => ipcRenderer.invoke("setup:chrome-resume"), reconcileChrome: () => ipcRenderer.invoke("setup:reconcile-chrome"), chromeRun: command => ipcRenderer.invoke("setup:chrome-run", command), revoke: origin => ipcRenderer.invoke("setup:revoke", origin), installHost: () => ipcRenderer.invoke("setup:install-host"), launchChrome: () => ipcRenderer.invoke("setup:launch-chrome"),
+  chromeResume: () => ipcRenderer.invoke("setup:chrome-resume"), reconcileChrome: () => ipcRenderer.invoke("setup:reconcile-chrome"), chromeRun: command => ipcRenderer.invoke("setup:chrome-run", command), revoke: origin => ipcRenderer.invoke("setup:revoke", origin), installHost: () => ipcRenderer.invoke("setup:install-host"), launchBrowser: () => ipcRenderer.invoke("setup:launch-browser"),
   subscribe: listener => { const receive = (_event: unknown, state: SetupState): void => listener(state); ipcRenderer.on("setup:state", receive); return () => ipcRenderer.removeListener("setup:state", receive); }
 };
 contextBridge.exposeInMainWorld("setup", setup);

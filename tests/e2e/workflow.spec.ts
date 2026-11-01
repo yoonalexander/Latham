@@ -65,8 +65,15 @@ test("workflow user clicks, tab switches, reloads and grant removal invalidate p
     for (const intervention of ["click", "frame", "tab", "window", "reload", "revoke"]) {
       await f.page.bringToFront(); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed || (await window.setup.state()).chromeActive)).toBe(true);
       if (!(await f.desk.evaluate(() => window.setup.state())).chromeActive) await f.desk.evaluate(() => window.setup.chromeResume());
-      if (intervention === "frame") { await f.page.evaluate(() => { const frame = document.createElement("iframe"); frame.id = "workflow-denied-frame"; frame.src = "https://denied.example/frame"; document.body.append(frame); }); await f.page.locator("#workflow-denied-frame").waitFor(); await f.page.locator("#workflow-denied-frame").scrollIntoViewIfNeeded(); await f.page.waitForLoadState("load"); }
-      await f.desk.evaluate(goal => window.setup.prepareWorkflow(goal), goal); const id = (await f.desk.evaluate(() => window.setup.state())).workflow.previewId;
+      if (intervention === "frame") {
+        await f.page.evaluate(() => { const frame = document.createElement("iframe"); frame.id = "workflow-denied-frame"; frame.src = "https://denied.example/frame"; document.body.append(frame); });
+        await f.page.locator("#workflow-denied-frame").scrollIntoViewIfNeeded();
+        await expect(f.page.frameLocator("#workflow-denied-frame").locator("body")).toHaveText("DENIED_FRAME_SENTINEL");
+        // The main document's old load event does not await a newly inserted child frame.
+        await expect.poll(() => f.context.serviceWorkers()[0]!.evaluate("(async () => (await chrome.tabs.query({active:true,lastFocusedWindow:true}))[0]?.status)()")).toBe("complete");
+      }
+      await f.desk.evaluate(goal => window.setup.prepareWorkflow(goal), goal); const preview = (await f.desk.evaluate(() => window.setup.state())).workflow;
+      expect(preview.phase, `${intervention}: ${preview.message}`).toBe("prepared"); const id = preview.previewId;
       if (intervention === "click") await f.page.locator("#manual").click();
       if (intervention === "frame") await f.page.locator("#workflow-denied-frame").click();
       if (intervention === "tab") { const other = await f.context.newPage(); await other.goto("about:blank"); await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).workflow.phase)).toBe("cancelled"); await other.close(); }

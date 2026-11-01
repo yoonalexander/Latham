@@ -13,8 +13,9 @@ export interface WorkflowPort {
 }
 type Limits = { [K in keyof typeof workflowLimits]: number };
 const messages: Record<string, string> = {
+  page_loading: "Wait for the selected browser page to finish loading, then prepare again.",
   unsupported_goal: "Choose a supported search, filter and result goal. Other effects are excluded.",
-  workflow_context: "Open the selected approved website in the current Chrome tab, then prepare again.",
+  workflow_context: "Open the selected approved website in the current browser tab, then prepare again.",
   workflow_stale: "The prepared tab, document or session changed. Prepare a new plan.",
   workflow_interrupted: "User interaction or navigation interrupted this workflow. Nothing will be replayed.",
   scope_denied: "Approve the selected site and start a Chrome session first.",

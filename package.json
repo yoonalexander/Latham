@@ -1,9 +1,9 @@
 {
   "name": "latham",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
-  "description": "Independent Windows voice assistant — optional local managed AI preview",
+  "description": "Independent Windows voice assistant — Chrome and Edge compatibility preview",
   "engines": {
     "node": ">=22"
   },
@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:e2e": "npm run build && node scripts/build-native-fixture.mjs && npm run setup:electron && powershell.exe -NoProfile -File scripts/generate-visual-fixtures.ps1 && playwright test",
     "evaluate": "npm run typecheck && npm test && npm run test:e2e",
+    "evaluate:compatibility": "npm run build && node scripts/evaluate-compatibility.mjs",
     "check": "npm run typecheck && npm test && npm run build",
     "setup:electron": "node node_modules/electron/install.js",
     "setup:browser": "playwright install chromium && node scripts/setup-browser.mjs",

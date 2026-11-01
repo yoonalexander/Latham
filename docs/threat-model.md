@@ -3,6 +3,34 @@
 Status: implementation-backed boundary notes and regression coverage, not a
 complete independent security audit.
 
+## Phase 9 Windows compatibility boundaries
+
+Only the explicitly selected Chrome/Edge family can pair. Browser-specific host
+directories/HKCU registrations and protocol-3 greetings intersect the existing
+extension origin, process token and single-connection contract. The relay checks
+the actual browser ancestor, supporting direct launch or one verified Windows
+System32/SysWOW64 cmd.exe intermediary. Edge registry fallback cannot silently
+impersonate Chrome. This is family separation, not signed-publisher attestation
+against same-user malware/renamed binaries.
+
+Switching stops execution, requires the previous browser fence and no unresolved
+result, disconnects the old socket and clears its grants/bindings. Old sockets
+cannot deliver state after retirement. Chrome/Edge consent is separate; legacy
+consent migrates to Chrome only. Per-profile extension consent and effective
+grants remain mandatory. Multi-profile/incognito and simultaneous browsers are
+not enabled. Newer/corrupt settings lock without overwrite and retain uncertainty.
+
+Display configuration changes cancel work and re-fit only Latham's own window;
+they never convert old target coordinates or resume a binding. Escape is a local
+Stop alternative. Keyboard/negative-coordinate/simulated-display checks do not
+certify physical mixed-DPI, assistive-technology or cross-platform automation.
+
+Task feedback is explicit per entry, bounded to 50 fixed-category/numeric rows,
+stored locally and clearable. No raw text, URLs, accounts, audio, transcripts,
+screenshots or identifiers are accepted and nothing uploads automatically.
+Self-reported metrics do not become action receipts or provider billing data.
+Windows-only startup remains enforced. See [Phase 9](phase9.md).
+
 ## Phase 8 managed-service boundaries
 
 The optional local service receives active audio or bounded candidate labels

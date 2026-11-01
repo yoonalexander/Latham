@@ -29,8 +29,10 @@ function App() {
   const viewport = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const unsubscribe = window.latham.subscribe(setState);
+    const stop = (event: KeyboardEvent): void => { if (event.key === "Escape" && !event.repeat) { event.preventDefault(); void window.latham.stop(); } };
+    window.addEventListener("keydown", stop);
     void window.latham.getState().then(setState).catch(() => setError("The application bridge is unavailable."));
-    return unsubscribe;
+    return () => { unsubscribe(); window.removeEventListener("keydown", stop); };
   }, []);
   useEffect(() => {
     const element = viewport.current;
@@ -60,7 +62,7 @@ function App() {
   const busy = fixtureResetting || state && ["observing", "acting", "verifying", "stopping"].includes(state.status);
   const run = (event: FormEvent): void => { event.preventDefault(); void act(() => window.latham.run(command)); };
   const result = state?.lastResult;
-  return <div className="app-shell">
+  return <div className="app-shell"><a className="skip-link" href="#assistant-setup" onClick={event => { event.preventDefault(); document.getElementById("assistant-setup")?.focus(); }}>Skip to assistant setup</a>
     <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>PREVIEW</span></h1><p>A small step. A verified result.</p></div></div><div className="header-tools"><button onClick={() => { void window.latham.stop(); setFixtureVisible(!fixtureVisible); }}>{fixtureVisible ? "Hide fixture tools" : "Show fixture tools"}</button><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
     {state && !state.stopShortcutRegistered && <p className="error" role="alert">Global stop shortcut unavailable. Use Stop or the tray menu.</p>}
     {fixtureVisible && <main className="workspace">

@@ -2,7 +2,7 @@
 
 This records the Phase 1 configuration. For the current preview use
 [Phase 2 setup](phase2.md): it recommends base.en, adds reviewed DOM/dictation,
-uses relay protocol 2 and removes temporary local-ASR audio files.
+uses the current relay protocol (3 in 0.9) and removes temporary local-ASR audio files.
 
 Phase 1 is an internal development milestone. It connects speech and basic
 browser controls; DOM observation, clicking website controls, scrolling and

@@ -3,14 +3,16 @@ import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import assert from "node:assert/strict";
+const browser = process.argv[2] ?? "chrome";
+assert.ok(["chrome", "edge"].includes(browser));
 const version = JSON.parse(readFileSync("package.json", "utf8")).version;
 const root = resolve(".test-artifacts"), packageRoot = join(root, `releases/Latham-${version}-win-x64-preview`); mkdirSync(root, { recursive: true });
-const registry = ["Google\\Chrome", "Chromium"].map(browser => { const path = `HKCU\\Software\\${browser}\\NativeMessagingHosts\\com.latham.host`; try { return { path, value: execFileSync("reg.exe", ["QUERY", path, "/ve"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).match(/REG_SZ\s+(.+)/)?.[1]?.trim() }; } catch { return { path }; } });
+const registry = ["Google\\Chrome", "Chromium", "Microsoft\\Edge"].map(browser => { const path = `HKCU\\Software\\${browser}\\NativeMessagingHosts\\com.latham.host`; try { return { path, value: execFileSync("reg.exe", ["QUERY", path, "/ve"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).match(/REG_SZ\s+(.+)/)?.[1]?.trim() }; } catch { return { path }; } });
 const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && key !== "ELECTRON_RUN_AS_NODE"));
 const wait = async check => { for (let n = 0; n < 150; n++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); } throw new Error("preview_acceptance_timeout"); };
 let app, context;
 try {
-  for (const file of ["SETUP.md", "docs/phase8.md", "docs/release-operations.md", "docs/phase7.md", "docs/phase6.md", "docs/phase5.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
+  for (const file of ["SETUP.md", "docs/phase9.md", "docs/phase8.md", "docs/release-operations.md", "docs/phase7.md", "docs/phase6.md", "docs/phase5.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
   const data = mkdtempSync(join(root, "packaged-app-"));
   app = await _electron.launch({ executablePath: join(packageRoot, "Latham.exe"), args: ["--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
   await wait(() => app.context().pages().some(page => page.url() === "latham://app/index.html"));
@@ -22,6 +24,9 @@ try {
   assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "off");
   assert.equal((await desk.evaluate(() => window.setup.state())).visual.consent, false);
   assert.equal((await desk.evaluate(() => window.setup.state())).workflow.phase, "idle");
+  assert.equal((await desk.evaluate(() => window.setup.state())).browser, "chrome");
+  assert.equal((await desk.evaluate(() => window.setup.state())).providerSettingsLocked, false);
+  assert.deepEqual((await desk.evaluate(() => window.setup.state())).evaluation.trials, []);
   assert.equal((await desk.evaluate(() => window.setup.state())).managed.signedIn, false);
   assert.equal((await desk.evaluate(() => window.setup.state())).managed.origin, "");
   assert.equal(await desk.evaluate(async () => { try { await window.setup.managedSignIn({ origin: "http://127.0.0.1:47831", invite: "a".repeat(64), consent: "latham-managed-local-v1" }); return false; } catch { return true; } }), true);
@@ -32,16 +37,17 @@ try {
   const ocr = JSON.parse(execFileSync(join(packageRoot, "resources/app/native/Latham.ImageOcr.exe"), [], { cwd: packageRoot, input: readFileSync(join(root, "visual-corpus/0.jpg")), encoding: "utf8", windowsHide: true, timeout: 5000 })); assert.match(ocr.text, /PIANO/);
   await desk.evaluate(() => window.setup.key("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")); assert.equal(readFileSync(join(data, "provider-key.bin")).includes(Buffer.from("FAKE_PACKAGED_KEY_STORAGE_CHECK_123456789")), false);
   await desk.evaluate(async () => window.setup.save({ ...(await window.setup.state()).settings, mode: "cloud" }));
+  if (browser === "edge") await desk.evaluate(() => window.setup.chooseBrowser("edge"));
   await desk.evaluate(() => window.setup.installHost());
   const extension = mkdtempSync(join(root, "packaged-extension-")); cpSync(join(packageRoot, "resources/app/chrome-extension"), extension, { recursive: true });
-  const manifest = JSON.parse(readFileSync(join(extension, "manifest.json"))); assert.equal(manifest.host_permissions, undefined);
+  const manifest = JSON.parse(readFileSync(join(extension, "manifest.json"))); assert.equal(manifest.host_permissions, undefined); assert.equal(manifest.incognito, "not_allowed");
   // Explicit install-time Google grant in this isolated fixture, not native prompt acceptance.
   manifest.host_permissions = ["https://www.google.com/*"]; manifest.optional_host_permissions = manifest.optional_host_permissions.filter(origin => !manifest.host_permissions.includes(origin)); writeFileSync(join(extension, "manifest.json"), JSON.stringify(manifest));
-  context = await chromium.launchPersistentContext(mkdtempSync(join(root, "packaged-browser-")), { executablePath: join(root, "chromium-runtime/latham-test-browser.exe"), headless: false, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
+  context = await chromium.launchPersistentContext(mkdtempSync(join(root, "packaged-browser-")), { executablePath: browser === "edge" ? "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" : join(root, "chromium-runtime/latham-test-browser.exe"), headless: false, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
   const popup = await context.newPage(); await popup.goto("chrome-extension://plggaillpeoabjjmpjedmblaakepbhdb/popup.html"); await popup.getByRole("button", { name: "Connect to Latham" }).click();
   await wait(async () => { const state = await desk.evaluate(() => window.setup.state()); return state.chromeConnected && state.chromeFenceConfirmed; });
   await desk.evaluate(() => window.setup.chromeResume()); await desk.evaluate(() => window.setup.chromeRun("new tab"));
-  assert.equal((await desk.evaluate(() => window.setup.state())).chromeResult, "Verified Chrome result");
+  assert.equal((await desk.evaluate(() => window.setup.state())).chromeResult, "Verified browser result");
   const handsfreeId = await desk.evaluate(() => window.setup.startHandsfree({ target: "chrome", wake: true }));
   for (let sequence = 0; sequence < 16; sequence++) { await desk.evaluate(({ id, sequence }) => window.setup.handsfreeFrame(id, sequence, new ArrayBuffer(4096)), { id: handsfreeId, sequence }); await new Promise(resolve => setTimeout(resolve, 128)); }
   assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "armed");
@@ -72,10 +78,10 @@ try {
   await desk.evaluate(() => window.latham.stop()); await wait(async () => (await desk.evaluate(() => window.setup.state())).desktop.fenceConfirmed);
   await desk.screenshot({ path: join(root, "phase2-preview.png") });
   const walk = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]);
-  assert.equal(walk(packageRoot).some(file => /(?:^|[\\/])(?:\.env(?:\..*)?|provider-key\.bin|managed-session\.bin(?:\.tmp)?|accounts\.sqlite.*|server\.cjs|integrity\.cjs|workflow-shortcuts\.bin|providers\.json|connection\.json|Latham.NativeFixture.exe)$/.test(file)), false);
+  assert.equal(walk(packageRoot).some(file => /(?:^|[\\/])(?:\.env(?:\..*)?|provider-key\.bin|managed-session\.bin(?:\.tmp)?|accounts\.sqlite.*|server\.cjs|integrity\.cjs|workflow-shortcuts\.bin|evaluation\.json(?:\.tmp)?|providers\.json|connection\.json|Latham.NativeFixture.exe)$/.test(file)), false);
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.DesktopAgent.exe")));
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.SpeechDetector.exe")));
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.ImageOcr.exe")));
-  writeFileSync(join(root, "preview-acceptance.json"), JSON.stringify({ at: new Date().toISOString(), version, channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "managed_starts_signed_out", "packaged_managed_requires_https", "managed_service_and_secrets_not_bundled", "workflow_starts_idle", "packaged_workflow_search_filter", "encrypted_explicit_shortcut_and_deletion", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent", "packaged_ocr_on_synthetic_image", "visual_consent_starts_off", "packaged_local_speech_detectors", "idle_wake_no_transcription", "microphone_off_on_start_and_stop", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"] }, null, 2));
+  writeFileSync(join(root, `preview-acceptance-${browser}.json`), JSON.stringify({ at: new Date().toISOString(), version, browser, channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "managed_starts_signed_out", "packaged_managed_requires_https", "managed_service_and_secrets_not_bundled", "workflow_starts_idle", "packaged_workflow_search_filter", "encrypted_explicit_shortcut_and_deletion", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent", "packaged_ocr_on_synthetic_image", "visual_consent_starts_off", "packaged_local_speech_detectors", "idle_wake_no_transcription", "microphone_off_on_start_and_stop", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"] }, null, 2));
   console.log("Windows portable preview startup, protected storage, packaged host/extension pairing and Stop passed.");
 } finally { for (const worker of context?.serviceWorkers() ?? []) await worker.evaluate("port?.disconnect()").catch(() => {}); await context?.close(); await app?.close(); for (const { path, value } of registry) { try { if (value) execFileSync("reg.exe", ["ADD", path, "/ve", "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" }); else execFileSync("reg.exe", ["DELETE", path, "/f"], { stdio: "ignore" }); } catch {} } }

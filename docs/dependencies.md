@@ -84,3 +84,12 @@ distribution, never bundles provider secrets and reuses the existing fixed
 Gemini adapter. No hosted identity/payment SDK, paid service subscription or
 reference-app assets are added. [Phase 8](phase8.md) records primary-source
 references and the outstanding commercial/provider/licensing review gates.
+
+Phase 9 adds no npm dependency, model, reference-app implementation or runtime
+download. The Windows relay uses the existing .NET runtime plus Windows Toolhelp
+process metadata to separate browser ancestry; it does not launch shell commands.
+Window recovery uses Electron's existing screen APIs. Evaluation storage and
+reports use Node/TypeScript and the existing Playwright runner. The installed
+Edge and isolated Chrome test runtime are measured separately; neither supplies
+cross-platform native support. Primary API references and open acceptance gates
+are recorded in [Phase 9](phase9.md).

@@ -1,8 +1,8 @@
 # Latham Roadmap
 
 **Updated:** November 1, 2026\
-**Status:** Phases 0–7 and the owner-scoped local Phase 8 preview implemented for 0.8; billing disabled. Public hosting/commercial launch/trusted signing remain gates in docs/release-operations.md.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.13.
+**Status:** Phases 0–7, local Phase 8 and the owner-scoped Windows Phase 9 milestone implemented for 0.9; billing disabled. Other platforms/hardware acceptance and public launch gates remain open.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.14.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
@@ -193,11 +193,16 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Goal:** extend a proven Windows product to other environments while maintaining its guarantees and broadening useful reach.
 
-- [ ] Evaluate macOS and Linux after Windows browser/desktop contracts stabilize; implement native adapters independently, with platform-specific permissions and acceptance tests.
-- [ ] Expand browser compatibility, languages, accessibility, keyboard/voice alternatives, and multi-display behavior based on measured demand.
-- [ ] Continue improving general website control toward the every-website ambition, with an explicit support/limitation matrix rather than silent fallbacks.
-- [ ] Maintain provider/model compatibility, site/app regressions, installer/extension/native-host versioning, migrations, updates, and recovery documentation.
-- [ ] Use real-user evaluation to prioritize work: completion time, success, intervention, incorrect actions, permission friction, and resource/cost burden.
+- [x] Evaluate platform readiness and publish the Windows dependencies and independent macOS/Linux acceptance requirements in [Phase 9](docs/phase9.md).
+- [x] Add explicit Windows Edge selection, dedicated native registration/launch, browser-family relay checks, separate remembered consent, fenced switching and repeatable browser regression reporting.
+- [x] Improve keyboard access with a skip link, visible focus, local Escape Stop, narrow layouts and work-area recovery; cancel active work on display configuration changes.
+- [x] Publish the current support/limitation matrix and retain the eight-site reviewed catalog and explicit per-origin/effect gates. Universal-site compatibility remains an ongoing ambition.
+- [x] Maintain provider/model/site/app regression entry points, version/protocol compatibility, legacy consent migration, newer-schema protection and recovery/rollback documentation for the current preview.
+- [x] Add explicit local task evaluations for completion time/outcome, interventions, incorrect actions, permission friction, effort and resource/cost burden, with no automatic collection/upload or raw activity content.
+- [ ] Implement and accept independent macOS/Linux/native/browser adapters when machines and demand are available. No cross-platform support is claimed from shared TypeScript.
+- [ ] Expand actual language/speaker, assistive-technology, physical mixed-DPI/multi-monitor, stable browser/store and longitudinal real-user acceptance. Synthetic UI/data tests do not close these gates.
+
+**Owner-scoped Windows milestone:** the owner selected “Windows only for now; keep other platform gates open.” [Phase 9](docs/phase9.md) defines the 0.9 implementation and exact browser/hardware limits. [Evaluation](docs/evaluation.md) separates fixture, live, packaged, simulated-display and native-focus evidence. Ongoing compatibility and real-user studies remain continuous work, not completed universal support.
 
 **Gate:** each new platform/browser has its own tested support claims. A shared TypeScript core is not evidence that its native controls or permissions behave identically. Continue revising compatibility targets as evidence changes.
 
@@ -216,4 +221,4 @@ The product direction above is settled. The preview selects an English/CPU local
 
 ## Next milestone
 
-**Phase 8's local preview is implemented:** optional invitation-based managed AI with billing disabled, protected sessions, enforceable request limits and explicit cancellation/deletion. Public hosting/commercial delivery remains gated. Stop before Phase 9 until the user requests it; no consequential integration or reference-repository import is enabled.
+**The Windows Phase 9 milestone is implemented.** Continue other platforms, physical hardware/language/accessibility acceptance, longitudinal user evaluation and public launch only as separately scoped follow-ups. No new phase or consequential integration is started automatically; the every-website ambition and outstanding launch gates remain explicit.

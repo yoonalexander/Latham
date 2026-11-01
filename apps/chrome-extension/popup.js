@@ -15,7 +15,7 @@ async function refresh(message = { type: "state" }) {
     allow.onclick = () => {
       error.textContent = "";
       // Called directly from this user gesture, never from a provider or content script.
-      chrome.permissions.request({ origins: [site.origin + "/*"] }).then(granted => granted ? refresh({ type: "consent", origin: site.origin }) : (error.textContent = "Chrome permission denied. Nothing was approved.")).catch(() => { error.textContent = "Permission request failed."; });
+      chrome.permissions.request({ origins: [site.origin + "/*"] }).then(granted => granted ? refresh({ type: "consent", origin: site.origin }) : (error.textContent = "Browser permission denied. Nothing was approved.")).catch(() => { error.textContent = "Permission request failed."; });
     };
     const revoke = document.createElement("button"); revoke.textContent = "Revoke"; revoke.disabled = !site.granted && !site.consent; revoke.onclick = () => void refresh({ type: "revoke", origin: site.origin });
     row.append(title, detail, allow, revoke); return row;

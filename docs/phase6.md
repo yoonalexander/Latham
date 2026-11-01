@@ -1,13 +1,13 @@
 # Website coverage — Phase 6
 
 Phase 6 expands the compiled catalog to eight origins. Chrome on Windows remains
-the supported browser. Microsoft Edge has a separately measured experiment;
-this does not promote Edge to public support. See [evaluation](evaluation.md)
+the original supported browser. [Phase 9](phase9.md) adds explicit Windows Edge
+preview support with its own evidence and limits. See [evaluation](evaluation.md)
 for fixture versus live results and restrictions. [Phase 7](phase7.md) adds bounded read-query workflows.
 
 ## Setup and commands
 
-Build/register the current desktop host and load extension **0.8.0**, protocol 2.
+Build/register the current desktop host and load extension **0.9.0**, protocol 3.
 Use [Chrome setup](phase2.md) for installation, key/local speech configuration and
 recovery. Each origin requires its own optional Chrome grant **and** Latham
 consent through the extension popup. Existing approvals remain remembered;
@@ -89,11 +89,14 @@ Latham never invents offscreen result numbers or opens a consequential dialog.
 
 ## Browser evaluation and release limits
 
-`node scripts/evaluate-edge.mjs` probes the installed Edge in an isolated
+The historical `node scripts/evaluate-edge.mjs` probes installed Edge in an isolated
 profile. The separate `edge experiment` Playwright case tests native pairing,
 reviewed search, Stop acknowledgement and revocation. Production browser
 selection/launch, native permission-prompt acceptance, store identity,
 signed-in live flows and the full regression set are **not accepted for Edge**.
+The current production selection/launch path and browser regression runner are
+documented in [Phase 9](phase9.md); the limitations above describe the original
+Phase 6 experiment, not a claim of complete current Edge acceptance.
 Firefox needs different manifest/native-host integration and remains untested;
 Safari and other platforms remain later work.
 

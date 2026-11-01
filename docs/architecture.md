@@ -1,8 +1,22 @@
 # Implemented architecture
 
-Status: fixture, voice/providers, eight-site Chrome catalog, scoped Notepad,
+Status: fixture, voice/providers, eight-site Chrome/Edge catalog, scoped Notepad,
 hands-free, thumbnails, reviewed workflows and optional local managed accounts.
 See [coverage](phase6.md), [workflows](phase7.md) and [managed AI](phase8.md).
+
+## Phase 9 browser and display scope
+
+The selected Windows browser owns a distinct registration directory and consent
+map. Native protocol 3 intersects the actual browser ancestor, selected family,
+extension origin and pipe token; old sockets are retired before another browser
+can pair. Switching requires a fence and no unknown effect. Schema 2 migrates
+legacy consent to Chrome only and locks newer/corrupt stores without overwrite.
+
+Display configuration changes Stop all adapters before fitting Latham's window
+to current work areas. No old target coordinates are transformed or resumed.
+Keyboard controls and explicit local bounded evaluation metadata add no model,
+permission or execution authority. [Phase 9](phase9.md) records physical hardware,
+language, accessibility and other-platform gates that remain open.
 
 ## Phase 8 managed route
 

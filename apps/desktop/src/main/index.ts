@@ -1,4 +1,4 @@
-import { app, BrowserWindow, WebContentsView, ipcMain, protocol, session, globalShortcut, Tray, Menu, nativeImage, safeStorage, type IpcMainEvent, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, WebContentsView, ipcMain, protocol, session, screen, globalShortcut, Tray, Menu, nativeImage, safeStorage, type IpcMainEvent, type IpcMainInvokeEvent } from "electron";
 import { readFile } from "node:fs/promises";
 import { mkdirSync } from "node:fs";
 import { parseEnv } from "node:util";
@@ -10,7 +10,10 @@ import { Storage } from "./storage";
 import { ProviderStore } from "./provider-store";
 import { Voice } from "./voice";
 import { ChromeBridge, extensionId } from "./native-bridge";
-import { installHost, launchChrome } from "./host-install";
+import { installHost, launchBrowser, browserPath } from "./host-install";
+import { browsers, parseBrowser, type BrowserId } from "../../../../packages/contracts/src/compatibility";
+import { EvaluationStore } from "./evaluation-store";
+import { fitWindow } from "./window-bounds";
 import type { SetupState } from "../../../../packages/contracts/src/setup";
 import { BrowserController } from "./browser-controller";
 import { DesktopController } from "./desktop-controller";
@@ -40,6 +43,7 @@ if (!locked) app.quit();
 app.on("second-instance", () => { win?.show(); win?.focus(); });
 
 async function boot(): Promise<void> {
+  if (process.platform !== "win32") throw new Error("Windows adapters required; macOS/Linux are not supported");
   const storage = new Storage(app.getPath("userData"));
   const localSession = session.fromPartition("latham-phase0");
   const routes = new Map([
@@ -64,7 +68,9 @@ async function boot(): Promise<void> {
   localSession.setPermissionRequestHandler((contents, permission, callback, details) => callback(microphoneAllowed(contents) && permission === "media" && details.isMainFrame && "mediaTypes" in details && details.mediaTypes.length > 0 && details.mediaTypes.every(type => type === "audio")));
   localSession.setPermissionCheckHandler((contents, permission, origin, details) => microphoneAllowed(contents) && permission === "media" && origin === "latham://app" && details.mediaType === "audio");
   localSession.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !routes.has(details.url) }));
-  win = new BrowserWindow({ width: 1220, height: 940, minWidth: 1000, minHeight: 780, show: false, backgroundColor: "#f3f6f2",
+  const workAreas = () => [screen.getPrimaryDisplay(), ...screen.getAllDisplays().filter(d => d.id !== screen.getPrimaryDisplay().id)].map(d => d.workArea);
+  const initialArea = screen.getPrimaryDisplay().workArea;
+  win = new BrowserWindow({ ...fitWindow({ x: initialArea.x + 30, y: initialArea.y + 30, width: 1220, height: 940 }, workAreas()), minWidth: Math.min(640, initialArea.width), minHeight: Math.min(480, initialArea.height), show: false, backgroundColor: "#f3f6f2",
     webPreferences: { preload: join(__dirname, "preload.cjs"), session: localSession, nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, spellcheck: false, backgroundThrottling: false } });
   fixture = new WebContentsView({ webPreferences: { session: localSession, nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, spellcheck: false } });
   win.contentView.addChildView(fixture);
@@ -89,12 +95,13 @@ async function boot(): Promise<void> {
   };
   const providerStore = new ProviderStore(app.getPath("userData"), safeStorage);
   const shortcuts = new WorkflowShortcuts(app.getPath("userData"), safeStorage);
+  const evaluation = new EvaluationStore(app.getPath("userData"));
   const managed = new ManagedClient(app.getPath("userData"), safeStorage, !app.isPackaged, () => setupSend());
   let workflow: WorkflowController;
   let browser: BrowserController;
   let desktop: DesktopController;
   let utteranceBinding: string | null = null;
-  const setupState = (): SetupState => ({ managed: { ...managed.state }, canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, workflow: workflow.state, shortcuts: shortcuts.list, shortcutStorageAvailable: shortcuts.available, shortcutStorageLocked: shortcuts.locked, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
+  const setupState = (): SetupState => ({ providerSettingsLocked: providerStore.locked, browser: providerStore.browser, browserChoices: (Object.keys(browsers) as BrowserId[]).map(id => ({ id, label: browsers[id], installed: !!browserPath(id) })), evaluation: { trials: evaluation.trials, locked: evaluation.locked }, managed: { ...managed.state }, canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, workflow: workflow.state, shortcuts: shortcuts.list, shortcutStorageAvailable: shortcuts.available, shortcutStorageLocked: shortcuts.locked, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
   const setupSend = (): void => { if (voice && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState()); };
   voice = new Voice(providerStore, setupSend, managed);
   const chrome = new ChromeBridge(providerStore, setupSend);
@@ -107,19 +114,28 @@ async function boot(): Promise<void> {
   chrome.onInvalidate = () => { workflow.cancel("workflow_interrupted"); visual?.stop(); browser.stop(); voice.cancel(); if (handsfree?.state.target === "chrome") handsfree.end("Chrome context changed. Microphone off; inspect Chrome before restarting."); };
   await chrome.start();
   const hostDirectory = join(app.getPath("userData"), "native");
-  chrome.writeConfig(hostDirectory);
+  const selectedHostDirectory = () => join(hostDirectory, providerStore.browser);
+  chrome.writeConfig(selectedHostDirectory());
   const stopExecutors = (): void => { activation++; managed.stop(); workflow.cancel(); visual?.stop(); controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
   handsfree = new Handsfree(localDetector(join(__dirname, "native/Latham.SpeechDetector.exe")), {
     available: target => target === "chrome" ? chrome.connected && chrome.active && !chrome.needsReview : desktop.state.active && desktop.state.bound && !desktop.state.needsReview,
     transcribe: async pcm => { utteranceBinding = desktop.bindingId ?? browser.bindingId; const id = voice.begin(); await voice.finish(id, pcm); if (voice.error || !voice.transcript) throw new Error("handsfree_transcription_failed"); return voice.transcript; },
     run: async (text, target) => {
       if (target === "desktop") { await desktop.run(text, nativeApp); return desktop.state.last?.outcome === "verified"; }
-      await browser.run(text); return parsePageIntent(text) ? browser.state.last?.outcome === "verified" : chrome.result === "Verified Chrome result";
+      await browser.run(text); return parsePageIntent(text) ? browser.state.last?.outcome === "verified" : chrome.result === "Verified browser result";
     },
     cancel: stopExecutors, changed: setupSend
   });
   visual = new VisualController(chrome, (image, signal) => imageOcr(join(__dirname, "native/Latham.ImageOcr.exe"), image, signal), () => providerStore.key(), setupSend);
   const stopAll = (): void => { if (handsfree.active) handsfree.end(); else stopExecutors(); };
+  const recoverWindow = (): void => {
+    if (win.isDestroyed() || quitting) return;
+    const areas = workAreas(), bounds = fitWindow(win.getBounds(), areas);
+    win.setMinimumSize(Math.min(640, bounds.width), Math.min(480, bounds.height)); win.setBounds(bounds);
+  };
+  const displaysChanged = (): void => { stopAll(); fixture.setBounds({ x: 0, y: 0, width: 0, height: 0 }); recoverWindow(); };
+  screen.on("display-added", displaysChanged); screen.on("display-removed", displaysChanged); screen.on("display-metrics-changed", displaysChanged);
+  win.on("show", recoverWindow);
   const manual = (): void => { if (workflow.active || handsfree.active || visual?.state.busy) throw new Error("end_active_mode_first"); };
   const waitFence = async (confirmed: () => boolean): Promise<void> => {
     const deadline = Date.now() + 3500;
@@ -143,6 +159,16 @@ async function boot(): Promise<void> {
     if (chrome.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
   };
   ipcMain.handle("setup:state", event => { guard(event); return setupState(); });
+  ipcMain.handle("setup:choose-browser", async (event, input: unknown) => {
+    guard(event); const choice = parseBrowser(input); stopAll(); const epoch = chrome.sessionEpoch;
+    await waitFence(() => !chrome.connected || chrome.fenceConfirmed);
+    if (epoch !== chrome.sessionEpoch || chrome.needsReview || desktop.state.needsReview || controller.needsReview) throw new Error("inspect_previous_result_first");
+    chrome.disconnect(); const previous = providerStore.browser;
+    try { providerStore.browser = choice; providerStore.save(); } catch (error) { providerStore.browser = previous; throw error; }
+    chrome.writeConfig(selectedHostDirectory()); setupSend();
+  });
+  ipcMain.handle("setup:evaluation-add", (event, input: unknown) => { guard(event); evaluation.add(input); setupSend(); });
+  ipcMain.handle("setup:evaluation-clear", event => { guard(event); evaluation.clear(); setupSend(); });
   ipcMain.handle("setup:managed-sign-in", async (event, input: unknown) => { guard(event); stopAll(); await managed.signIn(input); setupSend(); });
   ipcMain.handle("setup:managed-account", async (event, operation: unknown) => { guard(event); stopAll(); await managed.account(operation); setupSend(); });
   ipcMain.handle("setup:workflow-prepare", async (event, goal: unknown) => {
@@ -179,8 +205,8 @@ async function boot(): Promise<void> {
   ipcMain.handle("setup:prepare-dictation", async event => { guard(event); await useChrome(); voice.cancel(); utteranceBinding = null; if (!chrome.active) chrome.resume(); await browser.run("focus Search"); if (browser.state.last?.outcome === "verified") await browser.run("start dictation"); setupSend(); });
   ipcMain.handle("setup:insert-transcript", (event, mode: unknown) => { guard(event); manual(); if (!["append", "replace"].includes(String(mode)) || !utteranceBinding || utteranceBinding !== browser.bindingId || !voice.transcript || voice.transcript.length > 1000) throw new Error("transcript_binding_changed"); return browser.run(`${mode === "replace" ? "replace dictation with" : "dictate"} ${voice.transcript}`); });
   ipcMain.handle("setup:revoke", (event, origin: unknown) => { guard(event); chrome.revoke(origin); });
-  ipcMain.handle("setup:install-host", event => { guard(event); stopAll(); installHost(hostDirectory, join(__dirname, "native/Latham.NativeHost.exe")); chrome.writeConfig(hostDirectory); });
-  ipcMain.handle("setup:launch-chrome", event => { guard(event); launchChrome(); });
+  ipcMain.handle("setup:install-host", event => { guard(event); stopAll(); installHost(selectedHostDirectory(), join(__dirname, "native/Latham.NativeHost.exe"), providerStore.browser); chrome.writeConfig(selectedHostDirectory()); });
+  ipcMain.handle("setup:launch-browser", event => { guard(event); launchBrowser(providerStore.browser); });
   ipcMain.handle("setup:desktop-permission", (event, approved: unknown, denied: unknown) => { guard(event); stopAll(); desktop.permission(approved, denied); });
   ipcMain.handle("setup:desktop-scan", async event => { guard(event); await useDesktop(); return desktop.scan(nativeApp); });
   ipcMain.handle("setup:desktop-open", async event => { guard(event); await useDesktop(); return desktop.open(); });

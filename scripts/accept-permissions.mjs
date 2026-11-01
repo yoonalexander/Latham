@@ -39,7 +39,7 @@ try {
   }
   assert.equal((await page.evaluate(() => window.setup.state())).chromeActive, false);
   await page.evaluate(() => window.setup.chromeResume()); await page.evaluate(() => window.setup.chromeRun("new tab"));
-  assert.equal((await page.evaluate(() => window.setup.state())).chromeResult, "Verified Chrome result");
+  assert.equal((await page.evaluate(() => window.setup.state())).chromeResult, "Verified browser result");
   await page.evaluate(() => window.setup.chromeRun("open https://www.google.com"));
   const unapproved = await context.newPage(); await unapproved.route("https://example.org/**", route => route.fulfill({ contentType: "text/html", body: "Unapproved synthetic origin" })); await unapproved.goto("https://example.org");
   assert.equal(await page.evaluate(async () => { try { await window.setup.chromeRun("open https://example.org"); return false; } catch { return true; } }), true);

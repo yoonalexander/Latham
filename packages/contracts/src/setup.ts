@@ -5,6 +5,7 @@ import type { HandsfreeState } from "./handsfree";
 import type { VisualState, VisualRoute } from "./visual";
 import type { WorkflowState, WorkflowGoal, WorkflowShortcut } from "./workflow";
 import type { ManagedState } from "./managed";
+import type { BrowserId, Trial } from "./compatibility";
 
 import { siteForPage } from "./sites";
 export { sites } from "./sites";
@@ -15,6 +16,10 @@ export type Candidate = { id: string; label: string; role: string };
 export type Selection = { candidateId: string | null };
 export type ChromeCommand = { kind: "new_tab" | "next_tab" | "previous_tab" | "back" | "forward" } | { kind: "navigate"; url: string };
 export type SetupState = {
+  browser: BrowserId;
+  browserChoices: { id: BrowserId; label: string; installed: boolean }[];
+  providerSettingsLocked: boolean;
+  evaluation: { trials: Trial[]; locked: boolean };
   managed: ManagedState;
   canImportEnvironmentKey: boolean;
   canInsertTranscript: boolean;
@@ -34,6 +39,9 @@ export type SetupState = {
   page: PageState;
 };
 export interface SetupBridge {
+  chooseBrowser(browser: BrowserId): Promise<void>;
+  addEvaluation(trial: Trial): Promise<void>;
+  clearEvaluation(): Promise<void>;
   managedSignIn(input: { origin: string; invite: string; consent: string }): Promise<void>;
   managedAccount(operation: "refresh" | "sign_out" | "cancel" | "delete" | "forget"): Promise<void>;
   state(): Promise<SetupState>;
@@ -74,7 +82,7 @@ export interface SetupBridge {
   desktopReconcile(): Promise<void>;
   revoke(origin: string): Promise<void>;
   installHost(): Promise<void>;
-  launchChrome(): Promise<void>;
+  launchBrowser(): Promise<void>;
   subscribe(listener: (state: SetupState) => void): () => void;
 }
 export function parseProviderSettings(input: unknown): ProviderSettings {

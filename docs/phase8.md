@@ -1,10 +1,11 @@
 # Phase 8 — optional managed AI, local preview
 
-Implemented for **0.8.0**, November 1, 2026, within the owner's chosen scope:
+Introduced in **0.8.0** and retained in the current **0.9.0** preview, November 1, 2026, within the owner's chosen scope:
 **build locally; billing disabled**. This is an invitation-based local service
 and desktop integration, not a deployed or commercial service. Public hosting,
 trusted Windows signing and commercial launch remain explicit gates below.
-Phase 9 and the planned Handy migration are not included.
+Current Windows browser compatibility is documented in [Phase 9](phase9.md).
+The planned Handy migration is not included.
 
 ## Start the local service
 
@@ -137,8 +138,8 @@ hosting. Daily/lifetime caps and fixed concurrency also bound incident exposure.
 ## Release integrity and rollback
 
 The distribution stays **unsigned developer preview**, with no automatic update
-download/install. Versioned desktop/extension pairing remains exact (0.8.0,
-relay protocol 2). Legacy local/BYOK settings migrate without activation;
+download/install. Versioned desktop/extension pairing remains exact (0.9.0,
+relay protocol 3). Legacy local/BYOK settings migrate without activation;
 managed sessions use policy `latham-managed-local-v1`, and service schema version
 1 rejects future schemas rather than overwriting them.
 
