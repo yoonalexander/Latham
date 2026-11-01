@@ -7,7 +7,7 @@ for fixture versus live results and restrictions. [Phase 7](phase7.md) adds boun
 
 ## Setup and commands
 
-Build/register the current desktop host and load extension **0.7.0**, protocol 2.
+Build/register the current desktop host and load extension **0.8.0**, protocol 2.
 Use [Chrome setup](phase2.md) for installation, key/local speech configuration and
 recovery. Each origin requires its own optional Chrome grant **and** Latham
 consent through the extension popup. Existing approvals remain remembered;

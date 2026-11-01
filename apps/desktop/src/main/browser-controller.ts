@@ -3,10 +3,12 @@ import { emptyPageState, parsePageIntent, parsePageScope, type PageAction, type 
 import { selectCandidate } from "../../../../packages/speech/src/providers";
 import { ChromeBridge } from "./native-bridge";
 import { ProviderStore } from "./provider-store";
+import type { ManagedClient } from "./managed-client";
 import { randomUUID } from "node:crypto";
 import { searchDestination, filterDestination } from "../../../../packages/contracts/src/sites";
 
 const reasons: Record<string, string> = {
+  managed_sign_in_required: "Sign in to the managed service or explicitly select a different AI route.",
   page_loading: "Wait for the page to finish loading, then try again.",
   scope_denied: "Approve this supported website and start a Chrome session first.", unsupported_page: "This page is outside the reviewed public search/read profiles.",
   stale_target: "The document or control changed. Inspect the page again.", cancelled: "Cancelled. No pending command will be replayed.",
@@ -31,7 +33,7 @@ export class BrowserController {
   private binding: PageScope | null = null;
   bindingId: string | null = null;
   private clarification: { scope: PageScope; targets: PageTarget[]; kind: "click" | "focus" } | null = null;
-  constructor(private chrome: ChromeBridge, private store: ProviderStore, private changed: () => void) { chrome.onInvalidate = () => this.stop(); }
+  constructor(private chrome: ChromeBridge, private store: ProviderStore, private changed: () => void, private managed?: ManagedClient) { chrome.onInvalidate = () => this.stop(); }
   stop(): void { this.generation++; this.abort.abort(); this.abort = new AbortController(); this.binding = null; this.bindingId = null; this.clarification = null; this.state = { ...this.state, dictation: null, clarification: [], targets: [], status: "Page session paused" }; this.changed(); }
   private async reply(request: object, mutation = false): Promise<Record<string, unknown>> {
     const value = await this.chrome.request(request, mutation);
@@ -84,8 +86,9 @@ export class BrowserController {
             else if (exact.length) candidates = exact;
             else if (candidates.length) {
               this.state.status = "Selecting within the current approved page"; this.changed();
-              const route = this.store.settings.mode === "local" ? { mode: "local" as const, model: this.store.settings.ollamaModel } : { mode: "cloud" as const, key: this.store.key() };
-              const selection = await selectCandidate(route, `${kind} ${intent.label}`, candidates.map(target => ({ id: target.id, label: target.name, role: target.role })), signal);
+              const options = candidates.map(target => ({ id: target.id, label: target.name, role: target.role }));
+              if (this.store.settings.mode === "managed" && !this.managed) throw new Error("managed_sign_in_required");
+              const selection = this.store.settings.mode === "managed" ? await this.managed!.select(`${kind} ${intent.label}`, options, signal) : await selectCandidate(this.store.settings.mode === "local" ? { mode: "local", model: this.store.settings.ollamaModel } : { mode: "cloud", key: this.store.key() }, `${kind} ${intent.label}`, options, signal);
               signal.throwIfAborted(); candidates = candidates.filter(target => target.id === selection.candidateId);
               if (!candidates.length) throw new Error("provider_abstained");
             }

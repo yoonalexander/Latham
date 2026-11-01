@@ -1,8 +1,8 @@
 # Latham Roadmap
 
-**Updated:** October 31, 2026\
-**Status:** Phases 0–7 implemented for the documented 0.7 unsigned developer preview; bounded read-query workflows and limits in docs/phase7.md and docs/evaluation.md; Phase 8 unstarted.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.12.
+**Updated:** November 1, 2026\
+**Status:** Phases 0–7 and the owner-scoped local Phase 8 preview implemented for 0.8; billing disabled. Public hosting/commercial launch/trusted signing remain gates in docs/release-operations.md.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.13.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
@@ -39,7 +39,7 @@ The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notep
 | 8 | Optional Latham-managed AI and commercial delivery | Stable core plus a separately reviewed service design |
 | 9 | Broader platform reach and ongoing compatibility | Stable Windows/browser/desktop contracts |
 
-Phases 0–7 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
+Phases 0–7 plus local Phase 8 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
 
 ## Phase 0 — Foundation and evaluation harness
 
@@ -177,12 +177,15 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Goal:** offer a simpler account-based AI experience for users who do not want to manage provider keys or local models.
 
-- [ ] Design a managed-service backend with server-side credentials, authentication, access control, rate limits, budgets, and abuse controls; do not ship shared secrets in the desktop app.
-- [ ] Define onboarding, usage reporting, quotas/cost limits, billing/support if offered, provider outages, and service cancellation/deletion behavior.
-- [ ] Disclose managed audio/page-context routing and retention separately from local/BYOK settings. Switching routes requires an explicit choice.
-- [ ] Preserve supported local and user-key modes rather than making the managed service a hidden requirement.
-- [ ] Review source/dependency/model/asset provenance, distribution terms, contributor rights, branding, privacy obligations, and release operations before a private/commercial launch. Keep the product name Latham; commercialization is not a requirement to rebrand.
-- [ ] Establish signed releases/update verification, rollback, compatibility migrations, diagnostics consent, support, and service monitoring appropriate to the distribution channel.
+- [x] Implement the local managed-service backend with server-only credentials, operator-issued invitation accounts, access control, rate/concurrency limits and persistent transactional budgets.
+- [x] Implement explicit onboarding, usage, request limits, outage behavior and cancellation/deletion. Billing is disabled; admitted failed/uncertain requests count. Monetary billing is not offered.
+- [x] Disclose managed audio/control-label routing and retention separately; sign-in does not change the route, and switching requires an explicit saved choice.
+- [x] Preserve supported local and user-key modes with no managed-service dependency or silent fallback.
+- [x] Record the source/dependency/model/asset, rights/terms, branding, privacy and operations review in [Phase 8](docs/phase8.md). Keep Latham; owner/external commercial decisions remain explicit launch gates.
+- [x] Establish offline signed-manifest verification, a fail-closed Windows signature preflight, manual rollback/migration guidance, opt-in counters, local operator support/recovery and readiness checks for the preview channel.
+- [ ] Before a public/commercial launch: provision hosting/TLS/authentication operations, trusted signing/publisher-key distribution, actual packaged HTTPS acceptance, provider/privacy eligibility, distribution/contribution terms, production cost ceilings/support/monitoring and backup/deletion reconciliation. See [release gates](docs/release-operations.md).
+
+**Owner-scoped local preview:** the owner explicitly selected “Build locally; billing disabled.” [Phase 8](docs/phase8.md) implements that scope. Production deployment and trusted signing are deferred external gates, not passed by fixture tests or test signatures. Managed vision, payments and an automatic updater are not enabled. [Evaluation](docs/evaluation.md) separates real-provider, local fixture, packaged and interactive-native evidence.
 
 **Gate:** end-to-end account/usage/privacy/deletion and failure/recovery flows are tested; desktop releases do not expose service keys; service costs and user limits are enforceable. This is optional product/service work, not a prerequisite for the independent local assistant.
 
@@ -213,4 +216,4 @@ The product direction above is settled. The preview selects an English/CPU local
 
 ## Next milestone
 
-**Phase 7 is implemented:** reviewed bounded search workflows and explicitly saved encrypted shortcuts. No consequential integration is enabled. Stop before Phase 8 until the user requests it. Keep fixture/provider/permission/cancellation regressions green. No reference repository needs to be forked or imported.
+**Phase 8's local preview is implemented:** optional invitation-based managed AI with billing disabled, protected sessions, enforceable request limits and explicit cancellation/deletion. Public hosting/commercial delivery remains gated. Stop before Phase 9 until the user requests it; no consequential integration or reference-repository import is enabled.

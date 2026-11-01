@@ -1,9 +1,9 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.12\
-**Date:** October 31, 2026\
-**Status:** Phases 0–7 implemented for the documented 0.7 unsigned Windows developer preview; bounded read-query workflows and limits in docs/phase7.md and docs/evaluation.md; Phase 8 unstarted\
+**Version:** 1.13\
+**Date:** November 1, 2026\
+**Status:** Phases 0–7 and owner-scoped local Phase 8 implemented for the 0.8 unsigned preview; billing disabled, public hosting/commercial launch/trusted signing remain external gates in docs/release-operations.md\
 **Platform:** Windows 11 first, Chrome first  
 **Product name:** Latham
 
@@ -491,7 +491,7 @@ Define grammar for frequent commands, synonym resolution, and bounded parameter 
 
 ### 6.5 User-supplied cloud keys and local AI
 
-Onboarding first offers **Use my API key** or **Use local AI**. Configure speech recognition and target decisions separately and show a clear summary of where audio and page context will go. Advanced users may choose a mixed configuration explicitly; selecting local-only must not silently route either component to cloud services. Latham-managed AI accounts, shared backend keys, billing, and usage plans are later roadmap work.
+Onboarding offers **Use my API key**, **Use local AI**, or the optional **Latham-managed AI** local preview. Configure speech recognition and target decisions separately and show where audio and page context will go. Selecting local-only must not silently route either component to cloud services. Managed sign-in requires endpoint-bound routing consent, does not select the route, and uses a separately saved explicit choice. Provider keys stay server-side; DPAPI protects expiring invitation-account sessions. Billing is disabled. Managed vision is unavailable; visual routes remain separately chosen. See [Phase 8](docs/phase8.md) for exact service, retention, request-budget, cancellation/deletion and launch contracts.
 
 - **User-key mode:** the user supplies credentials for the supported speech/decision adapter(s). Store keys in the OS-backed secret store, make calls from the main process, provide connection tests and clear authentication/quota errors, and expose request/time limits. Do not bundle a shared service key in the desktop or extension. Estimate/report usage only when the adapter can substantiate it; no price is promised here.
 - **Local mode:** initially target an installed Ollama runtime with a locally executed text model for bounded target selection, plus the separate local ASR component in section 6.1. Onboarding checks runtime availability, model installation/capabilities, and a sample speech/selection task. Prefer a validated downloadable model with no required provider API fee; local compute/storage and model terms still apply. Any model download is explicit, showing size and provenance. Hardware requirements and the default model are selected after benchmarking, not assumed universal.
@@ -614,7 +614,8 @@ For a later release, confirmation is enforced by the local policy engine and sho
 - **Transcript:** ephemeral for the active command. Optional local history should be off by default or minimal and configurable.
 - **UI snapshots:** transient, scoped to the active task, with sensitive values redacted before model requests.
 - **Screenshots:** off unless visual grounding requires them; do not store persistently by default.
-- **API credentials:** Windows Credential Manager or another OS-backed secret store. Never place secrets in renderer code, logs, or extension storage.
+- **API credentials:** Windows DPAPI for user keys and managed sessions; managed provider keys are service environment only. Never place secrets in renderer code, logs, or extension storage.
+- **Managed accounts:** hashed invitations/sessions and bounded identifiable usage in the local service SQLite database; explicit cancellation/deletion, anonymous global spend counters retained, provider retention separate. See [Phase 8](docs/phase8.md).
 - **Provider configuration:** record the selected speech/decision routes and local model/endpoint settings; local-only routes must not fall back to cloud without a new explicit choice.
 - **Website approvals:** persist per-site Latham consent locally, separately from Chrome's host grant. Remember permission choices, not page contents. Stored approval never enables idle capture or access to other Chrome profiles/incognito sessions.
 - **Telemetry:** aggregate timing, failure categories, and action outcomes without recording page contents.
@@ -631,12 +632,13 @@ Microsoft UI Automation coverage varies by application and developer implementat
 
 ### 9.1 Stack and later proposals
 
-The current 0.5 preview uses Electron/React, lightweight JSON settings with
-DPAPI-protected keys, Gemini or local speech/Ollama, and the narrow Chrome
-relay, separate Notepad UIA supervisor/worker, and independent local wake/stop
-detectors. Its portable ZIP and
-unpacked extension are unsigned. Planner, visual grounding, broad app coverage
-and signed installers describe later work.
+The current 0.8 preview uses Electron/React, lightweight JSON settings with
+DPAPI-protected keys/sessions, Gemini or local speech/Ollama, and an optional
+local managed speech/selection service with billing disabled. It includes the
+Chrome relay, scoped Notepad supervisor/worker, independent wake/stop detectors,
+thumbnail grounding and bounded read-query workflows. Its portable ZIP and
+extension are unsigned. Public managed hosting, broader app coverage, trusted
+signing and automatic updates remain gated future work.
 
 | Layer | Choice | Notes |
 |---|---|---|
@@ -644,13 +646,14 @@ and signed installers describe later work.
 | Orchestration | TypeScript | State machine, action queue, routing, provider adapters. |
 | Windows helper | Own C# .NET Framework 4.8 relay and desktop supervisor/MTA worker | Separate Chrome framing and scoped Notepad execution; no .NET SDK installation. |
 | Browser helper | Chrome extension, Manifest V3, native messaging | Remembered user-granted per-site optional hosts plus Latham scopes; required for browser content. |
-| Speech | Gemini user key or whisper.cpp base.en | Both paths tested; narrow English corpus and hardware limits published. |
+| Speech | Gemini user key, local managed Gemini, or whisper.cpp base.en | Routes chosen explicitly; narrow English corpus and hardware limits published. |
 | Planned local speech upgrade | Handy's transcribe.cpp via official TypeScript binding in a Latham-owned child process | Future work under section 6.1.1; resident model and Parakeet candidate require local benchmarking and packaged acceptance. |
-| Bounded decision | User-key cloud adapter or local Ollama | Same validated target-choice contract; add other providers only when needed. |
+| Bounded decision | User-key cloud adapter, local managed service or local Ollama | Same validated target-choice contract; add other providers only when needed. |
+| Optional managed service | Separate Node 22.13+ HTTP/SQLite service | Loopback preview, invitation accounts, server-only keys, transactional request limits; public launch gated. |
 | Planner | Deterministic structured search-goal compiler and scoped typed tools | Optional reviewed workflow mode; 8 actions, 20 requests, 60 seconds; no model requests. |
 | Visual grounding | Source-isolated YouTube thumbnails, Windows OCR/layout, opt-in local/cloud vision | Candidate-ID sets, explicit clarification/highlight/open; no viewport/desktop capture or coordinate click. |
 | Local storage | SQLite or lightweight configuration store | Settings, approvals, optional history, metrics. |
-| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.7.0, Chrome relay protocol 2; Latham binaries unsigned. |
+| Packaging | Current portable Windows ZIP/unpacked extension; signed installer later | Version 0.8.0, Chrome relay protocol 2; Latham binaries unsigned. |
 | Testing | Vitest + Playwright; .NET tests as helper behavior requires | P0 browser/provider/IPC tests; native UIA fixtures and real-app tests in Phase 3. |
 
 ### 9.2 Repository layout
@@ -662,12 +665,14 @@ latham/
     chrome-extension/        # Scoped DOM observer and browser actions
   services/
     windows-helper/          # Narrow P0 host; Phase 3 UIA/native input
+    managed-ai/              # Optional local invitation-account inference service
+    release/                 # Offline manifest signing/verification; never installs
   packages/
     contracts/               # Shared types and validation schemas
     core/                    # Intent, orchestrator, cancellation, policy
     speech/                  # Transcription and VAD provider adapters
     decisions/               # Deterministic + Decisions/Jev selection
-    planner/                 # Optional complex task planner
+    planner/                 # Reviewed bounded search-goal compiler
     observations/            # Snapshot normalization and redaction
     actions/                 # Typed action executors and verification
   tests/
@@ -689,7 +694,7 @@ latham/
 - Electron renderer communicates with its main process through a minimal, typed, context-isolated preload bridge.
 - Main process communicates with the Windows helper through a current-user-restricted named pipe, with request IDs, session/turn identity, epochs, bounded messages, timeouts, and validation. Cancellation uses a priority control path and an executor-side dispatch fence.
 - P0 browser transport uses a registered Chrome native-messaging host with restricted extension origins. Validate the installed extension identity and every message; a relay connects to the desktop controller through its restricted IPC. Page scripts cannot call this host as an authorized client.
-- All external model calls go through the main process, never directly from untrusted page scripts.
+- Model requests originate in the main process, never untrusted page scripts. The explicitly selected managed route passes bounded speech/selection through the separately authenticated service; its provider credentials stay on the server and it has no action authority.
 
 **Chrome permission journey:** onboarding installs/pairs the extension. For a supported site, explain the requested access in extension UI and request its declared `optional_host_permissions` through a user gesture, then record Latham's per-site consent. Request only the particular scheme/host patterns needed for that integration; do not grant `<all_urls>` or wildcard subdomains by default. Chrome host-pattern scope and any additional Latham restrictions must be shown accurately. Permission choices persist across app/browser restarts until revoked. The Electron push-to-talk hotkey does not itself grant Chrome permissions. Temporary `activeTab` access may be an explicitly chosen one-session fallback, not the default remembered-permission mechanism. See references 14–15 for the optional-host lifecycle.
 
@@ -812,7 +817,7 @@ For a research- or portfolio-quality evaluation, measure the same set of tasks u
 The following decisions define v1.3; remaining choices are called out explicitly:
 
 1. **Branding and foundation:** the product name is Latham, with an independent codebase and the reference policy in section 1.2. Choose its icon and visual identity after validating interaction design.
-2. **AI access:** user-supplied API keys or a validated local-AI configuration are P0. The preview implements Gemini and selects whisper.cpp base.en plus Ollama Qwen2.5 1.5B for an English/CPU setup. Proven minimum hardware, broader audio accuracy and additional languages remain validation work. Latham-managed accounts/service are Phase 8 roadmap work.
+2. **AI access:** user-supplied API keys or a validated local-AI configuration are P0. The preview implements Gemini and selects whisper.cpp base.en plus Ollama Qwen2.5 1.5B for an English/CPU setup. Proven minimum hardware, broader audio accuracy and additional languages remain validation work. The optional local managed-account service is implemented in Phase 8 with billing disabled; public/commercial launch remains gated.
 3. **Browser IPC and grants:** native messaging plus explicitly approved, remembered per-site optional host permissions are the P0 baseline. Validate installation, persistence, reconnect, and revocation in Phase 1. Temporary activeTab access is optional; all-site/background access is not implied.
 4. **Activation:** push-to-talk is P0, with hotkey/tray cancellation. P1 hands-free requires the independent local stop detector; wake-word activation is separate from execution-time interruption.
 5. **Visual grounding:** benchmark local OCR/UI detection before paying for general screenshot reasoning.
@@ -873,6 +878,8 @@ Reference roles are distinct: jev-use informs the accessibility/decision loop; C
 
 ## 16. Revision Notes
 
+**v1.13 — November 1, 2026:** Implemented the owner's local-only Phase 8 scope with billing disabled: separate invitation-account service, server-side provider credentials, exact transcription/selection API, transactional account/global budgets, rate/concurrency limits, DPAPI desktop sessions, explicit routing choice, usage and cancellation/deletion/recovery. Added offline signed-manifest verification, Windows signature preflight, manual rollback/migration and commercial release gates. No public hosting, trusted signing identity, paid plans, managed vision or automatic updater is claimed. Local/BYOK and independent Stop remain available; Handy and Phase 9 are not included.
+
 **v1.12 — October 31, 2026:** Implemented Phase 7 reviewed search/filter/result workflows, one-use expiring previews, scoped tab/document leases, independent main/worker budgets, visible verified/partial/cancelled/unknown progress and no replay. Added explicit encrypted editable/revocable shortcuts with no startup execution. The consequential-integration review enables none: sending, uploads, applications, account changes, payments/destructive actions and generic approval overrides remain excluded. [Workflow setup](docs/phase7.md) and [evaluation](docs/evaluation.md) distinguish actual acceptance and limits. Handy and Phase 8 remain unimplemented.
 
 **v1.11 — October 31, 2026:** Implemented the Phase 6 compiled eight-origin read-query catalog, shared accessible-name/open-root/result handling, conservative focus-only fields, reviewed search/filter URL recipes and explicit bounded same-origin frame inspection/opening. Unknown effects and new-site dictation remain blocked. Dynamic/recycled target freshness, live selector maintenance, per-site consent, URL stabilization and an isolated Edge experiment are recorded in [website coverage](docs/phase6.md) and [evaluation](docs/evaluation.md). Chrome remains the supported browser; universal coverage, Handy migration and Phase 7 remain separate future work.
@@ -914,4 +921,4 @@ not started.
 
 ---
 
-**Summary:** The preview implements the published Google/YouTube workflows, scoped Notepad editing, opt-in hands-free interaction and bounded visual thumbnail matching. Broader coverage is planned next, followed by bounded workflows and optional managed AI delivery. Ground targets before enabling effects, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.
+**Summary:** The preview implements the eight-site read-query catalog, scoped Notepad editing, opt-in hands-free interaction, bounded thumbnail matching and reviewed workflows. Optional managed speech/selection now has a local invitation-account service with billing disabled. Public hosting, trusted signing and commercial launch remain gated. Ground targets before enabling effects, check scope before every observation/action, and report in-flight cancellation effects honestly. Latham remains independently implemented.

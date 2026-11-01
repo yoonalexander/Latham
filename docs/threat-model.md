@@ -3,6 +3,50 @@
 Status: implementation-backed boundary notes and regression coverage, not a
 complete independent security audit.
 
+## Phase 8 managed-service boundaries
+
+The optional local service receives active audio or bounded candidate labels
+only after explicit endpoint/routing consent and a saved managed route. It
+cannot observe pages, approve scopes or execute actions. Local and BYOK remain
+independent routes; no silent fallback or managed vision is introduced. Stop
+and executor fences stay local and invalidate late provider results.
+
+Operator-issued single-use high-entropy invitations create expiring bearer
+sessions. The server stores hashes; the desktop stores DPAPI ciphertext and
+never exposes sessions in renderer state. The API accepts only exact bounded
+transcription/selection contracts, rejects browser Origin/cookies, redirects,
+arbitrary models/URLs/tools and extra candidate data, and revalidates output.
+Provider secrets are server environment only and are never in desktop bundles.
+
+Transactional account/day and global/day/lifetime request reservations precede
+provider dispatch. Failed, cancelled and uncertain attempts count, even across
+restart/account deletion. Fixed concurrency, request/body/output limits,
+per-account/service rate limits and deadlines bound abuse; they are not monetary
+billing guarantees. No billing/payment endpoint exists. SQLite is a local
+single-instance deployment contract, not multi-host quota coordination.
+
+Cancellation disables account inference and aborts active work. Deletion removes
+live account/session/identifiable usage rows with foreign-key cascades and secure
+deletion; anonymous service spend totals remain. Sign-out revokes the session;
+offline Forget explicitly does not. Response loss never claims confirmed server
+deletion or silently clears credentials. Operator backups/provider retention
+need separate deletion/revocation procedures. No raw content is logged or backed
+up by default. Current Gemini unpaid-service retention and audience eligibility
+need review before a hosted launch; local synthetic tests do not certify that.
+
+Packaged clients require HTTPS. The development exception allows exact HTTP
+127.0.0.1 only. The service binds loopback, has no public admin endpoint, and needs
+reviewed TLS/secret management/monitoring before deployment. OS administrators,
+same-user malware, compromised service operators and remote provider retention
+are outside this local test assurance.
+
+Offline Ed25519 verification binds a manifest, both archive hashes, expected
+platform/channel and a newer version. It requires an independently pinned public
+key and never installs anything. A separate fail-closed Authenticode preflight
+requires the owner's trusted timestamped publisher signatures. The current
+preview is unsigned; no production key/feed/certificate has been provisioned.
+See [Phase 8](phase8.md) and [launch gates](release-operations.md).
+
 ## Phase 7 workflow boundaries
 
 - A strict structured goal compiles locally to search, optional filter and optional

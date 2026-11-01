@@ -4,6 +4,7 @@ import { DesktopPanel } from "./desktop";
 import { HandsfreePanel } from "./handsfree";
 import { VisualPanel } from "./visual";
 import { WorkflowPanel } from "./workflow";
+import { ManagedPanel } from "./managed";
 import { workflowActive } from "../../../../packages/contracts/src/workflow";
 declare global { interface Window { setup: SetupBridge } }
 type Recording = { id: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
@@ -65,14 +66,15 @@ export function SetupPanel() {
   if (!state || !draft) return <section className="panel setup-panel">Loading voice and Chrome setup…</section>;
   const patch = (value: Partial<ProviderSettings>): void => setDraft({ ...draft, ...value });
   return <section className="panel setup-panel" aria-label="Voice and Chrome setup">
-    <div className="section-kicker">WINDOWS PREVIEW / 0.5</div><h2>Voice, Chrome & desktop</h2>
+    <div className="section-kicker">WINDOWS PREVIEW / 0.8</div><h2>Voice, Chrome & desktop</h2>
     <fieldset className="manual-controls" disabled={workflowActive(state.workflow.phase) || state.handsfree.phase !== "off" || state.visual.busy}>
     <div className="setup-grid">
       <div className="setup-group"><h3>1. Choose your AI</h3>
         <label><input type="radio" name="provider" checked={draft.mode === "local"} onChange={() => patch({ mode: "local" })} /> Use local AI</label>
         <label><input type="radio" name="provider" checked={draft.mode === "cloud"} onChange={() => patch({ mode: "cloud" })} /> Use my API key (Gemini)</label>
-        <p className="mini">{draft.mode === "local" ? "Audio: local whisper.cpp. Candidate labels: Ollama at 127.0.0.1:11434. No cloud fallback. Install a local model separately." : "Audio and bounded visible control labels go to Google Gemini. Google's account terms and free-tier quotas apply. Field values, frames and screenshots are excluded from target selection."}</p>
-        {draft.mode === "local" ? <><label>whisper-cli.exe path<input value={draft.whisperExecutable} onChange={event => patch({ whisperExecutable: event.target.value })} spellCheck={false} /></label><label>Whisper English model path (base.en recommended)<input value={draft.whisperModel} onChange={event => patch({ whisperModel: event.target.value })} spellCheck={false} /></label><label>Installed Ollama model<input value={draft.ollamaModel} onChange={event => patch({ ollamaModel: event.target.value })} /></label></> : <><p className="mini">{state.vaultAvailable ? state.keyStored ? "A key is stored using Windows DPAPI." : "No key stored." : "Windows credential protection is unavailable. Key storage is blocked."}</p><label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><div className="setup-buttons"><button disabled={!state.vaultAvailable || !key} onClick={() => void act(async () => { await window.setup.key(key); setKey(""); })}>Store key</button><button disabled={!state.keyStored} onClick={() => void act(() => window.setup.removeKey())}>Remove key</button>{state.canImportEnvironmentKey && <button onClick={() => void act(() => window.setup.importEnvironmentKey())}>Import GEMINI_API_KEY from .env.local</button>}</div></>}
+        <label><input type="radio" name="provider" checked={draft.mode === "managed"} onChange={() => patch({ mode: "managed" })} /> Latham-managed AI (optional local preview)</label>
+        <p className="mini">{draft.mode === "managed" ? `Audio and bounded visible control labels: ${state.managed.origin || "sign in below"}, then Google Gemini. This route needs explicit service consent; it does not use your saved Gemini key.` : draft.mode === "local" ? "Audio: local whisper.cpp. Candidate labels: Ollama at 127.0.0.1:11434. No cloud fallback. Install a local model separately." : "Audio and bounded visible control labels go to Google Gemini. Google's account terms and free-tier quotas apply. Field values, frames and screenshots are excluded from target selection."}</p>
+        {draft.mode === "local" ? <><label>whisper-cli.exe path<input value={draft.whisperExecutable} onChange={event => patch({ whisperExecutable: event.target.value })} spellCheck={false} /></label><label>Whisper English model path (base.en recommended)<input value={draft.whisperModel} onChange={event => patch({ whisperModel: event.target.value })} spellCheck={false} /></label><label>Installed Ollama model<input value={draft.ollamaModel} onChange={event => patch({ ollamaModel: event.target.value })} /></label></> : draft.mode === "managed" ? null : <><p className="mini">{state.vaultAvailable ? state.keyStored ? "A key is stored using Windows DPAPI." : "No key stored." : "Windows credential protection is unavailable. Key storage is blocked."}</p><label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><div className="setup-buttons"><button disabled={!state.vaultAvailable || !key} onClick={() => void act(async () => { await window.setup.key(key); setKey(""); })}>Store key</button><button disabled={!state.keyStored} onClick={() => void act(() => window.setup.removeKey())}>Remove key</button>{state.canImportEnvironmentKey && <button onClick={() => void act(() => window.setup.importEnvironmentKey())}>Import GEMINI_API_KEY from .env.local</button>}</div></>}
         <details><summary>Local speech model options</summary>
           <label>Speech language<select value={draft.speechLanguage} onChange={event => patch({ speechLanguage: event.target.value })}>{speechLanguages.map(language => <option key={language} value={language}>{language === "auto" ? "Detect language (multilingual model)" : language}</option>)}</select></label>
           <label>Vocabulary hints (local only)<input value={draft.speechVocabulary} maxLength={400} onChange={event => patch({ speechVocabulary: event.target.value })} /></label>
@@ -108,6 +110,7 @@ export function SetupPanel() {
         <p className="mini">New catalog sites support public search and reviewed result navigation. Search fields there are focus-only; dictation remains limited to Google/YouTube. Inspect frames reads eligible same-origin frames only; open frame 1 opens one in the main tab. Closed components, account actions and applications remain unsupported.</p><details><summary>Supported controls on the last observed page</summary><ul>{state.page.targets.map((target, index) => <li key={index}>{target.name} · {target.role}</li>)}</ul></details>
       </div>
     </div>
+    <ManagedPanel state={state} act={act} />
     <DesktopPanel state={state} dirty={dirty} act={act} />
     </fieldset>
     <HandsfreePanel state={state} dirty={dirty} />

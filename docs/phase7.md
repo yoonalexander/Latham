@@ -1,14 +1,14 @@
 # Bounded search workflows — Phase 7
 
-The **0.7 unsigned Windows preview** can carry a reviewed search goal through
+The current **0.8 unsigned Windows preview** can carry a reviewed search goal through
 several verified Chrome operations. It also saves explicit, encrypted workflow
 shortcuts. This milestone enables **read-query workflows only**; no send, upload,
-application, account-changing or purchasing integration is enabled. Phase 8 and
-the planned Handy speech migration remain separate work.
+application, account-changing or purchasing integration is enabled. The optional local managed route is documented in [Phase 8](phase8.md);
+the planned Handy speech migration remains separate work.
 
 ## Prepare, review, run
 
-1. Follow [Chrome setup](phase2.md), load desktop/extension **0.7.0** (protocol 2),
+1. Follow [Chrome setup](phase2.md), load desktop/extension **0.8.0** (protocol 2),
    approve a [catalog site](phase6.md), open that site and start a Chrome session.
 2. In **Bounded workflows**, choose the same website, enter a query, optionally
    select a reviewed filter, and choose whether to open a visible result.

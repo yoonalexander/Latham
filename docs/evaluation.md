@@ -1,5 +1,83 @@
 # Evaluation and acceptance
 
+## Phase 8 evidence — November 1, 2026
+
+Implemented for **0.8.0** within the owner's selected **local build/testing,
+billing-disabled** scope. [Phase 8](phase8.md) defines exact account, routing,
+quota, retention and release contracts; [launch gates](release-operations.md)
+remain open for hosting, trusted signing, commercial/provider terms and actual
+packaged HTTPS service acceptance. This is not a public managed-service launch.
+
+- **100 unit/boundary tests pass**, including 14 new managed-service/client
+  cases and one release-integrity case. Coverage includes single-use invitation
+  authentication/policy, exact input schemas, maximum 30-second WAV, no client
+  provider credentials, output bounds, no raw content persistence, transactional
+  per-account/global budgets across restart/deletion/midnight, counted failures,
+  concurrency and rate limits, cancellation/late results, expiry/recovery,
+  future-schema rejection, encrypted session persistence, offline/unconfirmed
+  sign-out versus local Forget, and no route substitution.
+- The real **Electron managed-account flow passes** using a local fake provider
+  and actual Windows DPAPI. UI consent is required; sign-in does not select the
+  route. Explicit save switches to managed speech/selection without a user key.
+  Restart keeps the protected account and route but starts microphone/hands-free
+  off, with no transcript or execution. Stop discards a late response; cancellation
+  prevents further admissions; deletion removes live identity and local sessions.
+  The saved managed route remains managed until an explicit user change.
+- **Live local-service acceptance passes** against the existing Gemini key, with
+  at most two provider requests: synthetic candidate selection (**11,173 ms**)
+  and the previously prepared public JFK speech fixture (**6,891 ms**). The
+  two-request cap rejects a third request, usage is exactly two, and account
+  deletion passes. This checks the server-owned Gemini adapter and HTTP account
+  path, not physical microphone accuracy or production HTTPS/identity. Billing
+  enrollment is not performed. Results retain booleans/timing only, no key,
+  invitation, bearer session or transcript.
+- The aggregate `npm run evaluate` **is not green**: its seven native cases all
+  stop at the existing Windows foreground-focus denial before editing; the
+  dependent 41 Chrome/fixture cases consequently did not run. Their independent
+  follow-up passes **40/41**, including the 100-operation DOM benchmark, scope,
+  dictation/undo, permission/restart, visual, workflow and account cases. The
+  remaining old wake-detector test hit the real microphone-stall safeguard
+  while synchronous Windows CIM lookup stopped synthetic frame delivery. Its
+  test harness now performs that lookup asynchronously while feeding silence;
+  no production detector, timeout or focus guard was weakened. A focused run
+  passed all wake/detector assertions but exceeded the total timeout during
+  app/browser cleanup; a further browser launch reported memory exhaustion.
+  After this run's disposable Chrome profiles were removed and drive space
+  recovered, the **final wake/detector recheck passes (19.3 seconds)** with a
+  90-second test setup/cleanup budget. Managed-account acceptance also passes
+  again on the final build. The aggregate native focus failures remain open.
+- **Packaged 0.8 acceptance passes**: actual portable startup/version/sandbox,
+  no development env import, managed starts signed out with no endpoint, rejected
+  HTTP managed setup, no service/database/session/key in the bundle, packaged
+  helpers/OCR, host/extension pairing, wake idle without transcription, Stop,
+  verified search/filter workflow and DPAPI shortcut save/deletion. The fixture
+  grants Google at extension install in an isolated profile; no personal profile
+  or native permission-prompt approval is used. Packaged HTTPS managed inference
+  is not claimed. The Windows release preflight correctly rejects this unsigned
+  preview; test signatures do not establish publisher identity. The first
+  packaging attempt hit ENOSPC, then succeeded after removing only disposable
+  browser profiles from this task, preserving earlier profiles, archives and
+  all reports. Final archives are refreshed with these documentation results;
+  runtime file hashes are checked unchanged.
+- Markdown verification checks **165 local links, zero missing**. The service
+  and release tools build separately outside the desktop distribution. Node
+  **22.13.0** reports `node:sqlite` as experimental; this is a runtime compatibility
+  limitation, not a newly installed dependency.
+
+Ignored evidence: `.test-artifacts/phase8-full-evaluation.json` retains the
+aggregate native failures; `phase8-browser-results.json` retains the first broad
+browser result; `phase8-live-managed.json` records the live checks. Synthetic
+account UI inspection is saved as `phase8-managed-account.png`. No new physical
+microphone, native editing or clean-machine/signing acceptance is claimed.
+`phase8-focused-first-results.json` preserves the cleanup timeout plus successful
+account test; `phase8-wake-infrastructure-results.json` preserves the memory
+failure; `phase8-wake-final-results.json` and `preview-acceptance.json` record the
+passing follow-up and packaged checks.
+
+No Phase 9 or Handy implementation is included. Managed vision, paid plans,
+consumer-service eligibility, automatic updates and public operations remain
+outside this local acceptance scope.
+
 ## Phase 7 evidence — October 31, 2026
 
 Implemented for the **0.7 unsigned Windows developer preview**. The

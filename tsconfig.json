@@ -7,6 +7,8 @@
     "apps/**/*.ts",
     "apps/**/*.tsx",
     "packages/**/*.ts",
+    "services/managed-ai/**/*.ts",
+    "services/release/**/*.ts",
     "tests/**/*.ts",
     "vitest.config.ts",
     "playwright.config.ts"

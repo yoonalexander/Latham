@@ -4,16 +4,18 @@ import type { NativeState } from "./desktop";
 import type { HandsfreeState } from "./handsfree";
 import type { VisualState, VisualRoute } from "./visual";
 import type { WorkflowState, WorkflowGoal, WorkflowShortcut } from "./workflow";
+import type { ManagedState } from "./managed";
 
 import { siteForPage } from "./sites";
 export { sites } from "./sites";
 export const speechLanguages = ["en", "es", "fr", "de", "it", "pt", "ko", "ja", "zh", "auto"] as const;
-export type ProviderSettings = { mode: "local" | "cloud"; microphoneId: string; whisperExecutable: string; whisperModel: string; ollamaModel: string; speechLanguage: string; speechVocabulary: string; speechThreads: number };
+export type ProviderSettings = { mode: "local" | "cloud" | "managed"; microphoneId: string; whisperExecutable: string; whisperModel: string; ollamaModel: string; speechLanguage: string; speechVocabulary: string; speechThreads: number };
 export const providerDefaults: ProviderSettings = { mode: "local", microphoneId: "", whisperExecutable: "", whisperModel: "", ollamaModel: "qwen2.5:1.5b", speechLanguage: "en", speechVocabulary: "", speechThreads: 2 };
 export type Candidate = { id: string; label: string; role: string };
 export type Selection = { candidateId: string | null };
 export type ChromeCommand = { kind: "new_tab" | "next_tab" | "previous_tab" | "back" | "forward" } | { kind: "navigate"; url: string };
 export type SetupState = {
+  managed: ManagedState;
   canImportEnvironmentKey: boolean;
   canInsertTranscript: boolean;
   canInsertDesktopTranscript: boolean;
@@ -32,6 +34,8 @@ export type SetupState = {
   page: PageState;
 };
 export interface SetupBridge {
+  managedSignIn(input: { origin: string; invite: string; consent: string }): Promise<void>;
+  managedAccount(operation: "refresh" | "sign_out" | "cancel" | "delete" | "forget"): Promise<void>;
   state(): Promise<SetupState>;
   save(settings: ProviderSettings): Promise<void>;
   key(value: string): Promise<void>;
@@ -74,7 +78,7 @@ export interface SetupBridge {
   subscribe(listener: (state: SetupState) => void): () => void;
 }
 export function parseProviderSettings(input: unknown): ProviderSettings {
-  if (!record(input) || Object.keys(input).some(key => !Object.keys(providerDefaults).includes(key)) || !["local", "cloud"].includes(String(input.mode))) throw new Error("invalid_settings");
+  if (!record(input) || Object.keys(input).some(key => !Object.keys(providerDefaults).includes(key)) || !["local", "cloud", "managed"].includes(String(input.mode))) throw new Error("invalid_settings");
   // Migrate the smaller Phase 1–3 settings without starting a microphone session.
   const value: Record<string, unknown> = { speechLanguage: "en", speechVocabulary: "", speechThreads: 2, ...input };
   for (const key of ["microphoneId", "whisperExecutable", "whisperModel", "ollamaModel"]) if (typeof value[key] !== "string" || (value[key] as string).length > 1024) throw new Error("invalid_settings");

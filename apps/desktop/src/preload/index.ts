@@ -19,6 +19,7 @@ const bridge: DesktopBridge = {
 };
 contextBridge.exposeInMainWorld("latham", bridge);
 const setup: SetupBridge = {
+  managedSignIn: input => ipcRenderer.invoke("setup:managed-sign-in", input), managedAccount: operation => ipcRenderer.invoke("setup:managed-account", operation),
   state: () => ipcRenderer.invoke("setup:state"), save: value => ipcRenderer.invoke("setup:save", value),
   key: value => ipcRenderer.invoke("setup:key", value), removeKey: () => ipcRenderer.invoke("setup:remove-key"), importEnvironmentKey: () => ipcRenderer.invoke("setup:import-key"),
   testDecision: () => ipcRenderer.invoke("setup:test"), beginTurn: () => ipcRenderer.invoke("setup:begin"),

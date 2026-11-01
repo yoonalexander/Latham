@@ -21,6 +21,7 @@ import { VisualController } from "./visual-controller";
 import { imageOcr } from "./image-ocr";
 import { WorkflowController } from "./workflow-controller";
 import { WorkflowShortcuts } from "./workflow-shortcuts";
+import { ManagedClient } from "./managed-client";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "latham", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName("Latham");
@@ -88,15 +89,16 @@ async function boot(): Promise<void> {
   };
   const providerStore = new ProviderStore(app.getPath("userData"), safeStorage);
   const shortcuts = new WorkflowShortcuts(app.getPath("userData"), safeStorage);
+  const managed = new ManagedClient(app.getPath("userData"), safeStorage, !app.isPackaged, () => setupSend());
   let workflow: WorkflowController;
   let browser: BrowserController;
   let desktop: DesktopController;
   let utteranceBinding: string | null = null;
-  const setupState = (): SetupState => ({ canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, workflow: workflow.state, shortcuts: shortcuts.list, shortcutStorageAvailable: shortcuts.available, shortcutStorageLocked: shortcuts.locked, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
+  const setupState = (): SetupState => ({ managed: { ...managed.state }, canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, workflow: workflow.state, shortcuts: shortcuts.list, shortcutStorageAvailable: shortcuts.available, shortcutStorageLocked: shortcuts.locked, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
   const setupSend = (): void => { if (voice && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState()); };
-  voice = new Voice(providerStore, setupSend);
+  voice = new Voice(providerStore, setupSend, managed);
   const chrome = new ChromeBridge(providerStore, setupSend);
-  browser = new BrowserController(chrome, providerStore, setupSend);
+  browser = new BrowserController(chrome, providerStore, setupSend, managed);
   workflow = new WorkflowController(chrome, setupSend);
   const nativeTesting = !app.isPackaged && process.argv.includes("--latham-test") && process.env.LATHAM_TEST_NATIVE_FIXTURE === "1";
   const nativeApp = nativeTesting ? "fixture" : "notepad";
@@ -106,7 +108,7 @@ async function boot(): Promise<void> {
   await chrome.start();
   const hostDirectory = join(app.getPath("userData"), "native");
   chrome.writeConfig(hostDirectory);
-  const stopExecutors = (): void => { activation++; workflow.cancel(); visual?.stop(); controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
+  const stopExecutors = (): void => { activation++; managed.stop(); workflow.cancel(); visual?.stop(); controller.stop(); voice.cancel(); chrome.pause(); desktop.pause(); };
   handsfree = new Handsfree(localDetector(join(__dirname, "native/Latham.SpeechDetector.exe")), {
     available: target => target === "chrome" ? chrome.connected && chrome.active && !chrome.needsReview : desktop.state.active && desktop.state.bound && !desktop.state.needsReview,
     transcribe: async pcm => { utteranceBinding = desktop.bindingId ?? browser.bindingId; const id = voice.begin(); await voice.finish(id, pcm); if (voice.error || !voice.transcript) throw new Error("handsfree_transcription_failed"); return voice.transcript; },
@@ -141,6 +143,8 @@ async function boot(): Promise<void> {
     if (chrome.needsReview || controller.needsReview) throw new Error("executor_reconciliation_required");
   };
   ipcMain.handle("setup:state", event => { guard(event); return setupState(); });
+  ipcMain.handle("setup:managed-sign-in", async (event, input: unknown) => { guard(event); stopAll(); await managed.signIn(input); setupSend(); });
+  ipcMain.handle("setup:managed-account", async (event, operation: unknown) => { guard(event); stopAll(); await managed.account(operation); setupSend(); });
   ipcMain.handle("setup:workflow-prepare", async (event, goal: unknown) => {
     guard(event);
     const idle = (): void => { if (handsfree.active || visual.state.busy || voice.status !== "idle" || browser.state.busy || desktop.state.busy) throw new Error("end_active_mode_first"); };

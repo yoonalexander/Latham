@@ -1,7 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { extensionId } from "../../apps/desktop/src/main/native-bridge";
 import { sites, searchDestination, type SiteId } from "../../packages/contracts/src/sites";
 
@@ -246,7 +247,7 @@ test("hands-free successive commands use current permissions and local stop inte
 });
 
 test("hands-free wake audio stays local until the separate phrase; detector loss cancels the session", async () => {
-  test.setTimeout(60000); const f = await setup();
+  test.setTimeout(90000); const f = await setup();
   try {
     await configureHandsfree(f);
     await f.app.evaluate(() => { Reflect.set(globalThis, "handsfreeRequests", 0); Reflect.set(globalThis, "fetch", async () => { Reflect.set(globalThis, "handsfreeRequests", Number(Reflect.get(globalThis, "handsfreeRequests")) + 1); return Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "inspect page" }] } }] }); }); });
@@ -258,7 +259,11 @@ test("hands-free wake audio stays local until the separate phrase; detector loss
     await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("listening");
     expect(await f.app.evaluate(() => Reflect.get(globalThis, "handsfreeRequests"))).toBe(0);
     const parent = await f.app.evaluate(() => process.pid), executable = resolve("dist/native/Latham.SpeechDetector.exe").replaceAll("'", "''");
-    execFileSync("powershell.exe", ["-NoProfile", "-Command", `Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq ${parent} -and $_.ExecutablePath -eq '${executable}' -and $_.CommandLine -match 'stop' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`], { stdio: "ignore" });
+    // Keep the synthetic microphone alive while slow CIM startup locates the detector.
+    await Promise.all([
+      promisify(execFile)("powershell.exe", ["-NoProfile", "-Command", `Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq ${parent} -and $_.ExecutablePath -eq '${executable}' -and $_.CommandLine -match 'stop' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`], { windowsHide: true, timeout: 10000 }),
+      feedSession(f.desk, id, cursor, Buffer.alloc(320000))
+    ]);
     await expect.poll(() => f.desk.evaluate(async () => (await window.setup.state()).handsfree.phase)).toBe("off");
     expect((await f.desk.evaluate(() => window.setup.state())).handsfree.message).toContain("detector failed");
   } finally { await f.close(); }

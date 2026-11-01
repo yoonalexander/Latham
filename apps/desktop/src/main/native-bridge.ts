@@ -91,7 +91,7 @@ export class ChromeBridge {
   private send(value: unknown): void { if (this.socket?.writable) this.socket.write(frame(value)); }
   private receive(value: unknown): void {
     if (!record(value)) throw new Error("invalid_message");
-    if (value.type === "ready") { this.connected = value.protocol === 2 && value.version === "0.7.0"; if (!this.connected) { this.pause(); this.result = "Incompatible extension. Load Latham extension 0.7.0 and register the current host."; }
+    if (value.type === "ready") { this.connected = value.protocol === 2 && value.version === "0.8.0"; if (!this.connected) { this.pause(); this.result = "Incompatible extension. Load Latham extension 0.8.0 and register the current host."; }
     } else if (value.type === "context_changed") { this.pause(); this.result = "Page focus, edit, tab or document changed. Start a new session and rebind dictation.";
     } else if (value.type === "page_result" && value.id === this.pending?.id && value.epoch === this.epoch) {
       const pending = this.pending!; this.pending = undefined; clearTimeout(pending.timer);

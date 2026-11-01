@@ -10,7 +10,9 @@ the [roadmap](../roadmap.md) defines sequence.
 | Phase 0 execution | Bundled local fixture only, no live-site/OS adapter | architecture.md |
 | UI | Electron/React command desk with tray and always-available Stop | apps/desktop |
 | Permissions | Fixture consent persists; every launch stays paused | core and main/storage |
-| AI access | Gemini user key; whisper.cpp base.en plus Ollama Qwen2.5 1.5B locally; no silent fallback | phase2.md |
+| AI access | Gemini user key; whisper.cpp base.en plus Ollama Qwen2.5 1.5B locally; optional local managed route; no silent fallback | phase8.md |
+| Managed service | Owner chose local build/testing with billing disabled; operator-issued invitations, DPAPI sessions, explicit routing consent, transactional request caps and cancellation/deletion | phase8.md |
+| Commercial launch | Public hosting, trusted signing, provider audience/privacy eligibility, distribution/contributor terms and support remain owner/external gates | release-operations.md |
 | Cancellation | Local controller fence; preserve in-flight uncertainty and require reset | core |
 | Logs | Off-by-default bounded metadata, no command/page values | storage and evaluation |
 | Website grants | Remembered exact optional grants for eight catalog origins intersect Latham consent; start paused | phase6.md |
@@ -26,7 +28,7 @@ the [roadmap](../roadmap.md) defines sequence.
 | Dictation | Prepare Search, record under that binding, explicitly append/replace; guarded correction/undo | phase2.md |
 | Unknown effects | Persist uncertainty before mutation; reconcile explicitly after failed verification/restart; never replay | browser-controller and native-bridge |
 | Local speech retention | Bounded stdin/stdout; no temporary audio/transcript files | speech/providers.ts |
-| Preview distribution | 0.7.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2 | phase7.md |
+| Preview distribution | 0.8.0 unsigned portable Windows x64 ZIP plus unpacked MV3 extension; Chrome protocol 2; offline signed-manifest tooling, no automatic updater | phase8.md |
 | Visual capture | Per-session consent and separate optional image grant; approved YouTube thumbnail assets only; no full-screen/desktop capture | phase5.md |
 | Visual grounding | Local OCR/layout, opt-in installed Ollama vision or Gemini; candidate-ID sets, explicit clarification/highlight/open and fresh DOM navigation checks | phase5.md |
 | Native scope | Same-user unelevated Notepad document text only; per-app approval and block override; browsers/other apps excluded | phase3.md |

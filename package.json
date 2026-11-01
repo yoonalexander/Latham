@@ -1,9 +1,9 @@
 {
   "name": "latham",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
-  "description": "Independent Windows voice assistant — bounded reviewed search workflows preview",
+  "description": "Independent Windows voice assistant — optional local managed AI preview",
   "engines": {
     "node": ">=22"
   },
@@ -13,6 +13,10 @@
   ],
   "scripts": {
     "build": "node scripts/build.mjs && node scripts/build-host.mjs",
+    "build:service": "node scripts/build-service.mjs",
+    "service": "node --env-file-if-exists=.env.local .test-artifacts/managed-service/server.cjs serve",
+    "service:invite": "node .test-artifacts/managed-service/server.cjs invite",
+    "build:release-tools": "node scripts/build-release-tools.mjs",
     "start": "node scripts/start.mjs",
     "dev": "npm run build && npm start",
     "typecheck": "tsc --noEmit --project tsconfig.json",

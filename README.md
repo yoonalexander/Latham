@@ -1,7 +1,11 @@
 # Latham
 
 Latham is an independently implemented voice-controlled computer assistant.
-Version 0.7 adds bounded search/filter/result workflows with an expiring review,
+Version 0.8 adds an optional local managed-AI service with invitation accounts,
+server-only credentials, usage budgets, explicit routing consent and account
+cancellation/deletion. Billing is disabled; public hosting and trusted release
+signing remain launch gates. See [managed AI setup](docs/phase8.md).
+It retains bounded search/filter/result workflows with an expiring review,
 per-run budgets, verified progress and explicitly saved encrypted shortcuts.
 It supports eight reviewed website origins, shared semantic controls,
 open-component results and explicit same-origin frame inspection.
@@ -10,7 +14,7 @@ push-to-talk dictation, guarded correction/undo, verified search/video/filter
 navigation, Gemini or local AI, remembered permissions and physical Stop.
 See [bounded workflows](docs/phase7.md), [website coverage and restrictions](docs/phase6.md), [visual setup](docs/phase5.md), [hands-free setup](docs/phase4.md), [desktop setup](docs/phase3.md) and [the Chrome support matrix](docs/phase2.md) for exact operations and limits.
 
-Phases 0–7 are implemented as an **unsigned Windows developer preview**. It is not a
+Phases 0–7 and the owner-scoped **local Phase 8 preview** are implemented as an **unsigned Windows developer preview**. It is not a
 signed installer or a promise of arbitrary-app/site support. Hands-free is optional
 and starts disabled; recognition misses and false stops remain possible. The whole-project plan is in
 [roadmap.md](roadmap.md).

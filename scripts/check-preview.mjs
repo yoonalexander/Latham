@@ -10,7 +10,7 @@ const env = Object.fromEntries(Object.entries(process.env).filter(([key, value])
 const wait = async check => { for (let n = 0; n < 150; n++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); } throw new Error("preview_acceptance_timeout"); };
 let app, context;
 try {
-  for (const file of ["SETUP.md", "docs/phase7.md", "docs/phase6.md", "docs/phase5.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
+  for (const file of ["SETUP.md", "docs/phase8.md", "docs/release-operations.md", "docs/phase7.md", "docs/phase6.md", "docs/phase5.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
   const data = mkdtempSync(join(root, "packaged-app-"));
   app = await _electron.launch({ executablePath: join(packageRoot, "Latham.exe"), args: ["--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
   await wait(() => app.context().pages().some(page => page.url() === "latham://app/index.html"));
@@ -22,6 +22,10 @@ try {
   assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "off");
   assert.equal((await desk.evaluate(() => window.setup.state())).visual.consent, false);
   assert.equal((await desk.evaluate(() => window.setup.state())).workflow.phase, "idle");
+  assert.equal((await desk.evaluate(() => window.setup.state())).managed.signedIn, false);
+  assert.equal((await desk.evaluate(() => window.setup.state())).managed.origin, "");
+  assert.equal(await desk.evaluate(async () => { try { await window.setup.managedSignIn({ origin: "http://127.0.0.1:47831", invite: "a".repeat(64), consent: "latham-managed-local-v1" }); return false; } catch { return true; } }), true);
+  assert.equal((await desk.evaluate(() => window.setup.state())).managed.signedIn, false);
   assert.deepEqual((await desk.evaluate(() => window.setup.state())).shortcuts, []);
   const catalog = (await desk.evaluate(() => window.setup.state())).sites;
   assert.equal(catalog.length, 8); assert.equal(catalog.every(site => !site.consent && !site.effective), true);
@@ -68,10 +72,10 @@ try {
   await desk.evaluate(() => window.latham.stop()); await wait(async () => (await desk.evaluate(() => window.setup.state())).desktop.fenceConfirmed);
   await desk.screenshot({ path: join(root, "phase2-preview.png") });
   const walk = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]);
-  assert.equal(walk(packageRoot).some(file => /(?:^|[\\/])(?:\.env(?:\..*)?|provider-key\.bin|workflow-shortcuts\.bin|providers\.json|connection\.json|Latham.NativeFixture.exe)$/.test(file)), false);
+  assert.equal(walk(packageRoot).some(file => /(?:^|[\\/])(?:\.env(?:\..*)?|provider-key\.bin|managed-session\.bin(?:\.tmp)?|accounts\.sqlite.*|server\.cjs|integrity\.cjs|workflow-shortcuts\.bin|providers\.json|connection\.json|Latham.NativeFixture.exe)$/.test(file)), false);
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.DesktopAgent.exe")));
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.SpeechDetector.exe")));
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.ImageOcr.exe")));
-  writeFileSync(join(root, "preview-acceptance.json"), JSON.stringify({ at: new Date().toISOString(), version, channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "workflow_starts_idle", "packaged_workflow_search_filter", "encrypted_explicit_shortcut_and_deletion", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent", "packaged_ocr_on_synthetic_image", "visual_consent_starts_off", "packaged_local_speech_detectors", "idle_wake_no_transcription", "microphone_off_on_start_and_stop", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"] }, null, 2));
+  writeFileSync(join(root, "preview-acceptance.json"), JSON.stringify({ at: new Date().toISOString(), version, channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "managed_starts_signed_out", "packaged_managed_requires_https", "managed_service_and_secrets_not_bundled", "workflow_starts_idle", "packaged_workflow_search_filter", "encrypted_explicit_shortcut_and_deletion", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent", "packaged_ocr_on_synthetic_image", "visual_consent_starts_off", "packaged_local_speech_detectors", "idle_wake_no_transcription", "microphone_off_on_start_and_stop", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"] }, null, 2));
   console.log("Windows portable preview startup, protected storage, packaged host/extension pairing and Stop passed.");
 } finally { for (const worker of context?.serviceWorkers() ?? []) await worker.evaluate("port?.disconnect()").catch(() => {}); await context?.close(); await app?.close(); for (const { path, value } of registry) { try { if (value) execFileSync("reg.exe", ["ADD", path, "/ve", "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" }); else execFileSync("reg.exe", ["DELETE", path, "/f"], { stdio: "ignore" }); } catch {} } }

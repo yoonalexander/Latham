@@ -75,3 +75,12 @@ Phase 7 adds no package, model or third-party runtime. Its goal compiler,
 workflow controller/lease, UI, tests and shortcut store are independently
 authored. Shortcut encryption reuses Electron's existing Windows DPAPI-backed
 safeStorage; no credential or model is required by the deterministic planner.
+
+Phase 8 adds independently authored service/account/release code and no npm or
+model dependency. The separately installed Node.js runtime (tested 22.13.0)
+provides experimental `node:sqlite`, crypto and HTTP; Node and its bundled SQLite
+retain their upstream notices/terms. The service is built outside the desktop
+distribution, never bundles provider secrets and reuses the existing fixed
+Gemini adapter. No hosted identity/payment SDK, paid service subscription or
+reference-app assets are added. [Phase 8](phase8.md) records primary-source
+references and the outstanding commercial/provider/licensing review gates.

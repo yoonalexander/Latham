@@ -1,8 +1,25 @@
 # Implemented architecture
 
-Status: local fixture, voice/providers, reviewed Chrome pages, scoped Notepad
-editing and opt-in hands-free sessions.
-Phase 5 adds the scoped source-image path described in [visual setup](phase5.md).
+Status: fixture, voice/providers, eight-site Chrome catalog, scoped Notepad,
+hands-free, thumbnails, reviewed workflows and optional local managed accounts.
+See [coverage](phase6.md), [workflows](phase7.md) and [managed AI](phase8.md).
+
+## Phase 8 managed route
+
+Named guarded preload operations configure invitation-account sessions and
+account management. Main owns the DPAPI session, explicit saved route and Stop
+generations; the renderer never receives the bearer session. Managed audio and
+bounded candidate labels go through the separate loopback HTTP service to the
+existing Gemini adapter using server-only credentials. No provider route is
+substituted after a failure. Local/BYOK need no managed account.
+
+The service owns hashed invitations/sessions, transactional SQLite request
+reservations, rate/concurrency limits and account cancellation/deletion. It has
+no browser/native/execution interface. Returned candidate IDs still pass local
+policy, scope and effect verification. Offline release tooling verifies pinned
+manifest signatures and archive hashes without installing anything. The service
+and release tools build outside the desktop bundle. Billing is disabled;
+[hosting/signing/commercial gates](release-operations.md) remain open.
 
 ## Phase 5 image ownership
 
@@ -66,8 +83,9 @@ flowchart LR
 | desktop main | Concrete fixture transport, storage and guarded IPC |
 | desktop renderer/preload | Command desk, settings, status and narrow bridge |
 
-Visual grounding, broad native-app coverage and planning remain later phases. The
-diagram above describes the fixture path only; website actions are below.
+Broad native-app coverage and general model planning remain later work. Scoped
+visual matching and deterministic workflows have their own guides. The diagram
+above describes the fixture path only; website actions are below.
 
 ## Phase 2 page path
 
