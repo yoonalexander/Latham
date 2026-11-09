@@ -21,7 +21,7 @@
     "dev": "npm run build && npm start",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "test": "vitest run",
-    "test:e2e": "npm run build && node scripts/build-native-fixture.mjs && npm run setup:electron && powershell.exe -NoProfile -File scripts/generate-visual-fixtures.ps1 && playwright test",
+    "test:e2e": "npm run build && node scripts/build-native-fixture.mjs && npm run setup:electron && powershell.exe -NoProfile -File scripts/generate-visual-fixtures.ps1 && powershell.exe -NoProfile -File scripts/generate-detector-fixtures.ps1 && playwright test",
     "evaluate": "npm run typecheck && npm test && npm run test:e2e",
     "evaluate:compatibility": "npm run build && node scripts/evaluate-compatibility.mjs",
     "check": "npm run typecheck && npm test && npm run build",

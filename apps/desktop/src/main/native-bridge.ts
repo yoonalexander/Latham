@@ -26,6 +26,7 @@ export class ChromeBridge {
   active = false; connected = false; result = "Not connected";
   fenceConfirmed = false; needsReview = false;
   onInvalidate: () => void = () => {};
+  onRevoke: (origins: string[]) => void = () => {};
   private server: Server | undefined;
   private socket: Socket | undefined;
   private grants = new Set<string>();
@@ -69,7 +70,7 @@ export class ChromeBridge {
   reconcile(): void { if (this.active || !this.fenceConfirmed) throw new Error("chrome_fence_unconfirmed"); this.store.chromeUncertain = false; this.store.save(); this.needsReview = false; this.result = "Chrome inspected. Start a new session when ready."; this.changed(); }
   revoke(origin: unknown): void {
     if (typeof origin !== "string" || !sites.some(site => site.origin === origin)) throw new Error("invalid_origin");
-    this.pause(); this.store.consent = this.store.consent.filter(item => item !== origin); this.store.save(); this.send({ type: "revoke", origin }); this.changed();
+    this.onRevoke([origin]); this.pause(); this.store.consent = this.store.consent.filter(item => item !== origin); this.store.save(); this.send({ type: "revoke", origin }); this.changed();
   }
   async run(input: unknown): Promise<void> {
     const command = parseChromeCommand(input);
@@ -105,10 +106,10 @@ export class ChromeBridge {
       const next = new Set(value.origins.filter((origin): origin is string => typeof origin === "string" && sites.some(site => site.origin === origin)));
       const revoked = [...this.grants].filter(origin => !next.has(origin));
       this.grants = next;
-      if (revoked.length) { this.pause(); this.store.consent = this.store.consent.filter(origin => !revoked.includes(origin)); this.store.save(); }
+      if (revoked.length) { this.onRevoke(revoked); this.pause(); this.store.consent = this.store.consent.filter(origin => !revoked.includes(origin)); this.store.save(); }
     } else if (value.type === "reconcile" && Array.isArray(value.origins)) {
       const kept = this.store.consent.filter(origin => (value.origins as unknown[]).includes(origin) && this.grants.has(origin));
-      if (kept.length !== this.store.consent.length) { this.pause(); this.store.consent = kept; this.store.save(); }
+      if (kept.length !== this.store.consent.length) { this.onRevoke(this.store.consent.filter(origin => !kept.includes(origin))); this.pause(); this.store.consent = kept; this.store.save(); }
     } else if (value.type === "consent" && typeof value.origin === "string" && sites.some(site => site.origin === value.origin) && value.granted === true) {
       if (!this.store.consent.includes(value.origin)) { this.store.consent.push(value.origin); this.store.save(); }
     } else if (value.type === "result" && value.id === this.pending?.id && value.epoch === this.epoch) {

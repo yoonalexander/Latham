@@ -6,10 +6,11 @@ import { VisualPanel } from "./visual";
 import { WorkflowPanel } from "./workflow";
 import { ManagedPanel } from "./managed";
 import { CompatibilityPanel } from "./compatibility";
+import { ComputerPanel } from "./computer";
 import { browsers, type BrowserId } from "../../../../packages/contracts/src/compatibility";
 import { workflowActive } from "../../../../packages/contracts/src/workflow";
 declare global { interface Window { setup: SetupBridge } }
-type Recording = { id: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
+type Recording = { id: number; sequence: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
 export function SetupPanel() {
   const [state, setState] = useState<SetupState>();
   const [draft, setDraft] = useState<ProviderSettings>();
@@ -47,7 +48,7 @@ export function SetupPanel() {
   const begin = async (): Promise<void> => {
     if (recording.current || !state || state.voice !== "idle" || dirty) return;
     setError("");
-    const current: Recording = { id: -1, chunks: [], samples: 0 }; recording.current = current;
+    const current: Recording = { id: -1, sequence: 0, chunks: [], samples: 0 }; recording.current = current;
     try {
       current.id = await window.setup.beginTurn(); if (recording.current !== current) { await window.setup.cancelTurn(); return; }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { ...(state.settings.microphoneId ? { deviceId: { exact: state.settings.microphoneId } } : {}), channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false });
@@ -63,6 +64,7 @@ export function SetupPanel() {
         const data = event.inputBuffer.getChannelData(0), count = Math.min(data.length, 16000 * 30 - current.samples), chunk = new Int16Array(count);
         for (let index = 0; index < count; index++) chunk[index] = Math.round(Math.max(-1, Math.min(1, data[index]!)) * 32767);
         current.chunks.push(chunk); current.samples += count;
+        window.setup.voiceFrame(current.id, current.sequence++, chunk.buffer);
         if (current.samples >= 16000 * 30) void finish();
       };
       source.connect(node); node.connect(context.destination); await context.resume(); current.timer = setTimeout(() => void finish(), 30000);
@@ -75,13 +77,14 @@ export function SetupPanel() {
   return <section id="assistant-setup" tabIndex={-1} className="panel setup-panel" aria-label="Voice and browser setup">
     {state.providerSettingsLocked && <p role="alert">AI/browser settings are unreadable or from a newer version. The file is locked against overwrite; quit and follow the Phase 9 recovery guide.</p>}<div className="section-kicker">WINDOWS PREVIEW / 0.9</div><h2>Voice, browsers & desktop</h2>
     <fieldset className="manual-controls" disabled={workflowActive(state.workflow.phase) || state.handsfree.phase !== "off" || state.visual.busy}>
+    <ComputerPanel state={state} act={act} />
     <div className="setup-grid">
       <div className="setup-group"><h3>1. Choose your AI</h3>
         <label><input type="radio" name="provider" checked={draft.mode === "local"} onChange={() => patch({ mode: "local" })} /> Use local AI</label>
         <label><input type="radio" name="provider" checked={draft.mode === "cloud"} onChange={() => patch({ mode: "cloud" })} /> Use my API key (Gemini)</label>
         <label><input type="radio" name="provider" checked={draft.mode === "managed"} onChange={() => patch({ mode: "managed" })} /> Latham-managed AI (optional local preview)</label>
         <p className="mini">{draft.mode === "managed" ? `Audio and bounded visible control labels: ${state.managed.origin || "sign in below"}, then Google Gemini. This route needs explicit service consent; it does not use your saved Gemini key.` : draft.mode === "local" ? "Audio: local whisper.cpp. Candidate labels: Ollama at 127.0.0.1:11434. No cloud fallback. Install a local model separately." : "Audio and bounded visible control labels go to Google Gemini. Google's account terms and free-tier quotas apply. Field values, frames and screenshots are excluded from target selection."}</p>
-        {draft.mode === "local" ? <><label>whisper-cli.exe path<input value={draft.whisperExecutable} onChange={event => patch({ whisperExecutable: event.target.value })} spellCheck={false} /></label><label>Whisper English model path (base.en recommended)<input value={draft.whisperModel} onChange={event => patch({ whisperModel: event.target.value })} spellCheck={false} /></label><label>Installed Ollama model<input value={draft.ollamaModel} onChange={event => patch({ ollamaModel: event.target.value })} /></label></> : draft.mode === "managed" ? null : <><p className="mini">{state.vaultAvailable ? state.keyStored ? "A key is stored using Windows DPAPI." : "No key stored." : "Windows credential protection is unavailable. Key storage is blocked."}</p><label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><div className="setup-buttons"><button disabled={!state.vaultAvailable || !key} onClick={() => void act(async () => { await window.setup.key(key); setKey(""); })}>Store key</button><button disabled={!state.keyStored} onClick={() => void act(() => window.setup.removeKey())}>Remove key</button>{state.canImportEnvironmentKey && <button onClick={() => void act(() => window.setup.importEnvironmentKey())}>Import GEMINI_API_KEY from .env.local</button>}</div></>}
+        {draft.mode === "local" ? <><label>whisper-cli.exe path<input value={draft.whisperExecutable} onChange={event => patch({ whisperExecutable: event.target.value })} spellCheck={false} /></label><label>Whisper English model path (base.en recommended)<input value={draft.whisperModel} onChange={event => patch({ whisperModel: event.target.value })} spellCheck={false} /></label><label>Installed Ollama model<input value={draft.ollamaModel} onChange={event => patch({ ollamaModel: event.target.value })} /></label></> : draft.mode === "managed" ? null : <><p className="mini">{state.vaultAvailable ? state.keyStored ? "A key is stored using Windows DPAPI." : "No key stored." : "Windows credential protection is unavailable. Key storage is blocked."} Saving a Gemini key also saves the selected AI settings.</p><label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><div className="setup-buttons"><button disabled={!state.vaultAvailable || !key} onClick={() => void act(async () => { await window.setup.key(key); await window.setup.save(draft); setKey(""); })}>Save Gemini setup</button><button disabled={!state.keyStored} onClick={() => void act(() => window.setup.removeKey())}>Remove key</button>{state.canImportEnvironmentKey && <button onClick={() => void act(async () => { await window.setup.importEnvironmentKey(); await window.setup.save(draft); })}>Import GEMINI_API_KEY from .env.local</button>}</div></>}
         <details><summary>Local speech model options</summary>
           <label>Speech language<select value={draft.speechLanguage} onChange={event => patch({ speechLanguage: event.target.value })}>{speechLanguages.map(language => <option key={language} value={language}>{language === "auto" ? "Detect language (multilingual model)" : language}</option>)}</select></label>
           <label>Vocabulary hints (local only)<input value={draft.speechVocabulary} maxLength={400} onChange={event => patch({ speechVocabulary: event.target.value })} /></label>
@@ -92,11 +95,11 @@ export function SetupPanel() {
         <div className="setup-buttons"><button onClick={() => void act(() => window.setup.save(draft))}>Save AI setup</button><button disabled={state.voice !== "idle" || dirty} onClick={() => void act(() => window.setup.testDecision())}>Test saved decision setup</button></div>
         {dirty && <p className="mini" role="status">Unsaved AI setup changes. Save before recording; saving pauses current work.</p>}
       </div>
-      <div className="setup-group"><h3>2. Test your voice</h3><p className="mini">Hold to record up to 30 seconds. Release to transcribe using the saved AI setup. Review the words before running anything.</p>
+      <div className="setup-group"><h3>2. Test your voice</h3><p className="mini">Gemini streams words while you speak and finalizes on release. Local/managed mode uses a provisional Windows caption and your chosen final transcription provider. Interim words may change; only final words can run a command.</p>
         <label>Microphone<select value={draft.microphoneId} onChange={event => patch({ microphoneId: event.target.value })}><option value="">System default</option>{devices.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || "Microphone"}</option>)}</select></label>
         <p className="mini">Microphone names appear after the first permission request. Save AI setup after changing the selection.</p>
         <button className="primary talk" disabled={dirty || state.voice === "testing" || state.voice === "transcribing"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); void begin(); }} onPointerUp={() => void finish()} onPointerCancel={() => { clean(); void window.setup.cancelTurn(); }} onKeyDown={event => { if ((event.key === " " || event.key === "Enter") && !event.repeat) { event.preventDefault(); void begin(); } }} onKeyUp={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); void finish(); } }}>Hold to talk</button>
-        <p role="status" data-testid="voice-status">Voice: {state.voice}</p><label htmlFor="transcript-preview">Final transcript</label><textarea id="transcript-preview" readOnly value={state.transcript} rows={3} />
+        <p role="status" data-testid="voice-status">Voice: {state.voice}</p><p className="mini" data-testid="speech-preview" aria-live="polite">{state.speechPreview.status === "final" ? "Final words" : draft.mode === "cloud" ? "Gemini live transcript (may change)" : "Local live preview (may change)"}: {state.speechPreview.text || (state.speechPreview.status === "unavailable" ? draft.mode === "cloud" ? "Live transcription unavailable. Check your key, quota and connection." : "Preview unavailable for the installed speech language; final transcription still works." : state.voice === "recording" ? "Listening…" : "Microphone off")}</p><label htmlFor="transcript-preview">Final transcript</label><textarea id="transcript-preview" readOnly value={state.transcript} rows={3} />
         <div className="setup-buttons"><button disabled={!state.transcript} onClick={() => setCommand(state.transcript)}>Use transcript as browser command</button><button onClick={() => { clean(); void act(() => window.setup.cancelTurn()); }}>Cancel / clear speech</button></div>
         <p className="mini">Dictation: {state.desktop.bound ? "ready for the selected Notepad editor" : state.page.dictation ? `ready for ${state.page.dictation}` : "not bound"}. Prepare Search or editor dictation first, then record and review your words.</p>
         <button disabled={dirty || !state.chromeConnected || state.chromeNeedsReview || state.page.busy || (!state.chromeActive && !state.chromeFenceConfirmed)} onClick={() => void act(() => window.setup.prepareDictation())}>Prepare Search dictation</button>

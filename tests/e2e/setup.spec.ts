@@ -12,6 +12,32 @@ function registryBackup(): () => void {
   });
   return () => { for (const { path, value } of values) { if (value) execFileSync("reg.exe", ["ADD", path, "/ve", "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" }); else { try { execFileSync("reg.exe", ["DELETE", path, "/f"], { stdio: "ignore" }); } catch { /* Already absent. */ } } } };
 }
+test("saving a Gemini key also saves the cloud provider chosen in settings", async () => {
+  mkdirSync(".test-artifacts", { recursive: true });
+  const directory = mkdtempSync(resolve(".test-artifacts/gemini-setup-"));
+  const env = Object.fromEntries(Object.entries(process.env).filter((pair): pair is [string, string] => pair[1] !== undefined && pair[0] !== "ELECTRON_RUN_AS_NODE"));
+  const app = await _electron.launch({ args: [resolve("dist/main.cjs"), "--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: directory } });
+  try {
+    await expect.poll(() => app.context().pages().some(page => page.url() === "latham://app/index.html")).toBe(true);
+    const page = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
+    await expect.poll(() => app.context().pages().some(page => page.url() === "latham://companion/index.html")).toBe(true);
+    const companion = app.context().pages().find(page => page.url() === "latham://companion/index.html")!;
+    expect((await companion.evaluate(() => window.companion.state())).message).toBe("Choose Gemini or configure local speech in Settings.");
+    await page.getByLabel("Use my API key (Gemini)", { exact: true }).check();
+    await page.getByLabel("Gemini API key", { exact: true }).fill("FAKE_SETUP_FLOW_KEY_123456789012345");
+    await page.getByRole("button", { name: /Store key|Save Gemini setup/, exact: true }).click();
+    await expect.poll(() => page.evaluate(async () => (await window.setup.state()).keyStored)).toBe(true);
+    await expect.poll(() => page.evaluate(async () => (await window.setup.state()).settings.mode)).toBe("cloud");
+    expect(JSON.parse(readFileSync(join(directory, "providers.json"), "utf8")).settings.mode).toBe("cloud");
+    await page.evaluate(() => window.setup.selectCompanionTarget("chrome"));
+    await page.evaluate(() => window.setup.talkFromCompanion());
+    expect((await companion.evaluate(() => window.companion.state())).message).toBe("Connect Latham's browser extension in Settings.");
+    await companion.locator("#notice").evaluate(element => element.classList.remove("visible"));
+    await page.evaluate(() => window.setup.talkFromCompanion());
+    await expect(companion.locator("#notice")).toHaveClass(/visible/);
+  } finally { await app.close(); }
+});
+
 test("real native messaging host pairs an MV3 worker, starts paused, executes deterministic tabs, reconnects without replay", async () => {
   test.setTimeout(60000);
   mkdirSync(".test-artifacts", { recursive: true });
@@ -67,7 +93,7 @@ test("microphone capture is gated, buffers are bounded and Stop cancels a real c
     });
     const talk = page.getByRole("button", { name: "Hold to talk", exact: true }); await talk.scrollIntoViewIfNeeded();
     await expect.poll(() => app.evaluate(({ BrowserWindow }) => {
-      const fixture = BrowserWindow.getAllWindows()[0]!.contentView.children.find(child => "webContents" in child && (child as Electron.WebContentsView).webContents.getURL() === "latham://fixture/index.html");
+      const fixture = BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.contentView.children.find(child => "webContents" in child && (child as Electron.WebContentsView).webContents.getURL() === "latham://fixture/index.html");
       return fixture?.getBounds().height;
     })).toBe(0);
     const bounds = await talk.boundingBox(); expect(bounds).not.toBeNull(); await page.mouse.move(bounds!.x + 20, bounds!.y + 15); await page.mouse.down();

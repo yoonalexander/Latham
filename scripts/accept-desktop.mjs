@@ -44,7 +44,7 @@ try {
     await desk.evaluate(settings => window.setup.save(settings), { ...settings, mode, whisperExecutable: join(root, "local-ai/whisper/Release/whisper-cli.exe"), whisperModel: join(root, "local-ai/ggml-base.en.bin") });
     if (mode === "cloud") await desk.evaluate(() => window.setup.importEnvironmentKey());
     await prepare(); const audio = pcm(join(root, "speech-corpus/02.wav"));
-    const controllerFocused = await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.show(); window.focus(); return window.isFocused(); });
+    const controllerFocused = await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html"); window.show(); window.focus(); return window.isFocused(); });
     assert.equal(controllerFocused, true, "Latham must own foreground focus for the reviewed transcript insertion check.");
     const started = performance.now(); await desk.evaluate(async audio => { const id = await window.setup.beginTurn(); await window.setup.finishTurn(id, new Uint8Array(audio).buffer); }, audio);
     const speech = await desk.evaluate(() => window.setup.state());

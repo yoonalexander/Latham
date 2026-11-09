@@ -19,6 +19,11 @@ const bridge: DesktopBridge = {
 };
 contextBridge.exposeInMainWorld("latham", bridge);
 const setup: SetupBridge = {
+  voiceFrame: (id, sequence, pcm) => ipcRenderer.send("setup:voice-frame", id, sequence, pcm),
+  rendererReady: () => ipcRenderer.invoke("setup:ready"),
+  computerConfigure: options => ipcRenderer.invoke("setup:computer-configure", options), computerDisable: () => ipcRenderer.invoke("setup:computer-disable"), computerRun: goal => ipcRenderer.invoke("setup:computer-run", goal), computerReview: () => ipcRenderer.invoke("setup:computer-review"), computerReconcile: () => ipcRenderer.invoke("setup:computer-reconcile"), computerUnblock: origin => ipcRenderer.invoke("setup:computer-unblock", origin), selectCompanionTarget: target => ipcRenderer.invoke("setup:companion-target", target),
+  showCompanion: () => ipcRenderer.invoke("setup:companion"),
+  talkFromCompanion: () => ipcRenderer.invoke("setup:companion-talk"),
   chooseBrowser: browser => ipcRenderer.invoke("setup:choose-browser", browser), addEvaluation: trial => ipcRenderer.invoke("setup:evaluation-add", trial), clearEvaluation: () => ipcRenderer.invoke("setup:evaluation-clear"),
   managedSignIn: input => ipcRenderer.invoke("setup:managed-sign-in", input), managedAccount: operation => ipcRenderer.invoke("setup:managed-account", operation),
   state: () => ipcRenderer.invoke("setup:state"), save: value => ipcRenderer.invoke("setup:save", value),

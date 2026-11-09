@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
 import { record } from "../../../../packages/contracts/src/index";
-export type DetectorRole = "stop" | "wake";
-export type DetectorEvent = { kind: "ready" | "match" | "failed" };
+export type DetectorRole = "stop" | "wake" | "approve" | "preview";
+export type DetectorEvent = { kind: "ready" | "match" | "failed" | "partial"; text?: string; audioStartMs?: number; audioEndMs?: number };
 export interface Detector { push(bytes: Buffer): void; close(): void; }
 export type DetectorFactory = (role: DetectorRole, receive: (event: DetectorEvent) => void) => Detector;
-export function localDetector(executable: string): DetectorFactory {
+export function localDetector(executable: string, previewLanguage: () => string = () => "en"): DetectorFactory {
   return (role, receive) => {
-    const child = spawn(executable, [role], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(executable, role === "preview" ? [role, previewLanguage()] : [role], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
     let closed = false, buffer = "", lastHealth = performance.now(), fed = 0, processed = 0;
     const fail = (): void => { if (!closed) { receive({ kind: "failed" }); close(); } };
     const timer = setInterval(() => { if (performance.now() - lastHealth > 3000 || fed / 32 - processed > 5000) fail(); }, 250);
@@ -17,9 +17,15 @@ export function localDetector(executable: string): DetectorFactory {
         const line = buffer.slice(0, end); buffer = buffer.slice(end + 1);
         try {
           const value: unknown = JSON.parse(line);
-          if (!record(value) || value.role !== role || !["ready", "match", "health"].includes(String(value.kind))) { fail(); return; }
+          if (!record(value) || value.role !== role || !["ready", "match", "health", "partial"].includes(String(value.kind))) { fail(); return; }
+          if (value.kind === "partial") { if (role !== "preview" || typeof value.text !== "string" || value.text.length > 2000 || /[\x00-\x1f]/.test(value.text)) { fail(); return; } receive({ kind: "partial", text: value.text }); continue; }
           if (value.kind === "health") { if (typeof value.processedMs !== "number" || !Number.isFinite(value.processedMs) || value.processedMs < 0) { fail(); return; } lastHealth = performance.now(); processed = value.processedMs; }
-          else if (value.kind === "match") { if (typeof value.confidence !== "number" || value.confidence < (role === "stop" ? 0.55 : 0.75) || value.confidence > 1) { fail(); return; } receive({ kind: "match" }); }
+          else if (value.kind === "match") {
+            if (role === "preview") { fail(); return; }
+            if (typeof value.confidence !== "number" || value.confidence < (role === "stop" ? 0.55 : role === "approve" ? 0.85 : 0.75) || value.confidence > 1) { fail(); return; }
+            if (role === "approve") { if (typeof value.audioStartMs !== "number" || typeof value.audioEndMs !== "number" || !Number.isFinite(value.audioStartMs) || !Number.isFinite(value.audioEndMs) || value.audioStartMs < 0 || value.audioEndMs < value.audioStartMs || value.audioEndMs > fed / 32 + 1) { fail(); return; } receive({ kind: "match", audioStartMs: value.audioStartMs, audioEndMs: value.audioEndMs }); }
+            else receive({ kind: "match" });
+          }
           else receive({ kind: "ready" });
         } catch { fail(); return; }
       }

@@ -1,5 +1,359 @@
 # Evaluation and acceptance
 
+## Gemini live speech instead of split recognizers — November 2, 2026
+
+The owner reported an incorrect Windows caption (“were no hard” for “open
+Notepad”) that was replaced by the correct final transcript about 15 seconds
+later. Desktop Gemini mode previously combined local provisional dictation with
+a separate post-release batch request. It now uses one main-owned Google
+`gemini-3.5-transcribe-live` stream for interim and committed final text.
+Language/vocabulary hints are sent as recognition data; no phrase substitutions
+or forced command guesses were added. Interim text never executes. Local and
+managed modes retain their existing Windows preview/final-provider routes.
+
+Live checks with the supplied development key and synthetic Windows Zira audio:
+
+| Sample | First text from stream start | Final after client speech-end | Result |
+|---|---:|---:|---|
+| “open notepad” | 983 ms | 211 ms | “Open Notepad.”; interim arrived before speech ended |
+| Longer Notepad sentence | 641 ms | 236 ms | Correct sentence; interim arrived before speech ended |
+| Repeat through opt-in maintained live test | 923 ms | 263 ms | Correct Notepad phrase; eight updates, before speech ended |
+
+These are individual network/synthetic measurements, not human-microphone
+accuracy, p95 latency or a universal speed guarantee. A batch baseline probe did
+not return a usable result; no measured batch/live speed ratio is claimed.
+
+- `npm run check` passes type checking, **154 unit/security tests**, and both
+  JavaScript/native builds. New cases cover bounded audio/setup/backpressure,
+  provider errors, connection/final deadlines, committed-only completion,
+  cancelled/late finals, one shared recognizer, and missing-frame completion
+  for the direct recording API. Final captions cannot be replaced by late interim text.
+- Both changed Electron capture flows pass with real synthetic getUserMedia
+  input and an explicit WebSocket fixture: interim text appears while recording,
+  does not act, one connection supplies the final, there is no second batch
+  transcription request, execution occurs after release, and Stop/hide discards
+  late replies. These fixtures do not establish live-provider accuracy.
+- The maintained live-provider case passes using `LATHAM_LIVE_GEMINI=1` and
+  synthetic audio only. Default diagnostics contain no personal audio, transcript,
+  key, socket URL or raw provider exception. No npm package or model was downloaded.
+
+Evidence: `.test-artifacts/live-speech-client-evidence.json`,
+`gemini-live-native.json`, `gemini-live-companion-results.json` and
+`gemini-live-provider-results.json`. Temporary probe source was removed after
+verification; the maintained opt-in test is in `computer-native.spec.ts`.
+Physical voice/accent/noise, service availability for other keys and packaged
+acceptance remain open. Google protocol/model and free-tier eligibility were
+checked against [live transcription](https://ai.google.dev/gemini-api/docs/live-api/live-transcribe)
+and [pricing](https://ai.google.dev/gemini-api/docs/pricing).
+
+## Clear recovery guidance — November 2, 2026
+
+The owner encountered a persisted uncertain-task block after accepting the
+agreement. Read-only metadata confirmed agreement accepted and access enabled,
+with `uncertain: true`; no task history was read or inferred. The companion now
+shows the exact Settings path and the matching **I've checked — continue** control.
+That control is in a recovery card at the top of Universal assistant, explains
+checking the prior app result, and stays disabled until the worker has stopped.
+Acknowledgement resets the visible phase/status to Ready without replaying input.
+
+Type checking, the JavaScript build, all 19 controller cases and two targeted
+Electron cases pass. The UI case starts with persisted uncertainty, verifies no
+idle microphone, exact guidance and caption bounds, leaves the saved block in
+place until the explicit click, then verifies Ready, saved uncertainty cleared,
+and zero native action/observation worker calls. Screenshots were inspected:
+`.test-artifacts/companion-recovery-guide.png` and `computer-recovery-card.png`.
+The report is `recovery-guidance-results.json`. The real user's recovery state
+was not cleared on their behalf.
+
+Verification initially encountered a full drive (ENOSPC), including a failed
+fixture copy and state-write-dependent test failure. Closed generated test
+profiles under the workspace were removed after checking paths and active
+processes, freeing approximately 289 MB; rebuild and targeted tests then pass.
+The user's profile, keys, models and documents were outside that cleanup.
+
+## One-time setup and remembered universal access — November 2, 2026
+
+The owner chose one agreement during setup rather than reapplying session consent
+after each launch. First run now opens Settings with Latham's terms/permissions
+and an unchecked agreement box. Universal access, window images and browser
+inclusion are selected by default and adjustable before acceptance. After
+**Agree & enable Latham**, version-2 computer.json stores the agreement version,
+chosen scopes/provider, disable state and existing denial/uncertainty metadata.
+Returning launches show only the companion. No task, observation or microphone
+starts just because access is remembered. The current portable preview uses
+first-run setup; there is no separate installer wizard in this change.
+
+- Type checking and **147 unit/security tests** pass. New cases cover restored
+  scopes/provider, persisted disable and denials, no constructor observation,
+  legacy state requiring the agreement, malformed/future agreement data, and
+  uncertain effects staying blocked until explicit inspection.
+- JavaScript and native builds pass. The first native build hit the retiring
+  preview's locked Ctrl-helper executable; rebuilding after its exit passes.
+- **14 Electron checks pass** across the targeted onboarding/Settings run (four)
+  and the remaining companion/setup run (ten). The new onboarding case verifies
+  the unchecked agreement gate, default scopes, no idle capture, accepted UI,
+  restart without Settings/reconsent, retained Notepad denial, and disable after
+  another restart. Existing cursor/motion, live/final captions, microphone-owner,
+  Gemini-save and extension checks pass. The plain hidden/normal-launch Settings
+  regression remains covered with an explicitly returning-user fixture.
+- Agreement and saved-access screenshots were inspected. Tests use isolated
+  profiles and synthetic audio; no real user's agreement is fabricated and no
+  new live-provider, physical microphone or packaged-installer check is claimed.
+
+Reports: `.test-artifacts/remembered-access-results.json` and
+`remembered-access-companion-results.json`. Screenshots:
+`computer-first-run-agreement.png` and `computer-remembered-access.png`.
+
+## Settings hidden-launch regression — November 2, 2026
+
+The first-show failure is reproducible without a tray menu or Playwright's Electron
+debugger. A plain Electron child using the development launcher's `windowsHide:
+true` produces `{ first: { visible: false, rendered: true }, secondVisible: true }`.
+The same probe with only `windowsHide` changed to false shows the first window.
+With a hidden launch retained, changing Settings to `showInactive()` followed by
+`focus()` also shows the first window. This isolates the Windows startup/show path;
+React readiness, tray teardown and resizing do not explain the failure.
+
+The development launcher no longer supplies a hidden GUI startup state. Settings
+uses the inactive-show path followed by explicit focus so that a hidden external
+launcher also works. Startup still shows only the companion, because Settings is
+created with `show: false`. Windows can override the first native show request
+using the launcher's startup information; see [Microsoft's ShowWindow contract](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow).
+
+The plain-process regression failed before this change with first visibility and
+post-click visibility false, while rendering and second visibility were true.
+It now checks both hidden and normal launches, including first visibility,
+rendered content, visibility after a click, close/reopen and hidden startup. All
+four targeted Settings tests pass. Report: `.test-artifacts/settings-native-show-results.json`.
+The plain process intentionally avoids `_electron.launch`, whose startup path
+did not reproduce the production failure in the earlier tests.
+The final plain-process regression also passes three consecutive repetitions
+(six cold process launches across the two startup flags), retained in
+`settings-plain-repeat-results.json`. Type checking, all 145 unit tests and the
+full desktop/native build pass. One earlier broad check hit the existing
+intermittent `computer_operation_failed` controller-test failure; the serial
+rerun passes. Physical native-menu verification of this final fix remains a
+separate check; the two earlier user retries were of the unsuccessful fixes.
+The keyboard/Escape/display-recovery/restart compatibility case passes as well.
+Temporary diagnostic bootstrap scripts were removed before returning to the
+normal development launcher; the ignored metadata reports remain as evidence.
+
+## Settings first-show geometry — November 2, 2026
+
+The owner reproduced the blank first window after the earlier readiness fix.
+A temporary metadata-only trace on the actual tray path showed React loaded
+(356 DOM elements) on both attempts. On the first attempt, the show event and
+subsequent renderer check still reported the window hidden. Clicking the blank
+surface produced no application close/hide call; the second tray request showed
+the actual window normally. This disproves renderer readiness as a complete fix.
+
+Window geometry recovery was running synchronously inside the native show event.
+The new regression failed with `show:begin, minimum, bounds, show:end`. Geometry
+recovery now happens before showing/restoring Settings; the show event no longer
+changes minimum size or bounds. Display-change recovery is retained. All three
+Settings tests pass, as do type checking, the JavaScript build and all 145 unit
+tests. The owner then confirmed that this geometry-only change still opened
+blank first and worked second. It is not the root-cause fix; the hidden-launch
+regression above supersedes that hypothesis.
+
+The ignored metadata traces are `settings-native-before.jsonl` and
+`settings-native-events.jsonl`; the test report is `settings-show-order-results.json`.
+
+## Compact companion confirmation — November 2, 2026
+
+The universal route now runs standalone Notepad/Calculator launches and exact
+single-control commands directly. Longer tasks use one confirmation beside the
+companion; image-coordinate clicks always ask separately. The separate review
+BrowserWindow, renderer and preload were removed. Legacy adapters retain their
+own policies.
+
+- `npm run check` passes type checking, **145 unit/security tests** and the build.
+  New policy cases cover direct launches, exact/unique target and payload matching,
+  unapproved extra model steps, one task confirmation across bounded steps,
+  separate coordinate confirmation, denial, Stop and uncertain launch outcomes.
+- The real Electron/native Notepad launch passes without a provider key, window
+  observation or confirmation. Only Settings and the companion windows exist.
+- A controlled actual native field replacement passes directly. An earlier
+  controlled Electron two-step edit also passed with one companion confirmation.
+  Later native reruns were blocked by Windows refusing foreground focus; they
+  are reported as failed focus checks, not counted as additional acceptance.
+- The deterministic Electron bubble test uses explicit synthetic model and worker
+  responses. It passes three repeated runs: one Continue covers two steps, the
+  bubble stays fixed as cursor coordinates change, current-question mouse
+  interaction returns to click-through after completion, expired/noncurrent
+  confirmation/image/interaction calls fail, an image click shows a marked point,
+  and Cancel clears the image/buttons without changing the field. This establishes
+  UI/controller wiring, not real native coordinate-click acceptance.
+- All **11 companion/setup integration cases** pass: first Settings open,
+  cursor bounds/smooth motion, Ctrl helper, API isolation, capture ownership,
+  live/final captions, measured microphone bars, provider settings and extension
+  regressions. Task and point bubble screenshots were visually inspected.
+
+Screenshots are `.test-artifacts/phase10-companion-confirmation.png` and
+`phase10-companion-point.png`. The current bubble report is retained as
+`companion-confirmation-results.json`. No new live Gemini call, physical
+microphone/hover-click study or packaged-build acceptance was performed. Phase
+10D and physical mixed-DPI/app coverage remain open.
+
+## Live speech captions — November 1, 2026
+
+The companion and Settings voice test now display provisional local dictation
+during active speech, then the selected final provider's words. The caption stays
+through final transcription and expires eight seconds after a final; explicit
+Stop/new activation clears it. The preview neither dispatches nor inserts text.
+
+- `npm run check` passes **142 unit/security tests**, type checking and the build.
+  Tests cover preview lifecycle/generation, late callbacks, final replacement,
+  expiry, failure isolation, wake-idle exclusion and bounded manual-frame routing.
+- The actual Windows dictation worker passes with synthetic English speech:
+  **12 provisional updates** arrive before speech input finishes. The final
+  encoding-aware worker and the independent approval recognizer both pass
+  (two native cases, 13.4 seconds). This is not a human recognition/latency study.
+- **11 companion/setup cases pass**, including actual getUserMedia capture with
+  synthetic spoken audio. Text appears while capture is active, no provisional
+  words act, exactly one final-provider request occurs, the final words replace
+  the preview and only that final command executes. Stop clears the caption.
+  Existing first-Settings, cursor, silence/waveform, capture-owner, provider-save
+  and extension regressions pass in the same targeted run.
+- The small caption was visually inspected. A four-DIP horizontal viewport offset
+  was corrected to contain its right edge while preserving the fixed window size
+  and above/below animation. The integration test checks caption bounds.
+
+Evidence: `.test-artifacts/live-preview-native.json`,
+`live-preview-regressions.json`, `live-preview-companion-results.json`,
+`companion-live-words.png` and `companion-final-words.png`. Final-provider responses
+in the UI test are mocked; no additional live Gemini/model acceptance is claimed.
+Native preview uses installed System.Speech dictation with adaptation disabled,
+not Gemini Live or the planned Handy backend. Missing/unsupported language engines
+show unavailable and do not block final ASR. Physical microphone accuracy, other
+installed languages, device/resource comparisons and packaged acceptance remain
+separate checks.
+
+## First Settings open — November 1, 2026
+
+The owner reported a blank window on the first Settings attempt after restart.
+An isolated test using the actual tray Settings callback reproduces the startup
+blank-window race by delaying only renderer.js: the original handler showed the
+window before the UI existed. Settings now waits for the guarded renderer-mounted
+notification and defers show/focus until after the tray callback returns.
+
+The delayed-startup regression passes, as does the full 136-test/type/build check.
+All 10 targeted companion/setup integration cases pass, including the two new
+first-open cases, native Ctrl helper, motion, capture and extension setup. The
+report is `.test-artifacts/settings-first-open-results.json`.
+A normal cold-start test verifies the first tray Settings callback displays
+content, does not show synchronously inside that callback, keeps the fixture view
+at zero size and stays open when its heading is clicked. These tests exercise
+the real menu callback and settings renderer, but cannot independently establish
+the reported physical native-menu blank/dismiss behavior: native UI inspection
+is unavailable in this session. The owner subsequently confirmed that the blank
+surface was the full-size Latham Settings window, matching the guarded window
+path. Physical confirmation of the rebuilt first-open behavior remains pending.
+
+## Phase 10 universal Windows implementation — November 1, 2026
+
+**Direct-launch correction:** the owner confirmed physical hold-Ctrl capture
+and session consent, then reported that opening Notepad failed with
+`computer_tree_limit`. A controller regression reproduced the exact error:
+every goal observed the current window before considering a launch. Exact
+standalone Notepad/Calculator requests now use the existing fixed app allowlist
+without scanning that unrelated window or invoking reasoning. The scan limits
+and screenshot protections remain unchanged. Oversized ordinary-task scans now
+produce a plain-language message. Physical goal completion still needs the owner
+to retry after the rebuilt preview restarts.
+
+The corrected check passes **136 unit/security tests**, type checking and the
+build. A real native test passes Notepad launch/window verification and rejects
+both an explicit Notepad denial and an unsupported PowerShell request without
+reading accessibility content or capturing the screen. Notepad is left open;
+tests never terminate a process that could contain the owner's documents.
+The real Electron direct-launch approval flow also passes with no provider key
+stored, alongside the existing observed native-edit regression (two cases,
+19.1 seconds). The follow-up report is
+`.test-artifacts/phase10-launch-followup.json`.
+
+[Universal desktop setup](universal-desktop.md) defines the implementation preview,
+scope and open 10D gate. This development build has not replaced the 0.9 release
+ZIPs. Evidence is kept separate from the older narrow-adapter milestones below.
+
+- `npm run check` passes type checking, **133 unit/security tests** and the
+  Electron/native build. New tests cover consent-off startup, strict action
+  grounding, one-use/expired approvals, changed observations, Stop and late
+  providers, persistent uncertainty, revocation propagation, privileged URI
+  blocking, local-model/vision restrictions and proposal-bound approval audio.
+- Five targeted native tests exercise the actual en-US approval recognizer with
+  synthetic speech, the actual Windows observation/edit worker, isolated Chrome
+  without an extension, live Gemini on a synthetic window, and the actual Electron
+  review/focus-restoration/edit/verification path. The live checks use only
+  synthetic content and the existing model/key; no personal desktop is sent.
+- Eight companion/setup regressions pass, covering real synthetic capture,
+  media ownership, cursor bounds/motion, the native Ctrl helper, Gemini saving
+  and the optional native-messaging extension route. These are distinct runs,
+  not a new green aggregate of every historical browser/native test.
+- The final focused browser revocation check passes. A hands-free follow-up
+  exposed an inaccessible exact selector name after adding the universal option;
+  Command app now has an explicit accessible name. The corrected synthetic
+  capture/disconnect check passes in 15.9 seconds, separately from the first failed
+  selector attempt. It confirms the optional legacy Chrome route still works.
+- Visual inspection caught a DPI-unaware PrintWindow mask being placed using
+  physical UIA coordinates. Rendering dimensions now follow the target's DPI
+  context, and a pixel regression checks the actual synthetic password region.
+  The corrected image was inspected. This proves the controlled current-display
+  mapping, not every custom control or physical mixed-DPI configuration.
+- Chrome's delayed tab-memory label correctly invalidated an early observation;
+  acceptance now waits for startup settlement before observing. Its asynchronous
+  ValuePattern update required bounded readback polling. No stale-input guard
+  was weakened. Dynamic real windows can still cause conservative abstentions.
+- Initial Electron acceptance could not activate the fixture from a background
+  process. Test setup now selects its own known synthetic window through the
+  same normal restoration worker used after review. The reviewed action passes;
+  unrelated foreground changes and an OS focus refusal remain blockers.
+
+The final five-test native run passes in 53.5 seconds. Ignored evidence includes
+`.test-artifacts/phase10-native-results.json`, `phase10-handsfree-followup.json`,
+`phase10-window-mask.png`, `phase10-chrome-mask.png` and `phase10-action-review.png`.
+Live tests disable retained execution traces and import keys inside main, rather
+than exposing a real key through a recorded renderer call. Disposable completed
+test profiles are cleaned when disk space is tight; release ZIPs/models and the
+real user profile are retained.
+
+**Still open:** physical Ctrl/microphone and repeated hands-free approval/Stop
+for this new route; unrelated real native apps and multi-step cross-app goals;
+diverse coordinate, scroll, key and TextPattern editor acceptance; local Ollama
+reasoning/vision on actual hardware; physical mixed-DPI/multi-monitor behavior;
+and a new packaged release. Existing narrow-route voice acceptance does not
+close these gates. No every-app compatibility or authenticated-speaker claim is made.
+
+## Cursor companion — November 1, 2026
+
+The default UI now follows the cursor with an independent three-bar glyph and
+separate settings. [Companion evidence](companion.md#implementation-and-evidence)
+records the 112-test build/check and eleven passing targeted Electron/browser cases,
+including actual capture from a synthetic device, one verified browser action,
+animations, media-owner isolation, Stop, hide and late replies. Human microphone,
+physical display and new packaged-release acceptance remain separate.
+
+Ctrl push-to-talk adds release-only transcription and a native gesture helper.
+The full check passes 121 tests; the helper's real hook installation, health
+and parent-pipe shutdown pass. Existing hands-free, companion capture and
+cursor-corner regressions pass. Physical Ctrl/human speech acceptance remains
+distinct from deterministic gesture/audio tests. See the companion guide.
+
+Smooth side switching passes the 121-test build/check and five companion
+integration cases. Frame samples cover intermediate movement, interrupted
+reversal, boundary jitter, reduced motion and settled corner proximity; the
+same run checks native Ctrl helper readiness, idle media denial, microphone
+lifecycle and verified single-command execution with synthetic audio. Native
+size stability remains checked. Physical multi-display motion remains open.
+
+Gemini setup repair reproduces and fixes the UI case where storing a key left
+the saved route at local. The regression checks persisted cloud mode, a specific
+missing-browser message and repeated failure feedback. A separate real-profile
+check preserves the stored DPAPI key, explicitly saves the intended cloud route
+and passes a fixed Search/Cancel Gemini decision fixture, without microphone or
+website data. That profile still has no browser connection or approved sites;
+successful model authentication does not imply browser or physical-key acceptance.
+
 ## Phase 9 Windows evidence — November 1, 2026
 
 The owner selected **Windows only for now; keep other platform gates open**.

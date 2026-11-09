@@ -23,5 +23,5 @@ export function browserPath(browser: BrowserId): string | undefined {
 }
 export function launchBrowser(browser: BrowserId): void {
   const path = browserPath(browser); if (!path) throw new Error(`${browsers[browser]}_not_installed`);
-  const child = spawn(path, ["--new-window", browser === "edge" ? "edge://newtab/" : "chrome://newtab/"], { windowsHide: true, detached: true, stdio: "ignore" }); child.on("error", () => {}); child.unref();
+  const child = spawn(path, ["--new-window", browser === "edge" ? "edge://newtab/" : "chrome://newtab/"], { windowsHide: false, detached: true, stdio: "ignore" }); child.on("error", () => {}); child.unref();
 }

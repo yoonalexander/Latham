@@ -40,10 +40,10 @@ test("keyboard navigation, Escape, display recovery and explicit local task eval
     await page.keyboard.press("Enter"); await expect(page.locator("#assistant-setup")).toBeFocused(); expect(page.url()).toBe("latham://app/index.html");
     await page.evaluate(() => window.setup.beginTurn()); await page.keyboard.press("Escape"); expect((await page.evaluate(() => window.setup.state())).voice).toBe("idle");
     await page.evaluate(() => window.setup.beginTurn());
-    await app.evaluate(({ screen, BrowserWindow }) => { BrowserWindow.getAllWindows()[0]!.setBounds({ x: -15000, y: -15000, width: 900, height: 600 }); screen.emit("display-removed", {}, screen.getPrimaryDisplay()); });
+    await app.evaluate(({ screen, BrowserWindow }) => { BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.setBounds({ x: -15000, y: -15000, width: 900, height: 600 }); screen.emit("display-removed", {}, screen.getPrimaryDisplay()); });
     expect((await page.evaluate(() => window.setup.state())).voice).toBe("idle");
-    expect(await app.evaluate(({ screen, BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0]!.getBounds(), area = screen.getDisplayMatching(bounds).workArea; return bounds.x >= area.x && bounds.y >= area.y && bounds.x + bounds.width <= area.x + area.width && bounds.y + bounds.height <= area.y + area.height; })).toBe(true);
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(680, 520));
+    expect(await app.evaluate(({ screen, BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.getBounds(), area = screen.getDisplayMatching(bounds).workArea; return bounds.x >= area.x && bounds.y >= area.y && bounds.x + bounds.width <= area.x + area.width && bounds.y + bounds.height <= area.y + area.height; })).toBe(true);
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.setSize(680, 520));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const panel = page.getByRole("region", { name: "Compatibility and evaluation", exact: true });
     await panel.getByText("Record a task evaluation on this device", { exact: true }).click();

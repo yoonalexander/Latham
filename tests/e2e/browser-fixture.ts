@@ -1,4 +1,4 @@
-import { expect, _electron, chromium, type Page, type BrowserContext } from "@playwright/test";
+import { expect, _electron, chromium, type Page, type BrowserContext, type ElectronApplication } from "@playwright/test";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, lstatSync, existsSync } from "node:fs";
 import { resolve, join, sep } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -43,8 +43,33 @@ export async function setup(imageGrant = true, allSites = false, browser: "chrom
   await expect.poll(() => desk.evaluate(async allSites => (await window.setup.state()).sites.filter((_, index) => allSites || index < 2).every(site => site.effective), allSites)).toBe(true);
   const page = await context.newPage(); await page.goto("https://www.google.com/");
   await desk.evaluate(() => window.setup.chromeResume());
+  await desk.evaluate(() => window.setup.selectCompanionTarget("chrome"));
+  await expect.poll(() => desk.evaluate(async () => (await window.setup.state()).chromeFenceConfirmed)).toBe(true);
+  await desk.evaluate(() => window.setup.chromeResume());
   return { desk, page, context, app, directory, profile, close };
   } catch (error) { await close().catch(() => {}); throw error; }
 }
 export async function run(desk: Page, command: string): Promise<void> { await desk.evaluate(command => window.setup.chromeRun(command), command); }
 export async function verified(desk: Page): Promise<void> { const result = (await desk.evaluate(() => window.setup.state())).page.last; expect(result?.outcome, result?.reason).toBe("verified"); }
+
+export async function mockLiveSpeech(app: ElectronApplication, text = "scroll down", deferred = true): Promise<void> {
+  await app.evaluate((_electron, options) => {
+    Reflect.set(globalThis, "liveSpeechConnections", 0);
+    class SyntheticSpeechSocket extends EventTarget {
+      bufferedAmount = 0; binaryType = "arraybuffer"; private captioned = false;
+      constructor(_url: string) { super(); Reflect.set(globalThis, "liveSpeechConnections", Number(Reflect.get(globalThis, "liveSpeechConnections")) + 1); queueMicrotask(() => this.dispatchEvent(new Event("open"))); }
+      send(data: string): void {
+        const value = JSON.parse(data);
+        if (value.setup) queueMicrotask(() => this.message({ setupComplete: {} }));
+        if (value.realtimeInput?.audio && !this.captioned) { this.captioned = true; this.message({ serverContent: { interimInputTranscription: { text: "open note" } } }); }
+        if (value.realtimeInput?.activityEnd) {
+          const finish = () => this.message({ serverContent: { inputTranscription: { text: options.text } } });
+          Reflect.set(globalThis, "finishLiveSpeech", finish); if (!options.deferred) queueMicrotask(finish);
+        }
+      }
+      private message(value: object): void { this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(value) })); }
+      close(): void {}
+    }
+    Reflect.set(globalThis, "WebSocket", SyntheticSpeechSocket);
+  }, { text, deferred });
+}

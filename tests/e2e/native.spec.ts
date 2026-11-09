@@ -2,6 +2,7 @@ import { test, expect, _electron, type Page } from "@playwright/test";
 import { spawn, execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { mockLiveSpeech } from "./browser-fixture";
 
 let focusFixture: (() => Promise<void>) | undefined;
 async function fixture() {
@@ -125,7 +126,7 @@ test("window movement does not redirect edits and the shared transcript inserts 
   test.setTimeout(60000); const f = await fixture(), ui = await setup();
   try {
     await ui.desk.evaluate(async () => { const state = await window.setup.state(); await window.setup.save({ ...state.settings, mode: "cloud" }); await window.setup.key("FAKE_SYNTHETIC_PROVIDER_KEY_123456"); await window.setup.desktopPermission(true, false); });
-    await ui.app.evaluate(() => { Reflect.set(globalThis, "fetch", async () => Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "native piano music" }] } }] })); });
+    await mockLiveSpeech(ui.app, "native piano music", false);
     await prepare(ui.desk); await f.send("move", { x: 200, y: 140 }); await f.send("scale"); await run(ui.desk, "inspect editor");
     await ui.desk.evaluate(async () => { const id = await window.setup.beginTurn(); const pcm = new Int16Array(16000); for (let n = 0; n < pcm.length; n++) pcm[n] = Math.sin(n * 0.1) * 3000; await window.setup.finishTurn(id, pcm.buffer); });
     expect((await ui.desk.evaluate(() => window.setup.state())).canInsertDesktopTranscript).toBe(true);

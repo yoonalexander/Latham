@@ -1,8 +1,15 @@
 # Latham Roadmap
 
-**Updated:** November 1, 2026\
-**Status:** Phases 0–7, local Phase 8 and the owner-scoped Windows Phase 9 milestone implemented for 0.9; billing disabled. Other platforms/hardware acceptance and public launch gates remain open.\
-**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.14.
+**Updated:** November 2, 2026\
+**Status:** Phases 0–9 retain their published scope; Phase 10A–10C have a working implementation preview. Phase 10D physical voice, broader native-app and display acceptance is open. Billing is disabled; other platforms and public launch remain gated.\
+**Companion specification:** [Latham_Design_Document.md](Latham_Design_Document.md), version 1.23.
+
+**Current product direction:** the owner clarified that Latham should be a
+universal voice-driven Windows assistant: observe the app/screen, use AI to
+choose an action, execute it and check the result across applications. The
+Chrome extension is optional in the new primary route. The completed narrow
+Phases 0–9 supplied the foundation; [Phase 10](docs/universal-desktop.md) adds the
+shared engine and retains its outstanding acceptance gates.
 
 Latham is an independent voice-controlled computer assistant. Start with a useful Chrome assistant on Windows, add desktop applications as the next major step, then expand coverage and capabilities. Other projects remain conceptual references; Latham is not a fork or a port of their implementations.
 
@@ -11,6 +18,15 @@ This roadmap covers the whole project, including later ambitions. It has accepta
 The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notepad editing, opt-in hands-free sessions and scoped visual thumbnail matching are implemented. [Evaluation](docs/evaluation.md) records automated boundaries/integration flows, real-site workflows, microphone insertion, native editing and recovery, remembered permissions, speech-detection limits and packaging. [Chrome setup](docs/phase2.md), [desktop setup](docs/phase3.md) and [hands-free setup](docs/phase4.md) publish exact support sets and limits. The current channel is an unsigned Windows developer preview.
 
 ## Decisions already made
+
+The primary UI is now a small cursor-following companion with short–long–short
+bars, input-driven microphone feedback and orbiting processing dots. Setup and
+advanced controls are a separate window. Each companion activation authorizes
+one command; continuous hands-free remains a separate opt-in.
+The companion also supports holding physical Ctrl to listen and releasing to
+process with the microphone off; ordinary Ctrl chords discard capture. See
+[controls, implementation and acceptance](docs/companion.md). This UI refinement
+does not change the capability/release gates below.
 
 | Decision | Delivery consequence |
 |---|---|
@@ -23,6 +39,7 @@ The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notep
 | Remember approved websites | Explicit per-site consent and optional Chrome host grants persist until revoked; observation/actions still require an active session and current scope. |
 | Latham-managed AI later | Phase 8 adds the optional hosted service/account experience. It does not block local/BYOK development. |
 | Independent implementation | Write Latham's own code and assets; select normal dependencies under suitable licenses and record their provenance. |
+| Universal Windows computer use is the primary target | Phase 10 adds a generic accessibility/vision and native-action loop; a browser extension is optional for that mode. The Chrome-first rows above record the delivered foundation. |
 
 ## Milestone sequence
 
@@ -38,8 +55,9 @@ The fixture foundation, voice/providers, reviewed Chrome workflows, scoped Notep
 | 7 | Bounded workflows and reviewed consequential actions | Proven observation, execution, scope, and cancellation |
 | 8 | Optional Latham-managed AI and commercial delivery | Stable core plus a separately reviewed service design |
 | 9 | Broader platform reach and ongoing compatibility | Stable Windows/browser/desktop contracts |
+| 10 | Universal Windows AI computer-use loop, independent of browser extension installation | Reuse voice/Stop foundations; add explicit desktop scope, generic observation/execution, model reasoning and cross-app acceptance |
 
-Phases 0–7 plus local Phase 8 establish the current preview. Later phases are planned capability tracks; their dependencies, not their numbers alone, determine what can proceed independently. Managed AI is optional and not a prerequisite for broader coverage or other platforms. Preserve desktop applications as the next major step after Chrome rather than letting vision, hosted accounts, or universal browsing delay it.
+Phases 0–9 establish the narrow current preview within their published acceptance limits. Phase 10 owns the missing universal Windows computer-use capability. The Chrome-first ordering records delivery history and is not a browser-extension prerequisite for the new route. Managed AI remains optional; public hosting and other platforms need not delay Windows computer use.
 
 ## Phase 0 — Foundation and evaluation harness
 
@@ -206,6 +224,23 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 **Gate:** each new platform/browser has its own tested support claims. A shared TypeScript core is not evidence that its native controls or permissions behave identically. Continue revising compatibility targets as evidence changes.
 
+## Phase 10 — Universal Windows computer use
+
+**Status: implementation preview; acceptance incomplete.** The default companion
+route now uses the shared Windows engine independently of the extension.
+[The Phase 10 guide](docs/universal-desktop.md) records its consent, bounded
+operations, provider checks, actual evidence and remaining acceptance gates.
+
+- [x] 10A: Activate independently of the extension with one-time terms/permissions setup. Remember universal access, chosen image/browser scopes, provider and disable state across restarts; keep idle capture off and enforce app/site blocks and uncertain-result recovery.
+- [x] Companion speech: use one Gemini live transcription stream for real interim and final words in user-key mode; retain explicit activation, release-before-dispatch, Stop, local-only isolation and bounded failure. Physical microphone/accent/noise acceptance remains in 10D.
+- [x] 10B: Implement generic Windows accessibility observation and bounded native click/type/scroll/key execution with fresh target, input and geometry checks. Controlled native and extension-free Chrome checks pass; wider app/input coverage remains in 10D.
+- [x] 10C: Implement the bounded AI observe/act/check loop, clarification, direct simple commands, one compact companion confirmation for longer tasks, separate coordinate-click confirmation, independent Stop and explicit uncertainty recovery. Controlled Gemini/native evidence is recorded in the evaluation guide; broader multi-step/cross-app acceptance remains in 10D.
+- [ ] 10D: Accept real voice, multiple unrelated native apps, Chrome without the extension, cancellation, privacy and actual display configurations where available.
+
+Keep the existing Chrome/Notepad paths as separate implemented adapters. Do not
+remove their guards as a substitute for building the new backend. Do not claim
+every app works or that a Gemini text/ASR key check validates computer-use models.
+
 ## Work that accompanies every milestone
 
 - Keep the independent-reference policy, dependency/model provenance, and user-authority boundary intact.
@@ -217,8 +252,8 @@ The accepted set is **signed-out Google Search and YouTube search/navigation wit
 
 ## Open implementation choices
 
-The product direction above is settled. The preview selects an English/CPU local configuration and a narrow published site-task list. Proven minimum hardware, additional languages, broader visual treatment, distribution license/contribution terms, signed distribution and automatic updates still need evidence or a focused decision. These choices must not quietly change Chrome-first scope, desktop-app priority, remembered site consent, or the user-key/local access options.
+The universal Windows development route is implemented alongside the older narrow adapters. Controlled Gemini/native/Chrome acceptance does not establish every-app coverage, local-model performance or physical voice/display reliability. No paid model or cloud screen sharing is selected silently. Proven hardware, languages, distribution terms, signing and updates remain separate work. Preserve explicit denials and user-key/local choices.
 
 ## Next milestone
 
-**The Windows Phase 9 milestone is implemented.** Continue other platforms, physical hardware/language/accessibility acceptance, longitudinal user evaluation and public launch only as separately scoped follow-ups. No new phase or consequential integration is started automatically; the every-website ambition and outstanding launch gates remain explicit.
+**Finish Phase 10D acceptance.** Exercise physical voice, repeated hands-free approval/Stop, unrelated real native apps, multi-step cross-app goals and available actual display configurations using the new extension-free engine. Publish results and accept a new packaged build before calling Phase 10 complete. Other platforms and public launch remain separately gated.

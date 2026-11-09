@@ -2,6 +2,7 @@ import { cloudTranscribe, localTranscribe, selectCandidate, wav, inspectLocalMod
 import { parseProviderSettings, type SetupState, type Candidate } from "../../../../packages/contracts/src/setup";
 import { ProviderStore } from "./provider-store";
 import type { ManagedClient } from "./managed-client";
+import type { SpeechPreview } from "./speech-preview";
 
 const managedErrors = ["managed_sign_in_required", "service_cancelled", "service_busy"];
 
@@ -13,7 +14,8 @@ export class Voice {
   private turn = 0;
   private controller = new AbortController();
   private recordingTimer: ReturnType<typeof setTimeout> | undefined;
-  constructor(readonly store: ProviderStore, private changed: () => void, private managed?: ManagedClient) {}
+  private previewOwned = false; private sequence = 0; private previewSamples = 0;
+  constructor(readonly store: ProviderStore, private changed: () => void, private managed?: ManagedClient, private preview?: SpeechPreview) {}
   prepareSession(): void {
     const settings = this.store.settings;
     if (settings.mode === "local") inspectLocalModel(settings.whisperExecutable, settings.whisperModel, settings);
@@ -25,15 +27,21 @@ export class Voice {
     catch (error) { this.localModel = `Model unavailable: ${(error as Error).message}. Check the saved model/runtime and language.`; }
     this.changed();
   }
-  cancel(notify = true): void {
-    clearTimeout(this.recordingTimer); this.turn++; this.controller.abort(); this.controller = new AbortController(); this.status = "idle"; this.transcript = ""; if (notify) this.changed();
+  cancel(notify = true, clearPreview = true): void {
+    clearTimeout(this.recordingTimer); this.turn++; this.controller.abort(); this.controller = new AbortController(); this.status = "idle"; this.transcript = ""; this.previewOwned = false; if (clearPreview) this.preview?.clear(); if (notify) this.changed();
   }
   save(value: unknown): void { const settings = parseProviderSettings(value); if (settings.mode === "managed") { if (!this.managed) throw new Error("managed_sign_in_required"); this.managed.ready(); } this.cancel(); this.store.save(settings); this.error = ""; this.localModel = "Settings changed · check the saved local model."; this.notice = "Settings saved. Run the decision test and record a short speech test."; this.changed(); }
-  begin(): number {
+  begin(withPreview = true): number {
     if (this.store.settings.mode === "managed") { if (!this.managed) throw new Error("managed_sign_in_required"); this.managed.ready(); }
-    this.cancel(false); this.status = "recording"; this.error = ""; this.notice = "Release to transcribe. Nothing runs automatically.";
+    this.cancel(false, withPreview); this.status = "recording"; this.error = ""; this.notice = "Release to transcribe. Nothing runs automatically."; this.previewOwned = withPreview; this.sequence = this.previewSamples = 0; if (withPreview) this.preview?.start();
     this.recordingTimer = setTimeout(() => { this.cancel(); this.error = "recording_timeout"; this.changed(); }, 31000);
     this.changed(); return this.turn;
+  }
+  frame(id: unknown, sequence: unknown, pcm: unknown): void {
+    if (id !== this.turn || this.status !== "recording" || !this.previewOwned) return;
+    if (sequence !== this.sequence++ || !(pcm instanceof ArrayBuffer) || pcm.byteLength < 320 || pcm.byteLength > 8192 || pcm.byteLength % 2) { this.cancel(); return; }
+    this.previewSamples += pcm.byteLength / 2; if (this.previewSamples > 16000 * 30) { this.cancel(); return; }
+    this.preview?.push(Buffer.from(pcm));
   }
   async finish(id: unknown, pcm: unknown): Promise<void> {
     if (id !== this.turn || this.status !== "recording") return;
@@ -46,9 +54,10 @@ export class Voice {
       let energy = 0; const view = new DataView(pcm); for (let offset = 0; offset < bytes.length; offset += 2) energy += (view.getInt16(offset, true) / 32768) ** 2;
       if (Math.sqrt(energy / (bytes.length / 2)) < 0.003) throw new Error("no_usable_transcript");
       const settings = this.store.settings;
-      const text = settings.mode === "managed" ? await this.managedTranscribe(audio, signal) : settings.mode === "cloud" ? await cloudTranscribe(audio, this.store.key(), signal) : await localTranscribe(audio, settings.whisperExecutable, settings.whisperModel, signal, settings);
-      if (generation === this.turn && !signal.aborted) { this.transcript = text; this.notice = "Final transcript. Review it, then insert into the prepared field or use it as an app command."; }
-    } catch (error) { if (generation === this.turn) this.error = signal.aborted ? "transcription_cancelled_or_timed_out" : errors.has((error as Error).message) ? (error as Error).message : "speech_failed"; }
+      const liveResult = this.preview?.complete(bytes);
+      const text = settings.mode === "managed" ? await this.managedTranscribe(audio, signal) : settings.mode === "cloud" ? await (liveResult ?? cloudTranscribe(audio, this.store.key(), signal)) : await localTranscribe(audio, settings.whisperExecutable, settings.whisperModel, signal, settings);
+      if (generation === this.turn && !signal.aborted) { this.transcript = text; this.preview?.final(text); this.notice = "Final transcript. Review it, then insert into the prepared field or use it as an app command."; }
+    } catch (error) { if (generation === this.turn) { this.preview?.clear(); this.error = signal.aborted ? "transcription_cancelled_or_timed_out" : errors.has((error as Error).message) ? (error as Error).message : "speech_failed"; } }
     finally { if (generation === this.turn) { this.status = "idle"; this.changed(); } }
   }
   async test(): Promise<{ candidateId: string | null }> {

@@ -102,10 +102,10 @@ static class DesktopAgent {
                 Check(deskPid == controller, "invalid_controller");
                 string app = S(request, "app"); Check(app == "notepad" || (testing && app == "fixture"), "app_denied");
                 if (kind == "open") {
-                    Check(app == "notepad", "app_denied"); Fence(); dispatched = true;
-                    // The fixed app launch must not inherit the executor's stdio pipe handles.
-                    Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32\\notepad.exe")) { UseShellExecute = true });
-                    Write(Reply(id, "verified", "launch_dispatched")); continue;
+                    Check(app == "notepad", "app_denied");
+                    AppWindow.Open(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32\\notepad.exe"),
+                        window => { try { Identify(window, app, testing); return true; } catch { return false; } }, Fence, () => { dispatched = true; });
+                    Write(Reply(id, "verified", "app_window_verified")); continue;
                 }
                 if (kind == "scan") {
                     Bound = null; TargetRoot = TargetField = IntPtr.Zero; Windows.Clear(); var list = new List<object>();

@@ -1,0 +1,29 @@
+:root { color-scheme: dark; font-family: "Segoe UI", sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; user-select: none; }
+#companion { position: absolute; width: 264px; height: 136px; padding: 8px; }
+.mirrored #glyph { margin-left: auto; }
+.above { display: flex; flex-direction: column-reverse; }
+#glyph { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; gap: 4px; position: relative; filter: drop-shadow(0 1px 2px #000b) drop-shadow(0 0 1px #000); }
+#glyph i { display: block; width: 4px; height: 12px; border-radius: 8px; background: #faf7f0; transition: height 100ms ease-out, background-color 180ms, transform 180ms; }
+#glyph i:nth-child(2) { height: 24px; }
+[data-phase="listening"] #glyph i { height: 4px; background: #f2c2a4; }
+[data-phase="processing"] #glyph { animation: orbit 1s linear infinite; }
+[data-phase="processing"] #glyph i { position: absolute; left: 18px; top: 18px; height: 4px; background: #f2c2a4; transition: background-color 180ms; }
+[data-phase="processing"] #glyph i:nth-child(1) { transform: translateY(-9px); }
+[data-phase="processing"] #glyph i:nth-child(2) { transform: translate(7.8px, 4.5px); }
+[data-phase="processing"] #glyph i:nth-child(3) { transform: translate(-7.8px, 4.5px); }
+#notice { width: 246px; padding: 10px 12px; background: #222523f5; color: #f6f3ed; border: 1px solid #ffffff20; border-radius: 12px; box-shadow: 0 4px 10px #0003; opacity: 0; transform: translateY(-3px); transition: opacity 180ms, transform 180ms; }
+#notice.visible { opacity: 1; transform: translateY(0); }
+#caption { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 16px; font-weight: 600; }
+.has-transcript #caption { display: block; max-height: 40px; font-size: 14px; line-height: 20px; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
+#detail { display: block; color: #c7cbc6; font-size: 11px; line-height: 15px; margin-top: 2px; }
+.confirming #detail { max-height: 64px; overflow: auto; font-size: 12px; line-height: 16px; margin: 6px 0; user-select: text; overflow-wrap: anywhere; }
+#confirm-image { display: block; width: 220px; max-height: 102px; object-fit: contain; margin: 6px 0; }
+#confirm-buttons { display: flex; gap: 8px; margin-top: 8px; }
+#confirm-buttons[hidden], #confirm-image[hidden] { display: none; }
+#confirm-buttons button { flex: 1; min-height: 32px; border: 1px solid #ffffff40; border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 12px; color: #f6f3ed; background: #424942; cursor: pointer; }
+#confirm-buttons button:first-child { background: #f2c2a4; color: #222523; }
+#confirm-buttons button:focus-visible { outline: 2px solid #f2c2a4; outline-offset: 2px; }
+@keyframes orbit { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #glyph, #glyph i, #notice { animation: none !important; transition: none; } }

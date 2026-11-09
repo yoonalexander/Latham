@@ -11,8 +11,8 @@ import { join } from "node:path";
 afterEach(() => vi.useRealTimers());
 function fixture() {
   vi.useFakeTimers();
-  const callbacks = new Map<DetectorRole, (event: DetectorEvent) => void>(), pushes = { stop: vi.fn(), wake: vi.fn() }, closes = { stop: vi.fn(), wake: vi.fn() };
-  const hooks = { available: vi.fn(() => true), transcribe: vi.fn(async () => "scroll down"), run: vi.fn(async () => true), cancel: vi.fn(), changed: vi.fn() };
+  const callbacks = new Map<DetectorRole, (event: DetectorEvent) => void>(), pushes = { stop: vi.fn(), wake: vi.fn(), approve: vi.fn(), preview: vi.fn() }, closes = { stop: vi.fn(), wake: vi.fn(), approve: vi.fn(), preview: vi.fn() };
+  const hooks = { available: vi.fn(() => true), transcribe: vi.fn(async () => "scroll down"), run: vi.fn(async () => true), cancel: vi.fn(), changed: vi.fn(), approve: vi.fn(), approvalId: vi.fn((): string | null => null) };
   const h = new Handsfree((role, receive) => { callbacks.set(role, receive); return { push: pushes[role], close: closes[role] }; }, hooks);
   let sequence = 0;
   const frame = (voiced = false, id = h.state.id!): void => h.frame(id, sequence++, new Int16Array(2048).fill(voiced ? 2000 : 0).buffer);
@@ -71,6 +71,52 @@ test("old detector events and audio cannot stop or authorize a replacement sessi
   const f = fixture(), old = f.start(), receive = f.callbacks.get("stop")!; f.h.end(); const next = f.start();
   receive({ kind: "match" }); f.h.fail(old); f.frame(true, old); expect(f.h.state.id).toBe(next); expect(f.h.state.phase).toBe("listening"); f.h.end();
 });
+test("companion activation authorizes exactly one verified command and closes the mic and detector", async () => {
+  const f = fixture(); const id = f.h.start({ target: "chrome", wake: false }, "single");
+  f.callbacks.get("stop")!({ kind: "ready" }); f.utterance();
+  await vi.waitFor(() => expect(f.h.state.phase).toBe("off"));
+  expect(f.hooks.run).toHaveBeenCalledOnce(); expect(f.hooks.cancel).toHaveBeenCalledOnce();
+  expect(f.closes.stop).toHaveBeenCalledOnce(); expect(f.h.state.message).toBe("Command verified. Microphone off.");
+  f.frame(true, id); expect(f.hooks.run).toHaveBeenCalledOnce();
+  f.start(); f.utterance(); await vi.waitFor(() => expect(f.hooks.run).toHaveBeenCalledTimes(2));
+  expect(f.h.state.phase).toBe("listening"); f.h.end();
+});
+test("hold capture waits through silence; release closes the mic and transcribes exactly once", async () => {
+  const f = fixture(); const id = f.h.start({ target: "chrome", wake: false }, "hold"); f.callbacks.get("stop")!({ kind: "ready" });
+  f.utterance(); await Promise.resolve(); expect(f.hooks.transcribe).not.toHaveBeenCalled(); expect(f.h.capturingAudio).toBe(true);
+  f.h.release("stale"); expect(f.h.capturingAudio).toBe(true); f.h.release(id);
+  expect(f.h.capturingAudio).toBe(false); expect(f.h.state.phase).toBe("transcribing"); expect(f.closes.stop).toHaveBeenCalledOnce();
+  f.h.release(id); f.frame(true); await vi.waitFor(() => expect(f.h.state.phase).toBe("off"));
+  expect(f.hooks.transcribe).toHaveBeenCalledOnce(); expect(f.hooks.run).toHaveBeenCalledOnce();
+});
+test("release without speech discards audio; missed key release cancels at the held limit", () => {
+  const f = fixture(); const id = f.h.start({ target: "chrome", wake: false }, "hold"); f.callbacks.get("stop")!({ kind: "ready" }); f.frame(); f.h.release(id);
+  expect(f.h.state.phase).toBe("off"); expect(f.hooks.transcribe).not.toHaveBeenCalled();
+  const g = fixture(); g.h.start({ target: "chrome", wake: false }, "hold"); g.callbacks.get("stop")!({ kind: "ready" });
+  for (let i = 0; i < 16 && g.h.active; i++) { g.frame(); vi.advanceTimersByTime(1000); }
+  expect(g.h.state.phase).toBe("off"); expect(g.hooks.transcribe).not.toHaveBeenCalled();
+});
+test("released hold inference needs no audio heartbeat and Stop still fences late replies", async () => {
+  const f = fixture(); let finish!: (text: string) => void;
+  f.hooks.transcribe.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const id = f.h.start({ target: "chrome", wake: false }, "hold"); f.callbacks.get("stop")!({ kind: "ready" }); f.utterance(); f.h.release(id);
+  vi.advanceTimersByTime(4000); expect(f.h.state.phase).toBe("transcribing"); expect(f.h.capturingAudio).toBe(false);
+  f.callbacks.get("stop")!({ kind: "ready" }); expect(f.h.state.phase).toBe("transcribing");
+  f.h.end(); finish("scroll down"); await Promise.resolve(); expect(f.hooks.run).not.toHaveBeenCalled();
+});
+test("a companion turn cannot execute late transcription after Stop, or report success after cancellation", async () => {
+  for (const stage of ["transcribe", "run"] as const) {
+    const f = fixture(); let finish!: (value: never) => void;
+    if (stage === "transcribe") f.hooks.transcribe.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    else f.hooks.run.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    f.h.start({ target: "chrome", wake: false }, "single"); f.callbacks.get("stop")!({ kind: "ready" }); f.utterance();
+    await vi.waitFor(() => expect(f.h.state.phase).toBe(stage === "run" ? "executing" : "transcribing"));
+    f.callbacks.get("stop")!({ kind: "match" }); const message = f.h.state.message;
+    finish((stage === "run" ? true : "scroll down") as never); await Promise.resolve(); await Promise.resolve();
+    expect(f.h.state.phase).toBe("off"); expect(f.h.state.message).toBe(message);
+    expect(f.hooks.run).toHaveBeenCalledTimes(stage === "run" ? 1 : 0);
+  }
+});
 test("detector startup exceptions/readiness timeouts fail closed and the five-minute cap is absolute", async () => {
   const f = fixture(); const broken = new Handsfree(() => { throw Error("missing_runtime"); }, f.hooks);
   expect(() => broken.start({ target: "chrome", wake: false })).toThrow("local_detector_unavailable"); expect(broken.state.phase).toBe("off");
@@ -87,4 +133,20 @@ test("local model options migrate old settings and reject malformed resources/la
   expect(inspectLocalModel(executable, model)).toMatchObject({ bytes: 1000000, englishOnly: true, threads: 2 });
   expect(() => inspectLocalModel(executable, model, { speechLanguage: "ko", speechThreads: 2, speechVocabulary: "" })).toThrow("english_model_language_mismatch");
   writeFileSync(model, "broken"); expect(() => inspectLocalModel(executable, model)).toThrow("local_model_unavailable_or_invalid");
+});
+
+test("universal continuous approval waits for local readiness and only authorizes the current execution", async () => {
+  const f = fixture(); let finish!: (value: boolean) => void;
+  f.hooks.run.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  f.h.start({ target: "computer", wake: false }); f.callbacks.get("stop")!({ kind: "ready" });
+  expect(f.h.state.phase).toBe("starting"); f.callbacks.get("approve")!({ kind: "ready" }); expect(f.h.state.phase).toBe("listening");
+  const approve = f.callbacks.get("approve")!; approve({ kind: "match" }); expect(f.hooks.approve).not.toHaveBeenCalled();
+  f.utterance(); await vi.waitFor(() => expect(f.h.state.phase).toBe("executing"));
+  f.hooks.approvalId.mockReturnValue("first"); f.frame(); expect(f.pushes.approve).toHaveBeenCalled();
+  approve({ kind: "match", audioStartMs: 0, audioEndMs: 100 }); expect(f.hooks.approve).not.toHaveBeenCalled();
+  approve({ kind: "match", audioStartMs: 1152, audioEndMs: 1280 }); expect(f.hooks.approve).toHaveBeenCalledWith("first");
+  f.hooks.approvalId.mockReturnValue("second"); approve({ kind: "match", audioStartMs: 1152, audioEndMs: 1280 }); f.frame(); approve({ kind: "match", audioStartMs: 1152, audioEndMs: 1280 }); expect(f.hooks.approve).toHaveBeenCalledOnce();
+  f.callbacks.get("stop")!({ kind: "match" }); approve({ kind: "match" }); finish(true); await Promise.resolve();
+  expect(f.h.state.phase).toBe("off"); expect(f.hooks.approve).toHaveBeenCalledOnce(); expect(f.closes.approve).toHaveBeenCalledOnce();
+  const g = fixture(); g.h.start({ target: "computer", wake: false }, "hold"); expect(g.callbacks.has("approve")).toBe(false); g.h.end();
 });

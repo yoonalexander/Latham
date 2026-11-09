@@ -93,3 +93,41 @@ reports use Node/TypeScript and the existing Playwright runner. The installed
 Edge and isolated Chrome test runtime are measured separately; neither supplies
 cross-platform native support. Primary API references and open acceptance gates
 are recorded in [Phase 9](phase9.md).
+
+The cursor companion adds no dependency, model or runtime download. Its glyph,
+animation, window, preload and capture integration are independently authored.
+Clicky and Capri were read as interaction references; no reference implementation
+or assets are included. [Companion controls and references](companion.md) records
+the inspiration and Electron APIs used.
+
+Ctrl push-to-talk adds independently authored C# Win32 hooks and a bounded
+TypeScript gesture controller. It reuses the existing .NET Framework compiler
+and Windows Forms message loop, without a new npm package, driver or reference-app
+code. Only fixed Ctrl gesture/health states leave the helper. Microsoft API
+references and acceptance limits are recorded in [companion controls](companion.md).
+
+Phase 10 adds no npm package, model download or reference implementation. Its
+independently authored ComputerAgent uses existing Windows/.NET Framework UI
+Automation, System.Drawing, Win32 PrintWindow/DPI/input APIs and disposable-process
+termination. Gemini structured output/image input uses the existing supplied-key
+model; Ollama uses explicit loopback endpoints. jev-use informs the conceptual
+accessibility observe/act/check loop; no source, prompts or assets were copied.
+Provider/API references and unresolved hardware/local-model acceptance are in
+[universal desktop](universal-desktop.md). The English approval grammar reuses
+the installed System.Speech recognizer and synthetic Windows voices only for tests.
+
+Local/managed live captions reuse Windows System.Speech in a separate, independently authored
+dictation role and the existing bounded PCM bridge. No package, model, reference
+source or runtime download is added. Its provisional hypotheses are display-only;
+Whisper/managed final routing is unchanged. Per-instance
+acoustic adaptation is disabled without changing persistent Windows settings.
+API references, language availability and evidence are in
+[companion controls](companion.md#live-words).
+
+Gemini key mode now uses Google's `gemini-3.5-transcribe-live` hosted model and
+the runtime's built-in WebSocket implementation, with an independently authored
+bounded protocol adapter. No SDK/package/model download or reference-app source
+was added. [Official protocol](https://ai.google.dev/gemini-api/docs/live-api/live-transcribe)
+and [pricing](https://ai.google.dev/gemini-api/docs/pricing) were checked November
+2, 2026; a free-tier key passed synthetic streamed speech checks. This does not
+guarantee future availability, free access or physical-microphone accuracy.

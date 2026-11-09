@@ -7,7 +7,7 @@ using System.Speech.Recognition;
 using System.Threading;
 using System.Web.Script.Serialization;
 
-// Each process recognizes one fixed local phrase. It has no microphone or action API.
+// Separate fixed-phrase and display-only dictation workers; no microphone or action API.
 static class SpeechDetector {
     static readonly object Gate = new object();
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer();
@@ -34,19 +34,32 @@ static class SpeechDetector {
     }
     [MTAThread] static int Main(string[] args) {
         try {
-            if (args.Length != 1 || (args[0] != "stop" && args[0] != "wake")) return 1;
-            string role = args[0], phrase = role == "stop" ? "stop assistant" : "hey latham";
+            if (args.Length == 0 || (args[0] != "stop" && args[0] != "wake" && args[0] != "approve" && args[0] != "preview")) return 1;
+            string role = args[0], phrase = role == "stop" ? "stop assistant" : role == "wake" ? "hey latham" : "approve action";
+            bool preview = role == "preview"; if ((!preview && args.Length != 1) || (preview && (args.Length != 2 || !System.Text.RegularExpressions.Regex.IsMatch(args[1], "^(en|es|fr|de|it|pt|ko|ja|zh)$")))) return 1;
+            if (preview) Console.OutputEncoding = new System.Text.UTF8Encoding(false);
             RecognizerInfo info = null;
-            foreach (var candidate in SpeechRecognitionEngine.InstalledRecognizers()) if (candidate.Culture.Name == "en-US") { info = candidate; break; }
+            foreach (var candidate in SpeechRecognitionEngine.InstalledRecognizers()) if (preview ? candidate.Culture.TwoLetterISOLanguageName == args[1] : candidate.Culture.Name == "en-US") { info = candidate; break; }
             if (info == null) throw new Exception("recognizer_missing");
             using (var recognizer = new SpeechRecognitionEngine(info)) using (var audio = new Audio()) {
-                var grammar = new GrammarBuilder(phrase); grammar.Culture = CultureInfo.GetCultureInfo("en-US");
-                recognizer.LoadGrammar(new Grammar(grammar));
+                if (preview) {
+                    recognizer.UpdateRecognizerSetting("AdaptationOn", 0);
+                    recognizer.LoadGrammar(new DictationGrammar()); string committed = ""; long last = 0;
+                    Action<string, bool> caption = (text, final) => {
+                        if (!final && DateTime.UtcNow.Ticks - last < TimeSpan.TicksPerMillisecond * 80) return; last = DateTime.UtcNow.Ticks;
+                        string result = (committed + " " + text).Trim(); if (result.Length > 2000) result = result.Substring(0, 2000);
+                        if (final) committed = result; Report(new { kind = "partial", role, text = result });
+                    };
+                    recognizer.SpeechHypothesized += (sender, e) => caption(e.Result.Text, false);
+                    recognizer.SpeechRecognized += (sender, e) => caption(e.Result.Text, true);
+                } else {
+                    var grammar = new GrammarBuilder(phrase); grammar.Culture = CultureInfo.GetCultureInfo("en-US"); recognizer.LoadGrammar(new Grammar(grammar));
+                }
                 recognizer.InitialSilenceTimeout = TimeSpan.Zero; recognizer.BabbleTimeout = TimeSpan.Zero;
                 recognizer.EndSilenceTimeout = TimeSpan.FromMilliseconds(250); recognizer.EndSilenceTimeoutAmbiguous = TimeSpan.FromMilliseconds(400);
                 recognizer.SpeechRecognized += (sender, e) => {
-                    if (e.Result.Text == phrase && e.Result.Confidence >= (role == "stop" ? 0.55 : 0.75))
-                        Report(new { kind = "match", role, confidence = e.Result.Confidence, audioEndMs = (e.Result.Audio.AudioPosition + e.Result.Audio.Duration).TotalMilliseconds });
+                    if (!preview && e.Result.Text == phrase && e.Result.Confidence >= (role == "stop" ? 0.55 : role == "wake" ? 0.75 : 0.85))
+                        Report(new { kind = "match", role, confidence = e.Result.Confidence, audioStartMs = e.Result.Audio.AudioPosition.TotalMilliseconds, audioEndMs = (e.Result.Audio.AudioPosition + e.Result.Audio.Duration).TotalMilliseconds });
                 };
                 recognizer.RecognizeCompleted += (sender, e) => { Report(new { kind = "failed", role }); Environment.Exit(1); };
                 recognizer.SetInputToAudioStream(audio, new SpeechAudioFormatInfo(16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));

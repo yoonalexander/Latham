@@ -14,7 +14,7 @@ const tone = Buffer.alloc(64000); for (let at = 0; at < tone.length; at += 2) to
 samples.push({ phrase: "silence", stop: false, wake: false, condition: "silence", audio: Buffer.alloc(64000) }, { phrase: "tone", stop: false, wake: false, condition: "tone", audio: tone });
 // A digital replay is a spoofing probe, not a physical speaker/microphone test.
 samples.push({ phrase: "replayed stop assistant", stop: true, wake: false, condition: "digital_playback", audio: pcm(root + "/zira-0.wav") });
-for (const role of ["stop", "wake"]) {
+for (const role of ["stop", "wake", "approve"]) {
   const child = spawn(resolve("dist/native/Latham.SpeechDetector.exe"), [role], { stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
   let ready = false, buffer = "", current, dead = false;
   child.stderr.resume(); child.on("exit", () => { dead = true; }); child.stdin.on("error", () => {});
@@ -32,6 +32,6 @@ for (const role of ["stop", "wake"]) {
     }
   } finally { child.kill(); }
 }
-const summaries = ["stop", "wake"].map(role => { const rows = results.filter(row => row.role === role); return { role, positives: rows.filter(row => row.expected).length, misses: rows.filter(row => row.expected && !row.detected).length, negatives: rows.filter(row => !row.expected).length, falseMatches: rows.filter(row => !row.expected && row.detected).length }; });
-const report = { at: new Date().toISOString(), source: corpus.source, thresholds: { stop: 0.55, wake: 0.75 }, summaries, results };
+const summaries = ["stop", "wake", "approve"].map(role => { const rows = results.filter(row => row.role === role); return { role, positives: rows.filter(row => row.expected).length, misses: rows.filter(row => row.expected && !row.detected).length, negatives: rows.filter(row => !row.expected).length, falseMatches: rows.filter(row => !row.expected && row.detected).length }; });
+const report = { at: new Date().toISOString(), source: corpus.source, thresholds: { stop: 0.55, wake: 0.75, approve: 0.85 }, summaries, results };
 writeFileSync(resolve(".test-artifacts/detector-evaluation.json"), JSON.stringify(report, null, 2)); console.log(JSON.stringify(summaries));

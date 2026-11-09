@@ -1,13 +1,15 @@
 # Latham: Voice-First AI Desktop Assistant
 
 **Technical Design Document**  
-**Version:** 1.14\
-**Date:** November 1, 2026\
-**Status:** Phases 0–7, local Phase 8 and owner-scoped Windows Phase 9 implemented for the 0.9 unsigned preview; other-platform/hardware acceptance and public launch gates remain open\
-**Platform:** Windows 11 first, Chrome first  
+**Version:** 1.23\
+**Date:** November 2, 2026\
+**Status:** Phases 0–9 retain their published scope; Phase 10A–10C universal Windows implementation preview and controlled Gemini/native acceptance are in place; Phase 10D physical voice, wider native-app/display and packaged acceptance remain open\
+**Platform:** Windows 11 first; extension-free foreground computer use in the Phase 10 development route\
 **Product name:** Latham
 
 **Project roadmap:** [roadmap.md](roadmap.md) defines the full milestone sequence, including desktop applications immediately after the Chrome MVP, expanding website coverage, and optional managed AI/commercial delivery. This document defines the implementation contracts; the roadmap defines delivery order. All milestones remain planned until implementation and acceptance evidence exist.
+
+**Product-direction clarification — November 1, 2026:** The intended product is a universal, voice-driven Windows assistant that reads the current app/screen, reasons with AI, acts through Windows and verifies results. A browser extension must not be required for that primary experience. [Section 1.3](#13-universal-desktop-direction) and [the universal-desktop specification](docs/universal-desktop.md) define the new Phase 10 direction and supersede Chrome-first/extension-required choices for that future mode. The existing 0.9 requirements and guards below describe the narrow implemented foundation; they do not establish universal computer-use support and must not simply be removed to imply it exists.
 
 > **Product thesis:** The keyboard and mouse should be optional for ordinary computer workflows. Users should be able to state an intent out loud, have the assistant identify the relevant on-screen controls, perform actions, and verify the result, while remaining in control of their computer.
 
@@ -54,6 +56,18 @@ Latham has its own codebase, architecture, product identity, and implementation.
 This policy does not prohibit ordinary SDKs, packages, or platform libraries selected for Latham's needs under suitable licenses. Record direct dependencies and their licenses as they are introduced. Any later proposal to incorporate material from a reference project requires an explicit change to this decision and review of the material's terms; a permissive license alone is not a reason to import it.
 
 Preserve the option for future private/commercial development under the Latham name. The project's distribution license and contribution terms remain a separate decision; this document does not select a license or promise that future versions will be public. Keep provenance clear so that reference use and independently authored implementation remain distinguishable.
+
+### 1.3 Universal desktop direction
+
+The user clarified that “assistant” means speaking an ordinary goal and having Latham identify and operate visible controls across applications. The released 0.9 speech, reviewed Chrome/Notepad actions and thumbnail matching did not fulfill this. The Phase 10 development route now adds generic foreground UIA/window-image observation, structured Gemini or local-model action proposals and a Latham-owned Windows input broker. Controlled synthetic native and extension-free Chrome checks pass; broad real-app and physical voice acceptance remains open.
+
+Phase 10 adds a shared observe–decide–act–check engine with generic Windows accessibility and opt-in screenshot grounding, a Latham-owned bounded input executor, fresh window/display identity checks, per-action verification and independent cancellation. The extension becomes an optional aid for the new mode; its absence must not gate universal activation. This is a new explicitly consented route, not a fallback that bypasses existing denials. Cloud screen context requires consent separate from the stored speech key. Existing screen/target denials, secure-surface exclusions and consequential-operation gates remain enforceable. See [scope, architecture, acceptance and references](docs/universal-desktop.md).
+
+**Companion approval policy — November 2, 2026:** Ordinary standalone Notepad/Calculator launches run directly after the one-time agreement and app-denial checks. A single explicit uniquely named control operation with matching payload, explicit scrolling or an allowlisted navigation key except Enter can also run directly; that grant does not cover extra model steps. Longer tasks ask once beside the companion, with Continue/Cancel and a 30-second expiry. Image-coordinate clicks always ask separately with a marked preview. Questions freeze the companion's position and never open a separate review window. Each input still needs fresh target checks and subsequent effect verification; Stop, uncertainty recovery and consequential-operation exclusions remain. This supersedes the universal preview's earlier blanket per-input approval requirement, without changing the legacy adapters' policies.
+
+**Remembered setup policy — November 2, 2026:** First launch presents a versioned Latham terms-and-permissions agreement explaining explicit microphone activation, foreground accessibility text/field values, optional window images, browser control and selected-provider sharing. Universal access, images and browser inclusion are selected by default in that setup; the user can change them before accepting. Acceptance and chosen provider/scopes persist across normal updates and restarts, as does an explicit disable. Later launches open only the companion, ready for Ctrl activation. No microphone, observation or task starts merely because access is remembered. Existing app/site denials, unresolved effects, independent Stop and task/point confirmations remain enforced. The current portable preview uses first-run setup; a separate installer is not implemented.
+
+“All apps” is the coverage ambition, not a promise that OS-protected, inaccessible or unsupported interfaces always work. A completion claim requires cross-app, extension-free and physical voice acceptance; a successful text-model key test or the completed narrow milestones is insufficient. Retain the independent-reference policy: jev-use informs the shared accessibility/action loop; a suitable Gemini model can provide reasoning/vision; neither supplies a working Windows control backend merely by adding a key.
 
 ## 2. Problem, Users, and Goals
 
@@ -154,7 +168,15 @@ This is a future integration example, not a P0 promise for arbitrary chat applic
 
 ### 3.3 Interaction feedback
 
-A small always-visible or tray-accessible status surface displays **Idle**, **Listening**, **Transcribing**, **Thinking**, **Acting**, **Stopping**, **Paused**, **Blocked**, or **Error**; later confirmed operations add **Needs confirmation**. Show the recognized transcript, selected target, and the last action result, including unverified effects. Provide a clear stop/pause affordance and optional spoken feedback subject to the capture/TTS policy. Do not obscure the target application with a large permanent overlay.
+The default surface is a small transparent, non-focusing, click-through desktop companion that follows the cursor with a short offset. It displays three rounded vertical strokes, short–long–short, without a permanent panel. Idle has no microphone capture. Holding either physical **Ctrl** key alone for 250 ms starts push-to-talk under existing approved-app permissions. Release closes capture and processes exactly one utterance; pauses while held do not submit it. Quick taps, other keys, mouse clicks/wheels, missing releases, helper failure and Stop discard capture. Both Ctrl keys must be released when held together. Injected keyboard input cannot activate it, and no input is swallowed. **Ctrl+Alt+Space** or tray **Talk · one command** remains a separate silence-ended alternative. During listening, silence displays three dots and measured microphone energy extends them into bars. Three dots orbit during transcription/execution/verification. Completion returns to idle bars; blocked, failed or uncertain outcomes return to idle with a brief notice and retain review requirements. Reduced-motion mode uses static processing dots.
+
+The follower samples only cursor coordinates for its own placement; it does not inspect the screen, grant access or alter the cursor. Work-area clamping supports negative monitor coordinates. The tray can pin it to the current screen edge or hide it; hiding/crashing the companion cancels work. **Ctrl+Alt+.** and tray **Stop** remain independent of the renderer, speech and provider. Repeating Talk while a turn is active stops it. Continuous hands-free mode remains a separate explicit settings opt-in.
+
+Side switches use a 220 ms eased transition within one renderer layer, including the glyph and notice, with a 12-DIP return margin against boundary flicker. A reversal starts from the current visible position. Transparent click-through space contains both placements; the visible glyph remains small and ordinary cursor following stays immediate. Reduced-motion preference disables this transition. The native window is moved with explicit fixed dimensions to prevent cumulative Windows/DPI size drift.
+
+The native Ctrl helper emits only fixed gesture/health states, never key codes, typed characters or mouse positions. Its local hooks pass events through. Parent loss closes it; startup with Ctrl already down requires a fresh press. Capture has a 15-second cap and does not execute on a timeout. Releasing while activation is still preparing invalidates it. Ctrl release also closes the local speech detector: spoken Stop is unavailable with the microphone off, while the independent Stop hotkey and tray remain active. Holding Ctrl during an already-processing command does not queue another command.
+
+Configuration, reviewed push-to-talk transcripts, selected targets, detailed results, reconciliation and advanced fixture/workflow tools live in a separate **Settings** window, hidden on normal startup. Opening settings from the tray cancels current work. A narrow companion preload receives only presentation/capture state and can submit audio for its main-owned session; it cannot read credentials, change permissions or dispatch arbitrary commands. Audio-only media permission belongs to exactly one explicitly activated, visible window and its main frame. See [companion controls](docs/companion.md). Clicky and Capri inform the interaction direction; Latham's glyph, implementation and assets are independent.
 
 ## 4. Functional Requirements
 
@@ -437,7 +459,28 @@ behavior and distinguish recognition delay from executor cancellation.
 
 ### 6.1 Recognition strategy
 
-P0 offers two user-configured paths: a cloud provider using the user's API key, or local AI without a required paid provider key. Phase 1 implements Google Gemini `gemini-3.1-flash-lite` for bounded audio transcription and target selection, following the user's choice of a Gemini free-tier key. Push-to-talk release is the local turn boundary; it sends one completed recording and displays one final transcript for explicit review/run. Audio is limited to 30 seconds; requests have a 60-second deadline. No partial transcript can authorize an action. Streaming deltas and local VAD are later latency improvements, not prerequisites for this bounded path.
+The companion now shows a provisional local transcript during active speech.
+Gemini key mode now streams explicitly active utterance audio to Google's
+`gemini-3.5-transcribe-live`, using one bounded main-process WebSocket session.
+The same recognizer supplies interim words during speech and committed text
+after the local release/speech-end boundary; no second batch request is made.
+Interim/model-response text cannot authorize actions. Only the final committed
+transcript enters the existing task policy. Stream setup/final deadlines,
+buffer/audio/message limits and cancellation generations bound the lifecycle.
+Failure stops the turn without a silent model/provider fallback. The model is
+free-tier eligible under Google's published account limits; quotas and actual
+key availability are not guaranteed. Controlled synthetic checks are recorded
+in evaluation; human accent/noise and wider physical acceptance remain open.
+
+Local/managed mode retains the separate Windows System.Speech display-only
+dictation worker and the chosen Whisper/managed final provider. Preview failure
+there does not disable final recognition. Fixed Stop/wake/approval workers remain
+local and separate. No wake-idle audio reaches transcription, and local-only
+mode never opens a cloud socket. No model downloads, transcript files or acoustic
+adaptation are added. Final text expires after eight seconds; Stop/new activation
+clears it immediately. Handy integration below remains planned.
+
+P0 offers two user-configured paths: a cloud provider using the user's API key, or local AI without a required paid provider key. The historical Phase 1 route uses Google Gemini `gemini-3.1-flash-lite` for completed-recording transcription and target selection, following the user's free-tier-key choice. Its batch path remains available to separately scoped service/standalone adapters. The current desktop Gemini speech route is the live recognizer above; decision/computer models remain separate. Push-to-talk release remains the local dispatch boundary. No partial transcript can authorize an action.
 
 Reconcile provider item IDs with the local session/turn; local ASR adapters must produce equivalent locally owned turn/final events. Accept each final once. Reconnect, cancellation, and stream failure invalidate outstanding turn mappings. A late final must not enter a new dictation session or execute after a pause. An internet outage disables a cloud-only voice configuration; a validated local configuration continues supported local commands and can operate on loaded pages, but cannot load remote website content offline. Tray/hotkeys and typed local commands remain available in either configuration.
 
@@ -814,7 +857,7 @@ For a research- or portfolio-quality evaluation, measure the same set of tasks u
 
 ## 13. Open Questions and Architecture Decisions
 
-The following decisions define v1.3; remaining choices are called out explicitly:
+The following decisions record the v1.3/0.9 foundation. Section 1.3 and the Phase 10 specification supersede its Chrome-first and delayed general-computer-use choices for the new primary mode; existing runtime protections remain in force.
 
 1. **Branding and foundation:** the product name is Latham, with an independent codebase and the reference policy in section 1.2. Choose its icon and visual identity after validating interaction design.
 2. **AI access:** user-supplied API keys or a validated local-AI configuration are P0. The preview implements Gemini and selects whisper.cpp base.en plus Ollama Qwen2.5 1.5B for an English/CPU setup. Proven minimum hardware, broader audio accuracy and additional languages remain validation work. The optional local managed-account service is implemented in Phase 8 with billing disabled; public/commercial launch remains gated.
@@ -877,6 +920,14 @@ These references inform the architecture. They do **not** establish that the unb
 Reference roles are distinct: jev-use informs the accessibility/decision loop; Capri informs Windows integration concepts and local-speech experiments; Clicky/HeyClicky informs resident-assistant UX and interaction concepts. All remain references under section 1.2. None establishes Latham's measured behavior, supplies authority to bypass permissions, or adds a mascot, persistent personality, or unattended workflows to P0.
 
 ## 16. Revision Notes
+
+**v1.23 — November 2, 2026:** Replaced the desktop Gemini speech route's separate Windows guess and post-release batch call with one Gemini Live transcription stream. Interim captions and committed final words now share that recognizer. Added bounded lifecycle/cancellation, no interim execution or implicit fallback, and synthetic live-key timing evidence. Local/managed behavior, planned Handy work and physical speech acceptance remain separate.
+
+**v1.22 — November 2, 2026:** Added one-time terms/permissions setup and remembered universal access/provider choices, replacing the per-launch consent requirement. New users see setup once; returning users start with a ready companion and idle microphone. Disable, explicit denials and uncertainty survive restart. The portable development build retains its separate distribution/physical acceptance gates.
+
+**v1.21 — November 2, 2026:** Replaced the universal route's separate review window with compact companion questions. Explicit simple commands run directly; longer tasks use one bounded task confirmation and coordinate clicks retain individual marked-point approval. Preserved target freshness, Stop, denied scopes and consequential exclusions. Broader native-app, physical voice/display and packaged acceptance remain open.
+
+**v1.18 — November 1, 2026:** Recorded the owner's universal-assistant clarification. Added the Phase 10 shared Windows accessibility/vision observation, model-driven action loop and native executor direction, with an optional browser extension rather than a primary-mode prerequisite. Distinguished the implemented narrow 0.9 foundation from this unimplemented goal, retained independent-reference/consent/Stop boundaries, and separated computer-use model validation from the successful Gemini speech/selection check.
 
 **v1.14 — November 1, 2026:** Implemented the owner's Windows-only Phase 9 scope: explicit Chrome/Edge choice with separate native registration and consent, protocol-3 browser-family checks including the verified Windows cmd intermediary, fenced switching and stale-connection rejection. Added keyboard/focus/compact layout improvements, Stop on display changes, bounded window recovery, schema-2 consent migration/newer-schema protection, explicit local non-content task feedback and repeatable browser/version reports. [Phase 9](docs/phase9.md) records exact support and ongoing macOS/Linux, language/speaker, assistive-technology and physical display gates. Public hosting/signing and Handy remain separate.
 

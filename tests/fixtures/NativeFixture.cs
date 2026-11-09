@@ -7,6 +7,10 @@ using System.Windows.Forms;
 
 sealed class NativeFixture : Form {
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out int pid);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int command);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool IsIconic(IntPtr hwnd);
+    IntPtr launchedWindow; int launchedPid;
     TextBox draft, secret, other; Form otherWindow; int blockAfterEdit; bool reactive;
     readonly JavaScriptSerializer json = new JavaScriptSerializer();
     NativeFixture() {
@@ -27,6 +31,20 @@ sealed class NativeFixture : Form {
                     if (kind == "edit") draft.Text = (string)command["text"];
                     else if (kind == "focus_other") other.Focus();
                     else if (kind == "focus") { Activate(); draft.Focus(); }
+                    else if (kind == "focus_launch_fixture") { System.Windows.Automation.AutomationElement.FromHandle(Handle).SetFocus(); draft.Focus(); }
+                    else if (kind == "remember_launched_app") {
+                        var window = GetForegroundWindow(); int pid; GetWindowThreadProcessId(window, out pid);
+                        using (var process = Process.GetProcessById(pid)) {
+                            if (!System.Text.RegularExpressions.Regex.IsMatch(process.ProcessName, "^(notepad|calculator|calculatorapp|calc)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) throw new Exception("Expected a launched test app in front");
+                        }
+                        launchedWindow = window; launchedPid = pid;
+                    }
+                    else if (kind == "minimize_launched_app") {
+                        int pid; GetWindowThreadProcessId(launchedWindow, out pid);
+                        if (launchedWindow == IntPtr.Zero || pid != launchedPid) throw new Exception("Test app window changed");
+                        ShowWindow(launchedWindow, 6);
+                    }
+                    else if (kind == "restore_launched_app" && launchedWindow != IntPtr.Zero) ShowWindow(launchedWindow, 9);
                     else if (kind == "replace") { Controls.Remove(draft); draft.Dispose(); draft = MakeDraft(); Controls.Add(draft); draft.Focus(); }
                     else if (kind == "password") draft.UseSystemPasswordChar = true;
                     else if (kind == "readonly") draft.ReadOnly = true;
@@ -50,6 +68,6 @@ sealed class NativeFixture : Form {
             if (reactive) { reactive = false; var timer = new System.Windows.Forms.Timer { Interval = 50 }; timer.Tick += (a, b) => { timer.Stop(); field.Text = "PAGE_CHANGED_LATER"; timer.Dispose(); }; timer.Start(); }
         }; return field;
     }
-    void Report(string kind) { using (var graphics = CreateGraphics()) lock (json) { Console.WriteLine(json.Serialize(new { kind, hwnd = Handle.ToInt64(), foreground = GetForegroundWindow().ToInt64(), text = draft.Text, dpi = graphics.DpiX, screens = Screen.AllScreens.Length, x = Left, y = Top })); Console.Out.Flush(); } }
+    void Report(string kind) { using (var graphics = CreateGraphics()) lock (json) { Console.WriteLine(json.Serialize(new { kind, pid = Process.GetCurrentProcess().Id, started = Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks.ToString(), hwnd = Handle.ToInt64(), foreground = GetForegroundWindow().ToInt64(), launchedWindow = launchedWindow.ToInt64(), launchedMinimized = launchedWindow != IntPtr.Zero && IsIconic(launchedWindow), text = draft.Text, dpi = graphics.DpiX, screens = Screen.AllScreens.Length, x = Left, y = Top })); Console.Out.Flush(); } }
     [STAThread] static void Main() { Application.EnableVisualStyles(); Application.Run(new NativeFixture()); }
 }

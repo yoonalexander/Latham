@@ -97,6 +97,7 @@ describe("native messaging boundary", () => {
   });
   test("auth, persistent consent, revoke, reconnect, pause, stale acknowledgements, no mutation replay", async () => {
     const storage = store(), chrome = new ChromeBridge(storage, () => {}); await chrome.start();
+    const revoked = vi.fn(); chrome.onRevoke = revoked;
     const client = connect(chrome.pipe), responses: unknown[] = [], reader = new FrameReader(); client.on("data", chunk => reader.push(Buffer.from(chunk), value => { responses.push(value); const message = value as { type: string; epoch: number }; if (message.type === "pause") client.write(frame({ type: "paused", epoch: message.epoch })); }));
     const send = (value: unknown) => client.write(frame(value));
     try {
@@ -108,7 +109,12 @@ describe("native messaging boundary", () => {
       chrome.pause(); await running; expect(chrome.active).toBe(false); expect(chrome.result).toContain("in-flight");
       expect(() => chrome.resume()).toThrow("chrome_reconciliation_required"); await vi.waitFor(() => expect(chrome.fenceConfirmed).toBe(true)); chrome.reconcile();
       chrome.resume(); chrome.revoke("https://www.google.com"); expect(chrome.siteState[0]!.effective).toBe(false); expect(JSON.parse(readFileSync(join(storage.directory, "providers.json"), "utf8")).browserConsent.chrome).toEqual([]);
+      expect(revoked).toHaveBeenCalledWith(["https://www.google.com"]);
       await vi.waitFor(() => expect(chrome.fenceConfirmed).toBe(true)); chrome.resume(); await expect(chrome.run("open https://www.google.com")).rejects.toThrow("site_denied");
+      send({ type: "consent", origin: "https://www.google.com", granted: true }); send({ type: "grants", origins: ["https://www.google.com"] }); await vi.waitFor(() => expect(chrome.siteState[0]!.effective).toBe(true));
+      send({ type: "grants", origins: [] }); await vi.waitFor(() => expect(revoked).toHaveBeenCalledTimes(2));
+      send({ type: "consent", origin: "https://www.google.com", granted: true }); send({ type: "grants", origins: ["https://www.google.com"] }); await vi.waitFor(() => expect(chrome.siteState[0]!.effective).toBe(true));
+      send({ type: "reconcile", origins: [] }); await vi.waitFor(() => expect(revoked).toHaveBeenCalledTimes(3));
       client.destroy(); await vi.waitFor(() => expect(chrome.connected).toBe(false)); expect(chrome.active).toBe(false);
     } finally { client.destroy(); chrome.close(); }
   });

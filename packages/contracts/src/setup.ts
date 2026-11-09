@@ -2,6 +2,8 @@ import { record } from "./index";
 import type { PageState } from "./browser";
 import type { NativeState } from "./desktop";
 import type { HandsfreeState } from "./handsfree";
+import type { ComputerState } from "./computer";
+import type { SpeechPreviewState } from "./speech-preview";
 import type { VisualState, VisualRoute } from "./visual";
 import type { WorkflowState, WorkflowGoal, WorkflowShortcut } from "./workflow";
 import type { ManagedState } from "./managed";
@@ -16,6 +18,8 @@ export type Candidate = { id: string; label: string; role: string };
 export type Selection = { candidateId: string | null };
 export type ChromeCommand = { kind: "new_tab" | "next_tab" | "previous_tab" | "back" | "forward" } | { kind: "navigate"; url: string };
 export type SetupState = {
+  speechPreview: SpeechPreviewState;
+  computer: ComputerState;
   browser: BrowserId;
   browserChoices: { id: BrowserId; label: string; installed: boolean }[];
   providerSettingsLocked: boolean;
@@ -39,6 +43,17 @@ export type SetupState = {
   page: PageState;
 };
 export interface SetupBridge {
+  voiceFrame(id: number, sequence: number, pcm: ArrayBuffer): void;
+  rendererReady(): Promise<void>;
+  computerConfigure(options: unknown): Promise<void>;
+  computerDisable(): Promise<void>;
+  computerRun(goal: string): Promise<void>;
+  computerReview(): Promise<void>;
+  computerReconcile(): Promise<void>;
+  computerUnblock(origin: string): Promise<void>;
+  selectCompanionTarget(target: "computer" | "chrome" | "desktop"): Promise<void>;
+  showCompanion(): Promise<void>;
+  talkFromCompanion(): Promise<void>;
   chooseBrowser(browser: BrowserId): Promise<void>;
   addEvaluation(trial: Trial): Promise<void>;
   clearEvaluation(): Promise<void>;
@@ -54,7 +69,7 @@ export interface SetupBridge {
   finishTurn(id: number, pcm: ArrayBuffer): Promise<void>;
   cancelTurn(): Promise<void>;
   clearTranscript(): Promise<void>;
-  startHandsfree(config: { target: "chrome" | "desktop"; wake: boolean }): Promise<string>;
+  startHandsfree(config: { target: "computer" | "chrome" | "desktop"; wake: boolean }): Promise<string>;
   handsfreeFrame(id: string, sequence: number, pcm: ArrayBuffer): void;
   handsfreeFailure(id: string): Promise<void>;
   checkLocalModel(): Promise<void>;

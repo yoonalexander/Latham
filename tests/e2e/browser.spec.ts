@@ -275,6 +275,7 @@ test("hands-free capture uses the selected microphone and disconnect closes it a
     await configureHandsfree(f);
     await f.desk.evaluate(() => { const request = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia = async constraints => { const stream = await request(constraints); Reflect.set(globalThis, "handsfreeTrack", stream.getAudioTracks()[0]); return stream; }; });
     await f.desk.getByRole("checkbox", { name: "Wait for local" }).check();
+    await f.desk.getByLabel("Command app", { exact: true }).selectOption("chrome");
     await f.desk.getByRole("button", { name: "Enable hands-free microphone", exact: true }).click();
     await expect(f.desk.getByTestId("handsfree-status")).toContainText("armed");
     await expect(f.desk.getByRole("button", { name: "Hold to talk", exact: true })).toBeDisabled();

@@ -3,7 +3,7 @@ import type { SetupState } from "../../../../packages/contracts/src/setup";
 import type { HandsfreeTarget } from "../../../../packages/contracts/src/handsfree";
 type Capture = { id: string; sequence: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode };
 export function HandsfreePanel({ state, dirty }: { state: SetupState; dirty: boolean }) {
-  const [target, setTarget] = useState<HandsfreeTarget>("chrome"), [wake, setWake] = useState(false), [error, setError] = useState("");
+  const [target, setTarget] = useState<HandsfreeTarget>("computer"), [wake, setWake] = useState(false), [error, setError] = useState("");
   const capture = useRef<Capture | null>(null), mounting = useRef(true);
   const active = state.handsfree.phase !== "off";
   const clean = (): void => {
@@ -46,12 +46,13 @@ export function HandsfreePanel({ state, dirty }: { state: SetupState; dirty: boo
   return <section className="setup-group handsfree-panel" aria-label="Hands-free session">
     <div className="section-kicker">OPT-IN SESSION / LOCAL STOP</div><h3>5. Hands-free commands</h3>
     <p className="mini">While enabled, successive spoken commands run automatically in the selected app using its existing permissions. Say <strong>stop assistant</strong> to cancel and turn the microphone off. Physical Stop and Ctrl+Alt+. remain available. Background voices and speaker playback can trigger recognition; this preview cannot identify the speaker.</p>
-    <label>Command app<select disabled={active} value={active ? state.handsfree.target : target} onChange={event => setTarget(event.target.value as HandsfreeTarget)}><option value="chrome">Current Chrome session</option><option value="desktop">Prepared Notepad editor</option></select></label>
+    <label>Command app<select aria-label="Command app" disabled={active} value={active ? state.handsfree.target : target} onChange={event => setTarget(event.target.value as HandsfreeTarget)}><option value="computer">Universal computer use</option><option value="chrome">Current Chrome session</option><option value="desktop">Prepared Notepad editor</option></select></label>
     <label><input type="checkbox" checked={active ? state.handsfree.wake : wake} disabled={active} onChange={event => setWake(event.target.checked)} /> Wait for local “hey Latham” first</label>
     <p className="mini">Wake mode keeps idle audio local. After the wake phrase, pause before speaking. Active command audio uses your saved {state.settings.mode === "cloud" ? "Gemini cloud" : "local Whisper"} route. The English local stop detector stays active during transcription and actions. No assistant speech playback is enabled.</p>
     <div className="setup-buttons"><button className="primary" disabled={active || dirty || state.visual.busy || state.voice !== "idle"} onClick={() => void begin()}>Enable hands-free microphone</button><button disabled={!active} onClick={() => { clean(); void window.latham.stop(); }}>End hands-free session</button></div>
     <p role="status" data-testid="handsfree-status">Microphone: {active ? state.handsfree.audioReady ? "ON" : "starting" : "OFF"} · {state.handsfree.phase} · Local stop: {state.handsfree.stopReady ? "ready" : "off"}</p>
     <p role="status">{state.handsfree.message}</p><p className="mini">Ends after 90 seconds idle or five minutes total. Commands are limited to 15 seconds. Mic or detector failure cancels work. No automatic restart.</p>
+    {!!state.speechPreview.text && <p aria-live="polite">{state.speechPreview.status === "final" ? "Heard" : "Live preview (may change)"}: {state.speechPreview.text}</p>}
     {error && <p role="alert" className="error">{error}</p>}
   </section>;
 }

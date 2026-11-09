@@ -5,7 +5,7 @@ export default defineConfig({
   outputDir: ".test-artifacts/playwright", use: { trace: "retain-on-failure" },
   projects: [
     // Native UIA needs the interactive foreground before browser fixtures take it.
-    { name: "native", testMatch: "native.spec.ts" },
-    { name: "chrome-and-fixture", testIgnore: "native.spec.ts", dependencies: ["native"] }
+    { name: "native", testMatch: ["native.spec.ts", "computer-native.spec.ts"] },
+    { name: "chrome-and-fixture", testIgnore: ["native.spec.ts", "computer-native.spec.ts"], dependencies: ["native"] }
   ]
 });

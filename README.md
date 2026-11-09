@@ -1,6 +1,25 @@
 # Latham
 
 Latham is an independently implemented voice-controlled computer assistant.
+The intended product is a universal Windows companion that reads the current
+app/screen, reasons with AI and performs verified actions across applications.
+**The Phase 10 development preview now includes an extension-free Windows
+computer-use engine:** foreground accessibility text, separately opt-in window
+images, Gemini/local reasoning, bounded native input and fresh result checks.
+Simple explicit commands run directly; longer tasks ask once beside the icon.
+Image-coordinate clicks ask separately. No separate review window is opened.
+Physical voice, broader native-app and display acceptance remains open; see
+[universal desktop setup and limits](docs/universal-desktop.md).
+It opens as a tiny, transparent three-bar companion beside your cursor. Hold
+**Ctrl** to speak one command and release to process it with the microphone off.
+Quick taps and Ctrl chords discard capture; **Ctrl+Alt+Space** remains a toggle
+alternative. Silent dots become input-driven bars,
+then orbit while the task runs, and return to idle bars when it finishes.
+Gemini key mode now streams live words and final transcription through one
+recognizer; it does not wait for a second batch transcription after release.
+**Ctrl+Alt+.** stops work. Use the tray's **Settings…** for setup and advanced
+controls, or turn off **Follow cursor** to keep the companion at the screen edge.
+See [companion controls and limits](docs/companion.md).
 Version 0.9 adds explicit Windows Chrome/Edge selection with separate consent,
 keyboard/display recovery and optional local task feedback. See the
 [compatibility guide](docs/phase9.md). Other-platform and physical hardware
@@ -22,13 +41,17 @@ signed installer or a promise of arbitrary-app/site support. Hands-free is optio
 and starts disabled; recognition misses and false stops remain possible. The whole-project plan is in
 [roadmap.md](roadmap.md).
 
-Visual capture is off by default. It copies only approved public thumbnail assets;
-it never captures a full screen, frames or form fields. Local OCR/layout or an
+The separate legacy thumbnail visual tool is off by default and copies only
+approved public thumbnail assets. Universal mode has its own explicit consent
+for foreground-window images and field values; neither captures a whole desktop.
+For thumbnails, local OCR/layout or an
 explicitly selected local/cloud visual model can propose matches. Opening a
 video requires a separate confirmation and fresh DOM checks. The controlled
 benchmark does not establish general photo/person matching.
 
 ## Run Latham
+
+Moving development to another Windows PC? See the [development handoff](docs/handoff.md).
 
 Tested on Windows with Node.js 22.13.0 and npm 10.9.2. Use a compatible Node 22+
 release, then run from the repository root:
@@ -44,7 +67,17 @@ official release distribution if it is not already installed. No provider key,
 model download or browser extension is needed for the fixture. The narrow
 native relay uses Windows' existing .NET Framework compiler, without an SDK.
 
-For Chrome, configure AI, register/load/connect the extension, approve a site,
+First launch opens setup automatically; later use **Settings…** from the tray.
+Save Gemini AI setup, then accept the
+**Universal assistant** one-time terms/permissions agreement. Access and provider
+choices are remembered across restarts; an explicit disable also stays off.
+Return to the companion and select the target app before holding Ctrl. Simple
+commands run directly; longer tasks ask beside the icon. **Ctrl+Alt+Enter** confirms
+and **Ctrl+Alt+.** stops. Images and browser-window inclusion are chosen during
+setup and can be changed later; storing a key alone grants no access. This development build is not a replacement
+signed/packaged release.
+
+For the optional legacy Chrome adapter, configure AI, register/load/connect the extension, approve a site,
 then choose **Prepare Search dictation**. Hold to talk, review, and explicitly
 insert the transcript. The app starts paused; push-to-talk requires explicit dispatch.
 For consecutive automatic commands, explicitly enable a session as described in
@@ -75,8 +108,8 @@ effect, the application button/autosave field are consequential, and password
 fields are secure: the controller blocks them. Real website access is not
 enabled by the fixture consent checkbox.
 
-**Stop** is always visible. Ctrl+Alt+. and the tray's Pause / Stop invoke the same
-local cancellation fence. Closing the window hides it to the tray; choose
+**Stop** is available in settings and the tray. Ctrl+Alt+. invokes the same
+local cancellation fence. Closing settings hides them to the tray; choose
 **Quit Latham** from the tray to exit. If the shortcut cannot register, the UI
 reports that and retains the Stop button/tray control.
 

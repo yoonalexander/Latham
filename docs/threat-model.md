@@ -3,6 +3,136 @@
 Status: implementation-backed boundary notes and regression coverage, not a
 complete independent security audit.
 
+## Universal Windows development route
+
+[Phase 10](universal-desktop.md) has a separate main-owned Computer controller and
+disposable Windows worker. First-run terms/permissions acceptance precedes access.
+The chosen foreground text/value, image and browser scopes and provider persist
+in version-2 computer.json with the agreement version, including an explicit disable.
+New installs and older version-1 state require the one-time agreement. Known
+denials and uncertainty survive migration. Malformed/future agreement state never
+auto-enables access. A speech key or extension grant supplies no agreement.
+No microphone, observation or task resumes on restart. No idle capture or
+full-desktop fallback is used. UIA/image content is untrusted data and cannot
+grant permission or dispatch provider-generated code.
+
+Explicit single-control commands may dispatch without a question only when the
+user names one unique accessible control and the action/payload matches exactly;
+explicit scrolling and allowlisted navigation keys except Enter also qualify.
+The direct grant covers only the first action, not extra model-selected steps.
+Other input requires a 30-second one-use task confirmation in the companion.
+That approval lasts only for the current bounded run. Coordinate clicks always
+require a separate one-use marked-point confirmation. Approval restores
+only the selected window through the normal Windows API,
+then reobserves; unrelated foreground changes or stale revisions block dispatch.
+The worker independently checks HWND/PID/start time, input activity, geometry and
+the observation lease. Coordinate clicks additionally require the current image
+hash, a hit-tested unoccluded point and exclusion from masked regions. UIA scroll
+avoids sending wheel input to another window under the cursor. Held modifiers
+and focused password regions block key input.
+
+Detected password/terminal regions are omitted and masked with physical UIA
+bounds mapped into the target's PrintWindow rendering DPI. A synthetic pixel
+regression covers an unaware app at the current scaled display. Custom painted
+secrets, misleading accessibility providers and hidden control effects cannot be
+reliably classified; masking is not a guarantee for arbitrary apps. Known elevated,
+secure, shell and security-tool processes are excluded, including recognized
+original executable identities. Unknown custom embedded terminals remain a limit.
+
+Notepad denial propagates from its existing adapter. Site revocation records a
+separate durable universal-browser block: any such block excludes every browser
+window until explicitly cleared, because UIA cannot establish embedded origin
+exclusions. Broader consent never automatically retries an extension denial.
+
+The model receives only bounded permitted window text, optional PNG, the goal
+and in-memory action history, not OS handles or credentials. Native input
+completion/readback and the model's fresh effect check are distinct. Model
+verification is fallible; identified consequential
+effects remain excluded. No general send/delete/payment/security integration is
+authorized. A misleading label can conceal an effect, so this is not a formal
+guarantee that arbitrary reviewed controls are low consequence.
+
+Stop aborts model work, rejects approval and kills the bounded worker. Timeouts,
+worker loss or ambiguous dispatched input persist uncertainty before another
+task can start; executor fences also apply when switching back to legacy routes.
+Only access/agreement choices and blocks/uncertainty persist in computer.json,
+never screenshots or task text. Recovery requires the user to inspect the prior
+app result and explicitly choose **I've checked — continue** in Settings; neither
+restart nor accepting the agreement clears uncertainty or replays input.
+Confirmation IPC is guarded by exact webContents/frame/URL and current nonce, and its sandboxed renderer
+has no provider/settings/executor API. Renderer loss cancels work.
+
+An exact standalone Notepad/Calculator launch is bound to a fixed Windows
+executable and explicit app intent, rather than the current window's UIA lease.
+It requires the remembered agreement and enabled access, runs without a per-launch question, rechecks app denials, and uses
+the same uncertainty/Stop boundary. It reads no window content or model context;
+native success requires the named same-user, non-elevated app's foreground window.
+Only those fixed executables are accepted, with no arguments or shell text.
+Compound/model-selected actions retain the normal observation/revalidation path.
+
+The optional continuous-session approval recognizer receives real audio only
+while a proposal exists. Start/end audio positions and proposal identity reject
+late earlier speech. PTT release closes all detectors. Microphone speech is not
+speaker authentication: background voices/playback can still approve or stop a
+displayed proposal. Physical audio/real-app acceptance remains an open gate.
+
+## Companion surface
+
+Gemini key mode streams active utterance PCM to one fixed Google WebSocket
+endpoint using `gemini-3.5-transcribe-live`. Its key remains in main, never the
+renderer or diagnostics. Interim words are display-only. Only committed text
+after the local end-of-utterance boundary can populate Voice's final transcript.
+Setup/final deadlines, audio/queue/message/text bounds and generation cancellation
+reject late or malformed results. Failure stops the utterance without a second
+batch request or silent model fallback. There is no wake-idle audio, idle socket,
+screen context, TTS or action API in this transport.
+
+Local/managed preview still uses a separate local System.Speech worker. Its
+partial text never populates final ASR or field bindings; failure is cosmetic and
+does not disable local/managed final recognition or the independent Stop worker.
+Caption state is ephemeral (2,000-character bound, eight-second final expiry)
+and cleared on Stop/new activation.
+Manual voice-preview IPC checks the Settings sender/frame/URL, microphone owner,
+turn, frame sequence/size and 30-second audio bound. The worker has no network,
+file output or microphone API, and disables acoustic adaptation for its instance.
+
+Settings renderer readiness is a separate, exact-sender/frame/URL-guarded IPC
+notification. It resolves presentation readiness only; it grants no microphone,
+screen, provider or execution permission. A user Settings request still stops
+work immediately, even when its window is waiting for the first UI commit.
+
+The primary surface is now a transparent, click-through, non-focusable cursor
+follower. Its placement uses only local cursor/display coordinates. Its separate
+sandboxed preload exposes presentation state, session-bound audio frames and
+capture failure, plus answering the current confirmation, fetching its masked
+image once for display and toggling mouse interaction for that question. Those
+operations require its exact current nonce. There is no settings, key, arbitrary
+observation, permission or executor API. The companion freezes position during
+a question and becomes mouse-interactive only while the pointer is over it.
+Every channel checks exact webContents, main frame and local URL. Main routes
+audio only from the explicit owner; settings frames cannot feed a companion turn.
+Media grants require that visible owner and active capture, audio only. Idle,
+hidden windows and the other renderer cannot acquire capture.
+
+Talk from the native hotkey, tray or settings explicitly authorizes one spoken
+command under the selected target's existing policy. It uses the same bounded
+utterance/local stop detector, transcription and verified executor as hands-free;
+success closes detectors/capture and pauses executors instead of listening again.
+Stop, failure, invalidation, hiding/crashing the primary companion or changing
+displays cancels work. Late replies cannot authorize another command. Nothing
+grants a new website or broadens supported actions. See [companion](companion.md).
+
+Holding a physical Ctrl alone for 250 ms is an explicit push-to-talk activation.
+The native helper emits only fixed gesture/health states and forwards input;
+injected presses cannot activate capture. Chords, clicks/wheels, quick taps,
+missed releases, helper loss and the 15-second capture cap discard work. Main
+invalidates pending preparation on release; a late open is cancelled. Release
+closes capture/local detectors and processes only the bounded current utterance.
+The processing session retains its cancellation fence without an audio heartbeat;
+it cannot acquire the microphone again. Spoken Stop ends with capture, while the
+native Stop shortcut and tray remain available. No character/keycode logging,
+keyboard injection, driver or action API is added.
+
 ## Phase 9 Windows compatibility boundaries
 
 Only the explicitly selected Chrome/Edge family can pair. Browser-specific host
