@@ -9,6 +9,7 @@ import { boundedJson, cloudModel } from "../../../../packages/speech/src/provide
 export interface ComputerBroker { observe(images: boolean, browserAllowed: boolean, deniedApps: string[], siteBlocked: boolean, signal: AbortSignal): Promise<ComputerObservation>; launch(app: "notepad" | "calculator", options: ComputerState, signal: AbortSignal): Promise<void>; act(observation: ComputerObservation, action: ComputerAction, options: ComputerState, signal: AbortSignal): Promise<void>; restore(observation: ComputerObservation, options: ComputerState, signal: AbortSignal): Promise<void>; stop(): Promise<void>; }
 export class WindowsComputer implements ComputerBroker {
   private children = new Set<ChildProcessWithoutNullStreams>();
+  private launchWindows: Partial<Record<"notepad" | "calculator", string>> = {};
   constructor(private executable: string) {}
   private async request(value: object, signal: AbortSignal): Promise<Record<string, unknown>> {
     signal.throwIfAborted();
@@ -38,7 +39,11 @@ export class WindowsComputer implements ComputerBroker {
     return o as ComputerObservation;
   }
   async act(observation: ComputerObservation, action: ComputerAction, options: ComputerState, signal: AbortSignal): Promise<void> { await this.request({ kind: "act", observation: { ...observation, image: "", targets: [] }, action, images: options.images, browserAllowed: options.browserAllowed, deniedApps: options.deniedApps, siteBlocked: options.deniedOrigins.length > 0 }, signal); }
-  async launch(app: "notepad" | "calculator", options: ComputerState, signal: AbortSignal): Promise<void> { await this.request({ kind: "launch", app, browserAllowed: false, deniedApps: options.deniedApps, siteBlocked: false }, signal); }
+  async launch(app: "notepad" | "calculator", options: ComputerState, signal: AbortSignal): Promise<void> {
+    const reply = await this.request({ kind: "launch", app, preferredWindow: this.launchWindows[app], browserAllowed: false, deniedApps: options.deniedApps, siteBlocked: false }, signal);
+    signal.throwIfAborted();
+    if (typeof reply.window === "string" && /^\d+$/.test(reply.window)) this.launchWindows[app] = reply.window;
+  }
   async restore(observation: ComputerObservation, options: ComputerState, signal: AbortSignal): Promise<void> { await this.request({ kind: "restore", observation: { ...observation, image: "", targets: [] }, images: false, browserAllowed: options.browserAllowed, deniedApps: options.deniedApps, siteBlocked: options.deniedOrigins.length > 0 }, signal); }
   async stop(): Promise<void> { const children = [...this.children]; await Promise.all(children.map(child => new Promise<void>(resolve => { if (child.exitCode !== null) { resolve(); return; } const timer = setTimeout(resolve, 2000); child.once("exit", () => { clearTimeout(timer); resolve(); }); child.kill(); }))); if ([...this.children].some(child => child.exitCode === null)) throw new Error("computer_fence_unconfirmed"); }
 }
@@ -110,7 +115,17 @@ export class Computer {
   blockOrigin(origin: string): void { if (!/^https?:\/\//.test(origin)) throw new Error("invalid_origin"); void this.stop(); this.state.deniedOrigins = [...new Set([...this.state.deniedOrigins, origin])].slice(0, 100); this.persist(this.state.needsReview); }
   unblockOrigin(origin: unknown): void { if (this.busy || typeof origin !== "string") throw new Error("invalid_origin"); this.state.deniedOrigins = this.state.deniedOrigins.filter(value => value !== origin); this.persist(this.state.needsReview); this.emit(); }
   approve(id: unknown, approved: boolean): void { if (typeof id !== "string" || id !== this.state.pending?.id || !this.approval) throw new Error("stale_computer_approval"); const resolve = this.approval; this.approval = undefined; this.state.pending = null; this.pendingImage = ""; this.emit(); resolve(approved); }
-  private async observe(signal: AbortSignal): Promise<ComputerObservation> { const denied = this.deniedNative() ? [...this.state.deniedApps, "notepad"] : this.state.deniedApps; return this.broker.observe(this.state.images, this.state.browserAllowed, denied, this.state.deniedOrigins.length > 0, signal); }
+  private get effectiveOptions(): ComputerState {
+    return this.deniedNative() ? { ...this.state, deniedApps: [...this.state.deniedApps, "notepad"] } : this.state;
+  }
+  private checkLaunchAllowed(app: string): void {
+    const aliases = app === "calculator" ? ["calculator", "calculatorapp", "calc"] : [app];
+    if (this.effectiveOptions.deniedApps.some(name => aliases.includes(name.toLowerCase().replace(/\.exe$/, "")))) throw new Error("computer_app_denied");
+  }
+  private async observe(signal: AbortSignal): Promise<ComputerObservation> {
+    const { images, browserAllowed, deniedApps, deniedOrigins } = this.effectiveOptions;
+    return this.broker.observe(images, browserAllowed, deniedApps, deniedOrigins.length > 0, signal);
+  }
   private async review(pending: NonNullable<ComputerState["pending"]>, image: string, signal: AbortSignal): Promise<boolean> {
     this.state.phase = "review"; this.state.pending = pending; this.pendingImage = image; this.state.message = "A quick confirmation is beside Latham. Ctrl+Alt+. cancels.";
     const accepted = await new Promise<boolean>(resolve => {
@@ -130,12 +145,11 @@ export class Computer {
       const launch = /^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(note\s*pad|calculator)(?:\s+app)?(?:\s+please)?[.!?]?$/i.exec(goal.trim());
       if (launch) {
         const app = launch[1]!.toLowerCase() === "calculator" ? "calculator" : "notepad", label = app === "notepad" ? "Notepad" : "Calculator";
-        const denied = (): boolean => (app === "notepad" && this.deniedNative()) || this.state.deniedApps.some(value => (app === "notepad" ? ["notepad"] : ["calculator", "calculatorapp", "calc"]).includes(value));
-        if (denied()) throw new Error("computer_app_denied");
-        check(); if (denied()) throw new Error("computer_app_denied");
+        check(); this.checkLaunchAllowed(app);
         this.state.phase = "acting"; this.state.message = `Opening ${label} and checking its window.`; this.emit();
+        check(); this.checkLaunchAllowed(app);
         this.persist(true); this.state.needsReview = true; mutated = true;
-        await this.broker.launch(app, this.state, signal); check(); this.persist(false); this.state.needsReview = false; mutated = false;
+        await this.broker.launch(app, this.effectiveOptions, signal); check(); this.persist(false); this.state.needsReview = false; mutated = false;
         this.state.steps = 1; this.state.phase = "complete"; this.state.message = `${label} is open.`; return true;
       }
       for (let step = 0; step < 9; step++) {
@@ -145,18 +159,21 @@ export class Computer {
         if (action.kind === "done") { this.state.phase = "complete"; this.state.message = action.text || action.reason || "Task complete against a fresh observation."; return true; }
         if (action.kind === "ask" || action.kind === "blocked") { this.state.phase = "blocked"; this.state.message = action.text || action.reason || "Clarify the request or inspect the current app."; return false; }
         if (step === 8) throw new Error("computer_step_budget");
+        if (action.kind === "open") this.checkLaunchAllowed(action.text);
         const coordinate = action.kind === "click" && !action.target;
         if (coordinate || (!taskApproved && !(step === 0 && isDirectComputerAction(goal, action, observation)))) {
           const accepted = await this.review({ id: randomUUID(), app: observation.app, title: observation.title, targetName: observation.targets.find(target => target.id === action.target)?.name || (coordinate ? "Marked point" : "Foreground window"), goal, scope: coordinate ? "action" : "task", action }, coordinate ? observation.image : "", signal);
           check(); if (!accepted) throw new Error("computer_action_rejected");
+          if (action.kind === "open") this.checkLaunchAllowed(action.text);
           if (!coordinate) taskApproved = true;
-          await this.broker.restore(observation, this.state, signal); check();
+          await this.broker.restore(observation, this.effectiveOptions, signal); check();
         }
         const fresh = await this.observe(signal); check();
         if (fresh.hwnd !== observation.hwnd || fresh.started !== observation.started || fresh.revision !== observation.revision || (!action.target && action.kind === "click" && fresh.imageHash !== observation.imageHash)) throw new Error("computer_review_changed");
         this.state.phase = "acting"; this.state.message = "Applying the action, then observing its effect."; this.emit();
+        check(); if (action.kind === "open") this.checkLaunchAllowed(action.text);
         this.persist(true); this.state.needsReview = true; mutated = true;
-        await this.broker.act(fresh, action, this.state, signal); check(); this.persist(false); this.state.needsReview = false; mutated = false;
+        await this.broker.act(fresh, action, this.effectiveOptions, signal); check(); this.persist(false); this.state.needsReview = false; mutated = false;
         this.state.steps++; history.push(`${action.kind} ${action.target || action.text.slice(0, 100)}: native input completed; verify intended effect now.`);
         await new Promise(resolve => setTimeout(resolve, 180));
       }

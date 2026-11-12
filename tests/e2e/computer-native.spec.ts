@@ -8,14 +8,24 @@ import type { ComputerAction } from "../../packages/contracts/src/computer";
 import { localDetector, type DetectorEvent } from "../../apps/desktop/src/main/local-detector";
 import { emptyComputer } from "../../packages/contracts/src/computer";
 import { GeminiLiveSpeech } from "../../packages/speech/src/live-transcribe";
+import { Handsfree } from "../../apps/desktop/src/main/handsfree";
 // Live provider tests retain metadata and synthetic screenshots, never execution traces.
 test.use({ trace: "off" });
+
+function detectorSample(index: number): Buffer {
+  const file = readFileSync(resolve(`.test-artifacts/detector-corpus/zira-${index}.wav`));
+  for (let at = 12; at + 8 <= file.length;) {
+    const length = file.readUInt32LE(at + 4);
+    if (file.toString("ascii", at, at + 4) === "data") return file.subarray(at + 8, at + 8 + length);
+    at += 8 + length + length % 2;
+  }
+  throw new Error("Missing PCM data in synthetic detector sample");
+}
 
 test("live Gemini streams and commits synthetic speech without a second transcription request", async () => {
   test.skip(process.env.LATHAM_LIVE_GEMINI !== "1", "Live provider acceptance is explicitly enabled separately."); test.setTimeout(25000);
   const key = parseEnv(readFileSync(resolve(".env.local"), "utf8")).GEMINI_API_KEY!;
-  const file = readFileSync(resolve(".test-artifacts/detector-corpus/zira-9.wav")); let audio = Buffer.alloc(0);
-  for (let at = 12; at + 8 <= file.length;) { const length = file.readUInt32LE(at + 4); if (file.toString("ascii", at, at + 4) === "data") { audio = file.subarray(at + 8, at + 8 + length); break; } at += 8 + length + length % 2; }
+  const audio = detectorSample(9);
   const started = performance.now(); let firstMs = 0, updates = 0;
   const speech = new GeminiLiveSpeech(key, { speechLanguage: "en", speechVocabulary: "" }, () => { if (!firstMs) firstMs = performance.now() - started; updates++; });
   try {
@@ -48,13 +58,14 @@ test("direct native launch rejects denied apps and opens Notepad without foregro
   const options = { ...emptyComputer(), allowed: true, selected: true };
   try {
     await expect(broker.launch("notepad", { ...options, deniedApps: ["notepad"] }, signal)).rejects.toThrow("computer_app_denied");
+    await expect(broker.launch("calculator", { ...options, deniedApps: ["calculatorapp"] }, signal)).rejects.toThrow("computer_app_denied");
     await expect(broker.launch("powershell" as "notepad", options, signal)).rejects.toThrow("computer_launch_blocked");
     await broker.launch("notepad", options, signal);
     // Intentionally leave the app open: Notepad can reuse a process containing the user's documents.
   } finally { await broker.stop(); }
 });
 
-test("Electron opens Notepad directly without a provider key, confirmation or review window", async () => {
+for (const appName of ["Notepad", "Calculator"] as const) test(`Electron opens ${appName} directly without a provider key, confirmation or review window`, async () => {
   test.setTimeout(30000);
   const env = Object.fromEntries(Object.entries(process.env).filter((pair): pair is [string, string] => pair[1] !== undefined && pair[0] !== "ELECTRON_RUN_AS_NODE"));
   const app = await _electron.launch({ args: [resolve("dist/main.cjs"), "--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: mkdtempSync(resolve(".test-artifacts/computer-launch-")) } });
@@ -63,9 +74,38 @@ test("Electron opens Notepad directly without a provider key, confirmation or re
     const settings = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
     expect((await settings.evaluate(() => window.setup.state())).keyStored).toBe(false);
     await settings.evaluate(() => window.setup.computerConfigure({ allowed: true, images: false, browserAllowed: false, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] }));
-    expect(await settings.evaluate(() => window.setup.computerRun("open notepad")), (await settings.evaluate(() => window.setup.state())).computer.message).toBe(true);
-    expect((await settings.evaluate(() => window.setup.state())).computer).toMatchObject({ phase: "complete", message: "Notepad is open.", needsReview: false });
+    const launched = await settings.evaluate(name => window.setup.computerRun(`open ${name}`), appName);
+    const state = await settings.evaluate(() => window.setup.state());
+    expect(launched, state.computer.message).toBe(true);
+    expect(state.computer).toMatchObject({ phase: "complete", message: `${appName} is open.`, needsReview: false });
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map(win => win.webContents.getURL()).sort())).toEqual(["latham://app/index.html", "latham://companion/index.html"]);
+  } finally { await app.close(); }
+});
+
+test("a native supervisor exit after Settings is destroyed does not throw in Electron main", async () => {
+  const directory = mkdtempSync(resolve(".test-artifacts/computer-shutdown-")), bootstrap = resolve(directory, "bootstrap.cjs");
+  writeFileSync(bootstrap, `const child = require("node:child_process"), spawn = child.spawn;
+    child.spawn = (file, ...args) => {
+      const worker = spawn(file, ...args);
+      if (file.endsWith("Latham.DesktopAgent.exe")) globalThis.shutdownTestWorker = worker;
+      return worker;
+    };
+    require(${JSON.stringify(resolve("dist/main.cjs"))});`);
+  const env = Object.fromEntries(Object.entries(process.env).filter((pair): pair is [string, string] => pair[1] !== undefined && pair[0] !== "ELECTRON_RUN_AS_NODE"));
+  const app = await _electron.launch({ args: [bootstrap, "--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: directory } });
+  try {
+    await expect.poll(() => app.context().pages().some(page => page.url() === "latham://companion/index.html")).toBe(true);
+    const settings = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
+    await settings.evaluate(async () => { await window.setup.desktopPermission(true, false); await window.setup.desktopScan(); });
+    await app.evaluate(({ BrowserWindow }) => {
+      const settings = BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!;
+      const worker = Reflect.get(globalThis, "shutdownTestWorker");
+      if (!worker?.listenerCount("exit")) throw new Error("Expected an active native supervisor");
+      settings.destroy();
+      worker.kill();
+      // Deliver the exit synchronously so any main-process error fails this assertion without a dialog.
+      worker.emit("exit", 0, null);
+    });
   } finally { await app.close(); }
 });
 
@@ -74,19 +114,40 @@ for (const app of ["notepad", "calculator"] as const) test(`opening ${app} bring
   const fixture = spawn(resolve("dist/native/Latham.NativeFixture.exe"), [], { windowsHide: false, stdio: ["pipe", "pipe", "pipe"] });
   let report: Record<string, unknown> = {}, buffer = "", count = 0;
   fixture.stdout.setEncoding("utf8"); fixture.stdout.on("data", (chunk: string) => { buffer += chunk; let end: number; while ((end = buffer.indexOf("\n")) >= 0) { report = JSON.parse(buffer.slice(0, end)); buffer = buffer.slice(end + 1); count++; } }); fixture.stderr.resume();
-  const send = async (kind: string): Promise<void> => { const previous = count; fixture.stdin.write(JSON.stringify({ kind }) + "\n"); await expect.poll(() => count).toBeGreaterThan(previous); };
+  const send = async (kind: string): Promise<void> => {
+    const previous = count;
+    fixture.stdin.write(JSON.stringify({ kind, app }) + "\n");
+    await expect.poll(() => count > previous && report.kind !== "changed" ? report.kind : undefined).toBe(kind);
+  };
   const broker = new WindowsComputer(resolve("dist/native/Latham.ComputerAgent.exe")), signal = new AbortController().signal;
   const options = { ...emptyComputer(), allowed: true, selected: true };
   try {
     await expect.poll(() => report.kind).toBe("ready");
-    await broker.launch(app, options, signal); await send("remember_launched_app");
+    await test.step("Open and identify the app window", async () => {
+      await broker.launch(app, options, signal);
+      await send("remember_launched_app");
+    });
     const hwnd = report.launchedWindow; expect(hwnd).not.toBe(0);
-    await send("focus_launch_fixture"); expect(report.foreground).toBe(report.hwnd);
-    await broker.launch(app, options, signal); await send("inspect");
-    expect(report.foreground).toBe(hwnd); expect(report.launchedMinimized).toBe(false);
+    await send("focus"); expect(report.foreground).toBe(report.hwnd);
+    await test.step("Bring the existing background window forward", async () => {
+      await broker.launch(app, options, signal); await send("inspect");
+      expect(report.foreground).toBe(hwnd); expect(report.launchedMinimized).toBe(false);
+    });
     await send("minimize_launched_app"); expect(report.launchedMinimized).toBe(true);
-    await broker.launch(app, options, signal); await send("inspect");
-    expect(report.foreground).toBe(hwnd); expect(report.launchedMinimized).toBe(false);
+    await test.step("Restore and activate the same minimized window", async () => {
+      await broker.launch(app, options, signal); await send("inspect");
+      expect(report.foreground).toBe(hwnd); expect(report.launchedMinimized).toBe(false);
+    });
+    if (app === "calculator") {
+      await test.step("Honor Calculator blocks on an already open window", async () => {
+        const current = await broker.observe(false, false, [], false, signal);
+        expect(current.hwnd).toBe(String(hwnd));
+        for (const denied of ["calculator", "CalculatorApp.exe", "calc"]) {
+          await expect(broker.observe(false, false, [denied], false, signal)).rejects.toThrow("computer_app_denied");
+          await expect(broker.restore(current, { ...options, deniedApps: [denied] }, signal)).rejects.toThrow("computer_app_denied");
+        }
+      });
+    }
     writeFileSync(resolve(`.test-artifacts/${app}-launch-foreground.json`), JSON.stringify({ backgroundRestored: true, minimizedRestored: true, sameWindow: true }));
   } finally { await broker.stop(); if (fixture.exitCode === null) await send("restore_launched_app").catch(() => {}); fixture.kill(); }
 });
@@ -96,14 +157,61 @@ test("local spoken approval reports bounded audio timestamps with the actual Win
   const events: DetectorEvent[] = [], detector = localDetector(resolve("dist/native/Latham.SpeechDetector.exe"))("approve", event => events.push(event));
   try {
     await expect.poll(() => events.some(event => event.kind === "ready")).toBe(true);
-    const file = readFileSync(resolve(".test-artifacts/detector-corpus/zira-8.wav")); let audio: Buffer | undefined;
-    for (let at = 12; at + 8 <= file.length;) { const length = file.readUInt32LE(at + 4); if (file.toString("ascii", at, at + 4) === "data") { audio = file.subarray(at + 8, at + 8 + length); break; } at += 8 + length + length % 2; }
-    expect(audio).toBeDefined(); const input = Buffer.concat([Buffer.alloc(16000), audio!, Buffer.alloc(48000)]);
+    const input = Buffer.concat([Buffer.alloc(16000), detectorSample(8), Buffer.alloc(48000)]);
     for (let at = 0; at < input.length; at += 4096) { detector.push(input.subarray(at, at + 4096)); await new Promise(resolve => setTimeout(resolve, 128)); }
     await expect.poll(() => events.some(event => event.kind === "match")).toBe(true);
     expect(events.some(event => event.kind === "failed")).toBe(false);
     const match = events.find(event => event.kind === "match")!; expect(match.audioStartMs).toBeGreaterThanOrEqual(0); expect(match.audioEndMs).toBeGreaterThan(match.audioStartMs!);
   } finally { detector.close(); }
+});
+
+test("two spoken approvals and Stop route through the real Windows detectors in one synthetic hands-free session", async () => {
+  test.setTimeout(45000);
+  let proposal: string | null = null;
+  let finish: ((verified: boolean) => void) | undefined;
+  let runs = 0, cancellations = 0;
+  const approved: string[] = [];
+  const settle = (verified: boolean): void => { proposal = null; finish?.(verified); finish = undefined; };
+  const session = new Handsfree(localDetector(resolve("dist/native/Latham.SpeechDetector.exe")), {
+    available: () => true,
+    transcribe: async () => "scroll down",
+    run: async () => {
+      proposal = `proposal-${++runs}`;
+      return new Promise(resolve => { finish = resolve; });
+    },
+    approvalId: () => proposal,
+    approve: id => { approved.push(id); settle(true); },
+    cancel: () => { cancellations++; settle(false); },
+    changed: () => {},
+  });
+  const id = session.start({ target: "computer", wake: false });
+  let sequence = 0;
+  const feed = async (sample: number): Promise<void> => {
+    const audio = Buffer.concat([Buffer.alloc(16000), detectorSample(sample), Buffer.alloc(48000)]);
+    for (let at = 0; at < audio.length && session.active; at += 4096) {
+      const frame = new Uint8Array(4096);
+      frame.set(audio.subarray(at, at + 4096));
+      session.frame(id, sequence++, frame.buffer);
+      await new Promise(resolve => setTimeout(resolve, 128));
+    }
+  };
+  try {
+    await expect.poll(() => session.state.phase).toBe("listening");
+    for (const turn of [1, 2]) {
+      await feed(2);
+      expect(proposal).toBe(`proposal-${turn}`);
+      await feed(8);
+      expect(approved).toHaveLength(turn);
+      expect(session.state.phase).toBe("listening");
+    }
+    await feed(2);
+    expect(proposal).toBe("proposal-3");
+    await feed(0);
+    expect(session.state.phase).toBe("off");
+    expect(session.state.message).toContain("Heard stop assistant");
+    expect(cancellations).toBe(1);
+    expect(approved).toEqual(["proposal-1", "proposal-2"]);
+  } finally { session.end(); }
 });
 
 test("universal native worker observes and edits a real foreground fixture without a browser extension", async () => {
@@ -115,6 +223,7 @@ test("universal native worker observes and edits a real foreground fixture witho
     await expect.poll(() => report.kind).toBe("ready"); fixture.stdin.write('{"kind":"focus"}\n');
     await expect.poll(() => report.foreground === report.hwnd, { message: "Windows must focus the synthetic native fixture before acceptance can proceed." }).toBe(true);
     const signal = new AbortController().signal;
+    await expect(broker.observe(false, false, ["latham.nativefixture"], false, signal)).rejects.toThrow("computer_app_denied");
     const observation = await broker.observe(true, false, [], false, signal);
     expect(observation.app.toLowerCase()).toBe("latham.nativefixture"); expect(observation.image.startsWith("iVBOR")).toBe(true);
     writeFileSync(resolve(".test-artifacts/phase10-window-mask.png"), Buffer.from(observation.image, "base64"));
@@ -131,22 +240,81 @@ test("universal native worker observes and edits a real foreground fixture witho
   } finally { await broker.stop(); fixture.kill(); }
 });
 
+test("a reviewed task verifies two native actions before switching to Calculator", async () => {
+  test.setTimeout(45000);
+  const fixture = spawn(resolve("dist/native/Latham.NativeFixture.exe"), [], { stdio: ["pipe", "pipe", "pipe"] });
+  const broker = new WindowsComputer(resolve("dist/native/Latham.ComputerAgent.exe"));
+  let report: Record<string, unknown> = {}, buffer = "";
+  fixture.stdout.setEncoding("utf8");
+  fixture.stdout.on("data", (chunk: string) => {
+    buffer += chunk;
+    let end: number;
+    while ((end = buffer.indexOf("\n")) >= 0) {
+      report = JSON.parse(buffer.slice(0, end));
+      buffer = buffer.slice(end + 1);
+    }
+  });
+  fixture.stderr.resume();
+  const sample = "Latham cross-app fixture";
+  const computer = new Computer(mkdtempSync(resolve(".test-artifacts/computer-cross-app-")), broker, async (goal, observation, history) => {
+    const result = { target: "", text: "", x: 0, y: 0, verifiedPrevious: true, reason: "" };
+    if (history.length === 3) {
+      expect(observation.hwnd).not.toBe(String(report.hwnd));
+      expect(observation.title).toMatch(/^Calculator$/i);
+      expect(observation.targets.some(target => target.name.startsWith("Display is "))).toBe(true);
+      return { ...result, kind: "done", text: "The draft was updated and Calculator is open." };
+    }
+    expect(observation.pid).toBe(fixture.pid);
+    if (goal === "Update the field") return { ...result, kind: "ask", text: "Which field should I update?" };
+    const draft = observation.targets.find(target => target.name === "Draft")!;
+    const other = observation.targets.find(target => target.name === "Other field")!;
+    if (history.length === 0) return { ...result, kind: "type", target: draft.id, text: sample };
+    expect(draft.value).toBe(sample);
+    if (history.length === 1) return { ...result, kind: "focus", target: other.id };
+    expect(other.focused).toBe(true);
+    return { ...result, kind: "open", text: "calculator" };
+  }, () => {}, () => false);
+  try {
+    await expect.poll(() => report.kind).toBe("ready");
+    fixture.stdin.write('{"kind":"focus"}\n');
+    await expect.poll(() => report.kind === "focus" && report.foreground === report.hwnd).toBe(true);
+    computer.configure({ allowed: true, images: false, browserAllowed: false, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] });
+    expect(await computer.run("Update the field")).toBe(false);
+    expect(computer.state).toMatchObject({ steps: 0, pending: null, message: "Which field should I update?" });
+    expect(report.text).toBe("");
+
+    const task = computer.run("Write the sample into Draft, focus Other field, and open Calculator.");
+    await expect.poll(() => computer.state.pending?.scope).toBe("task");
+    expect(report.text).toBe("");
+    computer.approve(computer.state.pending!.id, true);
+    const completed = await task;
+    expect(completed, computer.state.message).toBe(true);
+    expect(computer.state).toMatchObject({ steps: 3, pending: null, message: "The draft was updated and Calculator is open." });
+    expect(report.text).toBe(sample);
+  } finally { await computer.stop(); fixture.kill(); }
+});
+
 test("generic computer use works in an isolated Chrome window without an extension and retains browser-denial gates", async () => {
   test.setTimeout(45000); mkdirSync(".test-artifacts", { recursive: true });
   const browser = await chromium.launchPersistentContext(mkdtempSync(resolve(".test-artifacts/computer-chrome-")), { executablePath: resolve(".test-artifacts/chromium-runtime/latham-test-browser.exe"), headless: false, args: ["--force-renderer-accessibility"] });
-  const page = await browser.newPage(); await page.setContent('<title>Latham synthetic computer-use page</title><label>Fixture search<input aria-label="Fixture search"></label><label>Password<input type="password" value="SYNTHETIC_PASSWORD_OMITTED"></label><p id="result">Ready</p>'); await page.bringToFront();
+  const title = "Latham synthetic computer-use page";
+  const page = await browser.newPage(); await page.setContent(`<title>${title}</title><label>Fixture search<input aria-label="Fixture search"></label><label>Password<input type="password" value="SYNTHETIC_PASSWORD_OMITTED"></label><p id="result">Ready</p>`); await page.bringToFront();
   const broker = new WindowsComputer(resolve("dist/native/Latham.ComputerAgent.exe")), signal = new AbortController().signal;
   try {
-    await expect(broker.observe(false, false, [], false, signal)).rejects.toThrow("computer_browser_scope_denied");
-    await expect(broker.observe(false, true, [], true, signal)).rejects.toThrow("computer_browser_scope_denied");
     // Chrome adds a memory-usage suffix to tab accessibility names shortly after startup.
     await page.waitForTimeout(2500);
+    execFileSync(resolve("dist/native/Latham.NativeFixture.exe"), ["--focus-test-browser", title], { windowsHide: true, timeout: 5000, stdio: "pipe" });
+    const browserWindow = await broker.observe(false, true, [], false, signal);
+    expect(browserWindow.title.includes(title), "Windows must focus the isolated browser").toBe(true);
     const observation = await broker.observe(true, true, [], false, signal);
+    expect(observation.hwnd).toBe(browserWindow.hwnd);
     writeFileSync(resolve(".test-artifacts/phase10-chrome-mask.png"), Buffer.from(observation.image, "base64"));
     const target = observation.targets.find(target => target.name === "Fixture search" && target.actions.includes("type")); expect(target, JSON.stringify(observation.targets.map(target => ({ name: target.name, role: target.role })))).toBeDefined();
     expect(JSON.stringify(observation.targets)).not.toContain("SYNTHETIC_PASSWORD_OMITTED");
     await broker.act(observation, { kind: "type", target: target!.id, text: "piano music", x: 0, y: 0, verifiedPrevious: true, reason: "Replace the synthetic search" }, { ...emptyComputer(), agreementAccepted: true, allowed: true, images: true, browserAllowed: true, selected: true }, signal);
     await expect(page.getByLabel("Fixture search")).toHaveValue("piano music");
+    await expect(broker.observe(false, false, [], false, signal)).rejects.toThrow("computer_browser_scope_denied");
+    await expect(broker.observe(false, true, [], true, signal)).rejects.toThrow("computer_browser_scope_denied");
   } finally { await broker.stop(); await browser.close(); }
 });
 
@@ -156,7 +324,11 @@ test("live Gemini plans and checks a reviewed action using only a synthetic nati
   const fixture = spawn(resolve("dist/native/Latham.NativeFixture.exe"), [], { windowsHide: false, stdio: ["pipe", "pipe", "pipe"] });
   let report: Record<string, unknown> = {}, buffer = ""; fixture.stdout.setEncoding("utf8"); fixture.stdout.on("data", (chunk: string) => { buffer += chunk; let end: number; while ((end = buffer.indexOf("\n")) >= 0) { report = JSON.parse(buffer.slice(0, end)); buffer = buffer.slice(end + 1); } }); fixture.stderr.resume();
   const broker = new WindowsComputer(resolve("dist/native/Latham.ComputerAgent.exe"));
-  const computer = new Computer(mkdtempSync(resolve(".test-artifacts/computer-live-")), broker, computerDecision(() => key!), () => {}, () => false);
+  const decide = computerDecision(() => key!);
+  const computer = new Computer(mkdtempSync(resolve(".test-artifacts/computer-live-")), broker, (goal, observation, history, options, signal) => {
+    if (observation.pid !== fixture.pid) throw new Error("computer_live_fixture_focus_changed");
+    return decide(goal, observation, history, options, signal);
+  }, () => {}, () => false);
   try {
     await expect.poll(() => report.kind).toBe("ready"); fixture.stdin.write('{"kind":"focus"}\n'); await expect.poll(() => report.kind).toBe("focus"); await expect.poll(() => report.foreground === report.hwnd).toBe(true);
     computer.configure({ allowed: true, images: true, browserAllowed: false, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] });

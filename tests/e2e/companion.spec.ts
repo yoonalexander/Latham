@@ -262,23 +262,34 @@ test("cursor follower stays beside the cursor after repeated movement and at the
         }
         const bounds = win.getContentBounds();
         const glyph = await win.webContents.executeJavaScript("(() => { const r = document.getElementById('glyph').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })()");
-        const corners = [];
-        for (const x of [area.x + 3, area.x + area.width - 3]) for (const y of [area.y + 3, area.y + area.height - 3]) {
-          screen.getCursorScreenPoint = () => ({ x, y }); await new Promise(resolve => setTimeout(resolve, 300));
-          const content = win.getContentBounds();
-          const rect = await win.webContents.executeJavaScript("(() => { const r = document.getElementById('glyph').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })()");
-          corners.push({ cursor: { x, y }, glyph: { x: content.x + rect.x + rect.width / 2, y: content.y + rect.y + rect.height / 2 } });
+        const displays = [];
+        for (const { bounds: displayBounds, workArea, scaleFactor } of screen.getAllDisplays()) {
+          const corners = [];
+          for (const x of [workArea.x + 3, workArea.x + workArea.width - 3]) for (const y of [workArea.y + 3, workArea.y + workArea.height - 3]) {
+            screen.getCursorScreenPoint = () => ({ x, y }); await new Promise(resolve => setTimeout(resolve, 300));
+            const content = win.getContentBounds();
+            const rect = await win.webContents.executeJavaScript("(() => { const r = document.getElementById('glyph').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })()");
+            corners.push({ cursor: { x, y }, glyph: { x: content.x + rect.x + rect.width / 2, y: content.y + rect.y + rect.height / 2 } });
+          }
+          displays.push({ bounds: displayBounds, workArea, scaleFactor, corners });
         }
-        return { before, after: win.getBounds(), sizes, corners, cursor: { x: area.x + 379, y: area.y + area.height - 4 }, glyph: { x: bounds.x + glyph.x + glyph.width / 2, y: bounds.y + glyph.y + glyph.height / 2 } };
+        return { before, after: win.getBounds(), sizes, displays, cursor: { x: area.x + 379, y: area.y + area.height - 4 }, glyph: { x: bounds.x + glyph.x + glyph.width / 2, y: bounds.y + glyph.y + glyph.height / 2 } };
       } finally { screen.getCursorScreenPoint = original; }
     });
     for (const dimension of ["width", "height"] as const) expect(Math.max(...movements.sizes.map(size => size[dimension])) - Math.min(...movements.sizes.map(size => size[dimension])), JSON.stringify(movements)).toBeLessThanOrEqual(2);
     expect(Math.abs(movements.glyph.y - movements.cursor.y), JSON.stringify(movements)).toBeLessThan(80);
     expect(Math.abs(movements.glyph.x - movements.cursor.x), JSON.stringify(movements)).toBeLessThan(80);
-    for (const corner of movements.corners) {
-      expect(Math.abs(corner.glyph.y - corner.cursor.y), JSON.stringify(corner)).toBeLessThan(80);
-      expect(Math.abs(corner.glyph.x - corner.cursor.x), JSON.stringify(corner)).toBeLessThan(80);
+    for (const { workArea, corners } of movements.displays) {
+      for (const { glyph, cursor } of corners) {
+        expect(Math.abs(glyph.y - cursor.y)).toBeLessThan(80);
+        expect(Math.abs(glyph.x - cursor.x)).toBeLessThan(80);
+        expect(glyph.x).toBeGreaterThanOrEqual(workArea.x);
+        expect(glyph.x).toBeLessThan(workArea.x + workArea.width);
+        expect(glyph.y).toBeGreaterThanOrEqual(workArea.y);
+        expect(glyph.y).toBeLessThan(workArea.y + workArea.height);
+      }
     }
+    writeFileSync(resolve(".test-artifacts/phase10-companion-displays.json"), JSON.stringify(movements.displays, null, 2));
   } finally { await app.close(); }
 });
 

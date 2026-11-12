@@ -38,7 +38,7 @@ export class Companion {
     this.window.on("closed", () => clearInterval(this.timer));
   }
   send(): void {
-    if (this.window.webContents.isDestroyed()) return;
+    if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) return;
     let state = this.state(); const id = state.confirmation?.id ?? null;
     if (id !== this.confirmationId) { this.confirmationId = id; this.window.setIgnoreMouseEvents(true, { forward: true }); this.position(true); state = this.state(); }
     this.window.webContents.send("companion:state", state);

@@ -6,8 +6,10 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 sealed class NativeFixture : Form {
+    delegate bool ChildWindowCallback(IntPtr window, IntPtr data);
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out int pid);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, ChildWindowCallback callback, IntPtr data);
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int command);
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool IsIconic(IntPtr hwnd);
     IntPtr launchedWindow; int launchedPid;
@@ -30,18 +32,22 @@ sealed class NativeFixture : Form {
                     string kind = (string)command["kind"];
                     if (kind == "edit") draft.Text = (string)command["text"];
                     else if (kind == "focus_other") other.Focus();
-                    else if (kind == "focus") { Activate(); draft.Focus(); }
-                    else if (kind == "focus_launch_fixture") { System.Windows.Automation.AutomationElement.FromHandle(Handle).SetFocus(); draft.Focus(); }
+                    else if (kind == "focus") {
+                        Activate();
+                        FocusWindow(Handle);
+                        draft.Focus();
+                    }
                     else if (kind == "remember_launched_app") {
                         var window = GetForegroundWindow(); int pid; GetWindowThreadProcessId(window, out pid);
-                        using (var process = Process.GetProcessById(pid)) {
-                            if (!System.Text.RegularExpressions.Regex.IsMatch(process.ProcessName, "^(notepad|calculator|calculatorapp|calc)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) throw new Exception("Expected a launched test app in front");
+                        object app;
+                        if (!command.TryGetValue("app", out app) || !IsTestAppWindow(window, pid, app as string)) {
+                            Report("launch_app_mismatch"); return;
                         }
                         launchedWindow = window; launchedPid = pid;
                     }
                     else if (kind == "minimize_launched_app") {
                         int pid; GetWindowThreadProcessId(launchedWindow, out pid);
-                        if (launchedWindow == IntPtr.Zero || pid != launchedPid) throw new Exception("Test app window changed");
+                        if (launchedWindow == IntPtr.Zero || pid != launchedPid) { Report("launch_app_changed"); return; }
                         ShowWindow(launchedWindow, 6);
                     }
                     else if (kind == "restore_launched_app" && launchedWindow != IntPtr.Zero) ShowWindow(launchedWindow, 9);
@@ -60,6 +66,39 @@ sealed class NativeFixture : Form {
             }
         }) { IsBackground = true }.Start();
     }
+    static bool FocusWindow(IntPtr window) {
+        if (GetForegroundWindow() != window) {
+            try { System.Windows.Automation.AutomationElement.FromHandle(window).SetFocus(); }
+            catch (InvalidOperationException) {}
+            catch (System.Windows.Automation.ElementNotAvailableException) {}
+        }
+        return GetForegroundWindow() == window;
+    }
+    static bool IsCalculatorProcess(int pid) {
+        try {
+            using (var process = Process.GetProcessById(pid)) {
+                string name = process.ProcessName.ToLowerInvariant();
+                return name == "calculatorapp" || name == "calculator" || name == "calc";
+            }
+        } catch (ArgumentException) { return false; }
+    }
+    static bool IsTestAppWindow(IntPtr window, int pid, string app) {
+        try {
+            using (var process = Process.GetProcessById(pid)) {
+                if (app == "notepad") return process.ProcessName.Equals("notepad", StringComparison.OrdinalIgnoreCase);
+                if (app != "calculator") return false;
+                if (IsCalculatorProcess(pid)) return true;
+                if (!process.ProcessName.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase)) return false;
+            }
+        } catch (ArgumentException) { return false; }
+        bool found = false;
+        EnumChildWindows(window, (child, data) => {
+            int childPid; GetWindowThreadProcessId(child, out childPid);
+            found = childPid != pid && IsCalculatorProcess(childPid);
+            return !found;
+        }, IntPtr.Zero);
+        return found;
+    }
     TextBox MakeDraft() {
         var field = new TextBox { Name = "Draft", AccessibleName = "Draft", Multiline = false, Left = 30, Top = 50, Width = 600, Text = "" };
         field.TextChanged += (s, e) => {
@@ -69,5 +108,20 @@ sealed class NativeFixture : Form {
         }; return field;
     }
     void Report(string kind) { using (var graphics = CreateGraphics()) lock (json) { Console.WriteLine(json.Serialize(new { kind, pid = Process.GetCurrentProcess().Id, started = Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks.ToString(), hwnd = Handle.ToInt64(), foreground = GetForegroundWindow().ToInt64(), launchedWindow = launchedWindow.ToInt64(), launchedMinimized = launchedWindow != IntPtr.Zero && IsIconic(launchedWindow), text = draft.Text, dpi = graphics.DpiX, screens = Screen.AllScreens.Length, x = Left, y = Top })); Console.Out.Flush(); } }
-    [STAThread] static void Main() { Application.EnableVisualStyles(); Application.Run(new NativeFixture()); }
+    [STAThread] static int Main(string[] args) {
+        if (args.Length == 2 && args[0] == "--focus-test-browser") {
+            foreach (var browser in Process.GetProcessesByName("latham-test-browser")) {
+                using (browser) {
+                    try {
+                        IntPtr window = browser.MainWindowHandle;
+                        if (window != IntPtr.Zero && browser.MainWindowTitle.Contains(args[1]) && FocusWindow(window)) return 0;
+                    } catch (InvalidOperationException) {}
+                }
+            }
+            return 1;
+        }
+        Application.EnableVisualStyles();
+        Application.Run(new NativeFixture());
+        return 0;
+    }
 }

@@ -50,6 +50,27 @@ static class ComputerAgent {
     [DllImport("advapi32.dll", SetLastError = true)] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
     [DllImport("advapi32.dll", SetLastError = true)] static extern bool GetTokenInformation(IntPtr token, int kind, IntPtr data, int length, out int needed);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    const string CalculatorAppId = "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App";
+    const int DwmwaCloaked = 14;
+    const ushort VtLpwstr = 31;
+    delegate bool ChildWindowCallback(IntPtr window, IntPtr data);
+    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, ChildWindowCallback callback, IntPtr data);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr window, StringBuilder name, int length);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern int GetApplicationUserModelId(IntPtr process, ref int length, StringBuilder name);
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] struct PropertyKey { public Guid Format; public uint Id; }
+    [StructLayout(LayoutKind.Sequential)] struct PropertyValue {
+        public ushort Type, Reserved1, Reserved2, Reserved3;
+        public IntPtr Value, Padding;
+    }
+    [ComImport, Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPropertyStore {
+        [PreserveSig] int GetCount(out uint count);
+        [PreserveSig] int GetAt(uint index, out PropertyKey key);
+        [PreserveSig] int GetValue(ref PropertyKey key, out PropertyValue value);
+    }
+    [DllImport("shell32.dll")] static extern int SHGetPropertyStoreForWindow(IntPtr window, ref Guid id, out IPropertyStore store);
+    [DllImport("ole32.dll")] static extern int PropVariantClear(ref PropertyValue value);
     static void Check(bool value, string code) { if (!value) throw new Exception(code); }
     static string S(Dictionary<string, object> value, string key) { object v; return value.TryGetValue(key, out v) ? v as string ?? "" : ""; }
     static string Hash(string text) { using (var hash = SHA256.Create()) return Convert.ToBase64String(hash.ComputeHash(Encoding.UTF8.GetBytes(text))); }
@@ -65,6 +86,23 @@ static class ComputerAgent {
         try { var name = new StringBuilder(128); int needed; Check(GetUserObjectInformation(desktop, 2, name, 256, out needed) && name.ToString() == "Default", "secure_desktop"); } finally { CloseDesktop(desktop); }
     }
     static bool Browser(string app) { return app == "chrome" || app == "msedge" || app == "firefox" || app == "brave" || app == "opera"; }
+    static string DeniedProcessName(object value) {
+        string name = Convert.ToString(value).ToLowerInvariant();
+        return name.EndsWith(".exe", StringComparison.Ordinal) ? name.Substring(0, name.Length - 4) : name;
+    }
+    static void CheckAppAccess(IntPtr window, Process process, string app, string original) {
+        bool calculatorDenied = false;
+        foreach (object entry in (System.Collections.IEnumerable)Request["deniedApps"]) {
+            string denied = DeniedProcessName(entry);
+            Check(app != denied && original != denied, "computer_app_denied");
+            calculatorDenied |= LaunchName(denied, "calculator");
+        }
+        if (!calculatorDenied) return;
+        bool calculator = LaunchName(app, "calculator") || LaunchName(original, "calculator") ||
+            (app == "applicationframehost" && IsSystemApplicationFrame(window, process) &&
+                (CalculatorFrameId(window) || HasCalculatorChild(window, process.SessionId)));
+        Check(!calculator, "computer_app_denied");
+    }
     static string Identity(IntPtr hwnd, out Process process, out Rect rect, bool allowMinimized = false) {
         Desktop(); int pid; GetWindowThreadProcessId(hwnd, out pid); process = Process.GetProcessById(pid);
         Check(pid != Controller && process.SessionId == Process.GetCurrentProcess().SessionId && Safe(process) && IsWindowVisible(hwnd) && (allowMinimized || !IsIconic(hwnd)), "computer_app_denied");
@@ -72,7 +110,7 @@ static class ComputerAgent {
         string original = Path.GetFileNameWithoutExtension(process.MainModule.FileVersionInfo.OriginalFilename ?? "").ToLowerInvariant();
         string excluded = "^(cmd|powershell|pwsh|conhost|windowsterminal|wt|logonui|lockapp|credentialuibroker|consent|keepass.*|1password.*|bitwarden.*|sechealthui|securityhealth.*|taskmgr|regedit|mmc|msiexec)$";
         Check(!System.Text.RegularExpressions.Regex.IsMatch(app, excluded) && !System.Text.RegularExpressions.Regex.IsMatch(original, excluded), "computer_app_denied");
-        foreach (object denied in (System.Collections.IEnumerable)Request["deniedApps"]) Check(app != Convert.ToString(denied).ToLowerInvariant(), "computer_app_denied");
+        CheckAppAccess(hwnd, process, app, original);
         Check(!(Browser(app) || Browser(original)) || (Convert.ToBoolean(Request["browserAllowed"]) && !Convert.ToBoolean(Request["siteBlocked"])), "computer_browser_scope_denied");
         Check(GetWindowRect(hwnd, out rect) && ((allowMinimized && IsIconic(hwnd)) || (rect.Right - rect.Left >= 40 && rect.Bottom - rect.Top >= 40 && rect.Right - rect.Left <= 7680 && rect.Bottom - rect.Top <= 4320)), "computer_geometry_unavailable"); return app;
     }
@@ -131,20 +169,70 @@ static class ComputerAgent {
         Dispatched = true; Check(SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf(typeof(Input))) == inputs.Count, "computer_input_unconfirmed");
     }
     static bool LaunchName(string name, string app) { return app == "notepad" ? name == "notepad" : name == "calculator" || name == "calculatorapp" || name == "calc"; }
-    static bool LaunchWindow(IntPtr window, string app) {
+    static bool WindowClass(IntPtr window, string expected) {
+        var name = new StringBuilder(128);
+        return GetClassName(window, name, name.Capacity) > 0 && name.ToString() == expected;
+    }
+    static bool IsSystemApplicationFrame(IntPtr window, Process process) {
+        return WindowClass(window, "ApplicationFrameWindow") &&
+            string.Equals(process.MainModule.FileName, Path.Combine(Environment.SystemDirectory, "ApplicationFrameHost.exe"), StringComparison.OrdinalIgnoreCase);
+    }
+    static bool CalculatorFrameId(IntPtr window) {
+        var id = typeof(IPropertyStore).GUID;
+        IPropertyStore store;
+        if (SHGetPropertyStoreForWindow(window, ref id, out store) != 0) return false;
+        try {
+            // PKEY_AppUserModel_ID stays on the frame when Windows detaches its minimized app.
+            var key = new PropertyKey { Format = new Guid("9f4c2855-9f79-4b39-a8d0-e1d42de1d5f3"), Id = 5 };
+            PropertyValue value;
+            int result = store.GetValue(ref key, out value);
+            try { return result == 0 && value.Type == VtLpwstr && Marshal.PtrToStringUni(value.Value) == CalculatorAppId; }
+            finally { PropVariantClear(ref value); }
+        } finally { Marshal.ReleaseComObject(store); }
+    }
+    static bool HasCalculatorChild(IntPtr window, int session) {
+        bool found = false;
+        EnumChildWindows(window, (child, data) => {
+            if (!WindowClass(child, "Windows.UI.Core.CoreWindow")) return true;
+            int pid; GetWindowThreadProcessId(child, out pid);
+            try {
+                using (var process = Process.GetProcessById(pid)) {
+                    if (process.SessionId != session || !LaunchName(process.ProcessName.ToLowerInvariant(), "calculator") || !Safe(process)) return true;
+                    var id = new StringBuilder(256); int length = id.Capacity;
+                    found = GetApplicationUserModelId(process.Handle, ref length, id) == 0 && id.ToString() == CalculatorAppId;
+                }
+            } catch (ArgumentException) { return true; }
+              catch (InvalidOperationException) { return true; }
+              catch (System.ComponentModel.Win32Exception) { return true; }
+            return !found;
+        }, IntPtr.Zero);
+        return found;
+    }
+    static bool LaunchWindow(IntPtr window, string app, bool allowMinimized) {
         Process process = null;
         try {
-            Rect rect; string name = Identity(window, out process, out rect, true);
+            Rect rect; string name = Identity(window, out process, out rect, allowMinimized);
+            if (app == "calculator") {
+                // A minimized Calculator's detached CoreWindow is shell-cloaked, even when IsWindowVisible reports true.
+                int cloaked;
+                if (DwmGetWindowAttribute(window, DwmwaCloaked, out cloaked, sizeof(int)) != 0 || cloaked != 0) return false;
+                if (name == "applicationframehost") {
+                    return IsSystemApplicationFrame(window, process) &&
+                        CalculatorFrameId(window) && ((allowMinimized && IsIconic(window)) || HasCalculatorChild(window, process.SessionId));
+                }
+            }
             string original = Path.GetFileNameWithoutExtension(process.MainModule.FileVersionInfo.OriginalFilename ?? "").ToLowerInvariant();
             return LaunchName(name, app) || LaunchName(original, app);
         } catch { return false; } finally { if (process != null) process.Dispose(); }
     }
-    static void Launch(string app) {
+    static IntPtr Launch(string app) {
         Check(app == "calculator" || app == "notepad", "computer_launch_blocked"); Desktop();
-        foreach (object denied in (System.Collections.IEnumerable)Request["deniedApps"]) Check(!LaunchName(Convert.ToString(denied).ToLowerInvariant(), app), "computer_app_denied");
-        AppWindow.Open(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", app == "calculator" ? "calc.exe" : "notepad.exe"),
-            window => LaunchWindow(window, app), Desktop, () => { Dispatched = true; });
-        Process process; Rect rect; Identity(GetForegroundWindow(), out process, out rect);
+        foreach (object denied in (System.Collections.IEnumerable)Request["deniedApps"]) Check(!LaunchName(DeniedProcessName(denied), app), "computer_app_denied");
+        long preferred;
+        long.TryParse(S(Request, "preferredWindow"), out preferred);
+        return AppWindow.Open(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", app == "calculator" ? "calc.exe" : "notepad.exe"),
+            window => LaunchWindow(window, app, true), Desktop, () => { Dispatched = true; },
+            window => LaunchWindow(window, app, false), new IntPtr(preferred));
     }
     [MTAThread] static int Main(string[] args) {
         try {
@@ -152,7 +240,11 @@ static class ComputerAgent {
             var parent = new Thread(() => { try { Process.GetProcessById(Controller).WaitForExit(); } catch {} Environment.Exit(1); }); parent.IsBackground = true; parent.Start();
             string line = Console.ReadLine(); Check(line != null && line.Length <= 100000, "invalid_request"); Request = Json.Deserialize<Dictionary<string, object>>(line);
             string kind = S(Request, "kind"); IntPtr hwnd = GetForegroundWindow();
-            if (kind == "launch") { Launch(S(Request, "app")); Console.WriteLine("{\"outcome\":\"verified\",\"reason\":\"app_window_verified\"}"); return 0; }
+            if (kind == "launch") {
+                IntPtr window = Launch(S(Request, "app"));
+                Console.WriteLine(Json.Serialize(new { outcome = "verified", reason = "app_window_verified", window = window.ToInt64().ToString() }));
+                return 0;
+            }
             if (kind == "restore") {
                 var expectedWindow = (Dictionary<string, object>)Request["observation"]; var desired = new IntPtr(long.Parse(S(expectedWindow, "hwnd")));
                 int foregroundPid; GetWindowThreadProcessId(hwnd, out foregroundPid); Check(hwnd == desired || foregroundPid == Controller, "computer_focus_changed");

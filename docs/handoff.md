@@ -50,17 +50,17 @@ and model. Local reasoning uses a separately configured loopback Ollama model.
 3. Try **Ctrl+Alt+.** while the companion is listening or working. If an earlier
    action is uncertain, inspect its result and select **I've checked — continue**
    under **Universal assistant**. The previous command is never replayed.
-4. Continue Phase 10D with physical voice, hands-free approval and Stop, other
-   native apps, multi-step cross-app tasks, and available display configurations.
-   Rebuild the unsigned preview with `npm run package:preview` and verify it with
-   `node scripts/check-preview.mjs` before reporting packaged acceptance.
+4. Continue with the [Phase 10D acceptance checklist](../roadmap.md#phase-10d-acceptance-checklist).
+   Startup and shutdown passed. Resume with native editing on a desktop that
+   grants foreground focus, then continue the real-device and package checks.
+   See the [November 11 results](evaluation.md#phase-10d-windows-acceptance--november-11-2026).
 
 ## Checks
 
 ```powershell
 npm run check
 node scripts/build-native-fixture.mjs
-npx playwright test tests/e2e/computer-native.spec.ts --project=native --grep 'existing background and minimized|direct native launch|Electron opens Notepad'
+npx playwright test tests/e2e/computer-native.spec.ts --project=native --grep 'existing background and minimized|direct native launch|Electron opens (Notepad|Calculator)'
 ```
 
 Run native tests with the desktop unlocked and avoid changing focus while they
@@ -76,8 +76,10 @@ builds. In the focused Windows run, Electron opened Notepad and the native
 regression verified foreground activation and restore of the same Notepad
 window. The separate direct Notepad launch hit `computer_provider_timeout`.
 The Calculator case returned `computer_result_unknown`. Re-run these on the
-new PC before treating app launch as reliable. If Calculator still fails,
-inspect the native worker's reason and verify which process owns its window.
+new PC before treating app launch as reliable. The
+[November 9 follow-up](evaluation.md#phase-10d-launch-and-shutdown-follow-up--november-9-2026)
+records the Calculator fix, repeated interactive launch checks and the remaining
+editing and shutdown checks.
 
 ## Where to work
 

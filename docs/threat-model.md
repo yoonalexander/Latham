@@ -39,7 +39,11 @@ reliably classified; masking is not a guarantee for arbitrary apps. Known elevat
 secure, shell and security-tool processes are excluded, including recognized
 original executable identities. Unknown custom embedded terminals remain a limit.
 
-Notepad denial propagates from its existing adapter. Site revocation records a
+Notepad denial propagates from its existing adapter to observation, restoration,
+and execution. Direct and planner-selected launches enforce the same app
+blocks before dispatch. The native worker checks blocked executable names with
+or without `.exe` and recognizes Calculator aliases through the system frame
+host's app identity. Site revocation records a
 separate durable universal-browser block: any such block excludes every browser
 window until explicitly cleared, because UIA cannot establish embedded origin
 exclusions. Broader consent never automatically retries an extension denial.
@@ -68,6 +72,12 @@ It requires the remembered agreement and enabled access, runs without a per-laun
 the same uncertainty/Stop boundary. It reads no window content or model context;
 native success requires the named same-user, non-elevated app's foreground window.
 Only those fixed executables are accepted, with no arguments or shell text.
+For hosted Calculator, the worker checks the system frame host and Calculator's
+fixed Windows app ID. A minimized frame can be selected by its shell app ID.
+Success also requires the restored foreground frame to contain a same-user,
+same-session, non-elevated child with Calculator's process app ID. The broker
+keeps the last verified window handle per app in memory as a selection hint.
+Each launch revalidates it against current policy and window identity.
 Compound/model-selected actions retain the normal observation/revalidation path.
 
 The optional continuous-session approval recognizer receives real audio only

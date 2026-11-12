@@ -210,7 +210,7 @@ must be reported, not bypassed.
 | 10A | Independent universal-mode activation, explicit capture consent and screen understanding | No extension needed; no idle capture; no capture/provider transmission before consent; revoked/denied scopes blocked |
 | 10B | Generic Windows observation and input broker | Real controls across multiple ordinary apps; fresh coordinate/DPI/window checks; secure/elevated exclusions; wrong-window and interruption tests |
 | 10C | Model-driven observe/act/check loop | Multiple-step goals across apps, ambiguity handling, bounded budgets, provider failures, independent Stop and no replay after cancellation |
-| 10D | End-to-end voice companion acceptance | Physical Ctrl/mic and hands-free checks, visible result/error feedback, Chrome without the extension, multiple native apps and mixed-display acceptance where hardware exists |
+| 10D | End-to-end Windows companion acceptance | [Phase 10D acceptance checklist](../roadmap.md#phase-10d-acceptance-checklist) |
 
 Start with controlled fixtures and low-consequence tasks, then demonstrate the
 same generic engine in multiple unrelated apps. A short acceptance set measures

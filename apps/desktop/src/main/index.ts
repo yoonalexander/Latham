@@ -112,7 +112,7 @@ async function boot(): Promise<void> {
   // A completed fence cannot revive an activation invalidated by Stop or reset.
   let activation = 0;
   const state = (): DesktopState => ({ ...controller.getState(), settings: { ...storage.settings }, stopShortcutRegistered });
-  const send = (): void => { if (!win.webContents.isDestroyed()) win.webContents.send("latham:state", state()); };
+  const send = (): void => { if (!quitting && !win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send("latham:state", state()); };
   controller.subscribe(send);
   const guard = (event: IpcMainEvent | IpcMainInvokeEvent): void => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame || event.senderFrame.url !== "latham://app/index.html") throw new Error("forbidden_sender");
@@ -126,7 +126,11 @@ async function boot(): Promise<void> {
   let desktop: DesktopController;
   let utteranceBinding: string | null = null;
   const setupState = (): SetupState => ({ speechPreview: { ...speechPreview.state }, computer: computer.state, providerSettingsLocked: providerStore.locked, browser: providerStore.browser, browserChoices: (Object.keys(browsers) as BrowserId[]).map(id => ({ id, label: browsers[id], installed: !!browserPath(id) })), evaluation: { trials: evaluation.trials, locked: evaluation.locked }, managed: { ...managed.state }, canImportEnvironmentKey: !app.isPackaged, canInsertTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === browser.bindingId, canInsertDesktopTranscript: !!voice.transcript && !!utteranceBinding && utteranceBinding === desktop.bindingId, desktop: desktop.state, handsfree: handsfree.state, visual: visual.state, workflow: workflow.state, shortcuts: shortcuts.list, shortcutStorageAvailable: shortcuts.available, shortcutStorageLocked: shortcuts.locked, localModel: voice.localModel, settings: { ...providerStore.settings }, keyStored: providerStore.keyStored, vaultAvailable: providerStore.available, voice: voice.status, transcript: voice.transcript, error: voice.error, notice: voice.notice, chromeConnected: chrome.connected, chromeActive: chrome.active, chromeFenceConfirmed: chrome.fenceConfirmed, chromeNeedsReview: chrome.needsReview, chromeResult: chrome.result, sites: chrome.siteState, extensionId, page: browser.state });
-  const setupSend = (): void => { if (voice && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState()); companion?.send(); };
+  const setupSend = (): void => {
+    if (quitting) return;
+    if (voice && !win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send("setup:state", setupState());
+    companion?.send();
+  };
   speechPreview = new SpeechPreview(localDetector(join(__dirname, "native/Latham.SpeechDetector.exe"), () => providerStore.settings.speechLanguage), setupSend,
     partial => providerStore.settings.mode === "cloud" ? new GeminiLiveSpeech(providerStore.key(), providerStore.settings, partial) : undefined);
   voice = new Voice(providerStore, setupSend, managed, speechPreview);

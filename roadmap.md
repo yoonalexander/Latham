@@ -235,11 +235,22 @@ operations, provider checks, actual evidence and remaining acceptance gates.
 - [x] Companion speech: use one Gemini live transcription stream for real interim and final words in user-key mode; retain explicit activation, release-before-dispatch, Stop, local-only isolation and bounded failure. Physical microphone/accent/noise acceptance remains in 10D.
 - [x] 10B: Implement generic Windows accessibility observation and bounded native click/type/scroll/key execution with fresh target, input and geometry checks. Controlled native and extension-free Chrome checks pass; wider app/input coverage remains in 10D.
 - [x] 10C: Implement the bounded AI observe/act/check loop, clarification, direct simple commands, one compact companion confirmation for longer tasks, separate coordinate-click confirmation, independent Stop and explicit uncertainty recovery. Controlled Gemini/native evidence is recorded in the evaluation guide; broader multi-step/cross-app acceptance remains in 10D.
-- [ ] 10D: Accept real voice, multiple unrelated native apps, Chrome without the extension, cancellation, privacy and actual display configurations where available.
 
 Keep the existing Chrome/Notepad paths as separate implemented adapters. Do not
 remove their guards as a substitute for building the new backend. Do not claim
 every app works or that a Gemini text/ASR key check validates computer-use models.
+
+### Phase 10D acceptance checklist
+
+- [x] **10D.1 — Windows startup and shutdown.** The cold-start tray Settings checks passed, including the first request during startup. The native supervisor exit regression passed after Settings was destroyed. [November 11 results](docs/evaluation.md#phase-10d-windows-acceptance--november-11-2026)
+- [ ] **10D.2 — Native window discovery and editing.** Resolve the known window discovery and focus failures in the universal and legacy editing tests. Verify that Latham finds, edits, and checks the result in multiple unrelated Windows apps. Include a changed-window or changed-field case that blocks the edit and a stalled native operation that can be stopped safely.
+- [ ] **10D.3 — Hold-Ctrl with a real microphone.** Check that live words appear while speaking, the microphone closes on release, and the final transcript runs the intended command once. Check cancellation while listening and record recognition problems observed with the available speakers and room conditions.
+- [ ] **10D.4 — Hands-free approval, Stop, and recovery.** Run repeated commands in an opt-in session. Verify that approval applies only to the visible proposal, spoken Stop interrupts active work, the independent Stop shortcut works during processing, and recovery does not replay a command.
+- [ ] **10D.5 — Chrome without the extension.** Complete and verify a permitted, low-consequence task in a real Chrome window using the Windows engine. Repeat with browser access revoked and verify that the operation is blocked.
+- [ ] **10D.6 — Multi-step and cross-app tasks.** Verify a multi-step goal within one app and a goal spanning apps. Check that Latham clarifies ambiguous requests, asks for approval when required, and shows the verified result or a clear error.
+- [ ] **10D.7 — Consent and privacy.** Verify that idle capture stays off and that capture and provider transmission respect consent. Exercise app and site blocks, protected fields, and secure or elevated windows. App-denial unit tests and the hosted Calculator identity check passed. [App-denial follow-up](docs/evaluation.md#phase-10d-app-denial-follow-up--november-11-2026)
+- [ ] **10D.8 — Displays and scaling.** Verify companion positioning and action targeting on the available monitor layouts and DPI settings, including mixed-DPI setups where available. Record the configurations tested and any gaps.
+- [ ] **10D.9 — Packaged Windows preview.** Build with `npm run package:preview` and run `node scripts/check-preview.mjs`. Smoke-test setup, launch, Stop, and recovery from the packaged app. Record the tested workflows and outstanding limits in [evaluation.md](docs/evaluation.md) before closing Phase 10.
 
 ## Work that accompanies every milestone
 
@@ -256,4 +267,9 @@ The universal Windows development route is implemented alongside the older narro
 
 ## Next milestone
 
-**Finish Phase 10D acceptance.** Exercise physical voice, repeated hands-free approval/Stop, unrelated real native apps, multi-step cross-app goals and available actual display configurations using the new extension-free engine. Publish results and accept a new packaged build before calling Phase 10 complete. Other platforms and public launch remain separately gated.
+**Resume the foreground checks with 10D.2.** The November 11 run verified
+startup and shutdown. Windows denied foreground activation during the longer
+native run, leaving native editing, extension-free Chrome, cross-app actions,
+and packaged launch open. The [Phase 10D checklist](#phase-10d-acceptance-checklist)
+and [November 11 results](docs/evaluation.md#phase-10d-windows-acceptance--november-11-2026)
+record the remaining physical voice, privacy, and display work.

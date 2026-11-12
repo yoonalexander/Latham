@@ -12,12 +12,43 @@ const env = Object.fromEntries(Object.entries(process.env).filter(([key, value])
 const wait = async check => { for (let n = 0; n < 150; n++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); } throw new Error("preview_acceptance_timeout"); };
 let app, context;
 try {
+  for (const file of ["docs/companion.md", "docs/universal-desktop.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
   for (const file of ["SETUP.md", "docs/phase9.md", "docs/phase8.md", "docs/release-operations.md", "docs/phase7.md", "docs/phase6.md", "docs/phase5.md", "docs/phase4.md", "docs/phase3.md", "docs/phase2.md", "docs/phase1.md", "docs/evaluation.md"]) assert.ok(readFileSync(join(packageRoot, file), "utf8").length > 0);
   const data = mkdtempSync(join(root, "packaged-app-"));
-  app = await _electron.launch({ executablePath: join(packageRoot, "Latham.exe"), args: ["--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
-  await wait(() => app.context().pages().some(page => page.url() === "latham://app/index.html"));
-  const desk = app.context().pages().find(page => page.url() === "latham://app/index.html");
+  const launch = () => _electron.launch({ executablePath: join(packageRoot, "Latham.exe"), args: ["--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
+  const settingsPage = async () => {
+    await wait(() => app.context().pages().some(page => page.url() === "latham://app/index.html"));
+    return app.context().pages().find(page => page.url() === "latham://app/index.html");
+  };
+  app = await launch();
+  let desk = await settingsPage();
   assert.deepEqual(await app.evaluate(({ app }) => ({ version: app.getVersion(), packaged: app.isPackaged })), { version, packaged: true });
+  const initialComputer = await desk.evaluate(async () => (await window.setup.state()).computer);
+  assert.equal(initialComputer.agreementAccepted, false);
+  assert.equal(initialComputer.allowed, false);
+  await wait(() => app.context().pages().some(page => page.url() === "latham://companion/index.html"));
+  const companion = app.context().pages().find(page => page.url() === "latham://companion/index.html");
+  assert.equal((await companion.evaluate(() => window.companion.state())).sessionId, null);
+  await desk.evaluate(() => window.setup.computerConfigure({ allowed: true, images: false, browserAllowed: false, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] }));
+  const launched = await desk.evaluate(() => window.setup.computerRun("open Calculator"));
+  const launchMessage = (await desk.evaluate(() => window.setup.state())).computer.message;
+  await desk.evaluate(() => window.latham.stop());
+  await wait(async () => (await desk.evaluate(() => window.setup.state())).computer.fenceConfirmed);
+  assert.equal((await companion.evaluate(() => window.companion.state())).sessionId, null);
+
+  await app.close();
+  const computerFile = join(data, "computer.json");
+  const savedAccess = JSON.parse(readFileSync(computerFile, "utf8"));
+  writeFileSync(computerFile, JSON.stringify({ ...savedAccess, uncertain: true }));
+  app = await launch();
+  desk = await settingsPage();
+  const recovery = desk.getByRole("region", { name: "Previous task recovery", exact: true });
+  await recovery.waitFor({ state: "visible" });
+  assert.equal((await desk.evaluate(() => window.setup.state())).computer.needsReview, true);
+  await assert.rejects(desk.evaluate(() => window.setup.computerRun("open Calculator")), /computer_setup_required/);
+  await recovery.getByRole("button", { name: "I've checked — continue", exact: true }).click();
+  await wait(async () => !(await desk.evaluate(() => window.setup.state())).computer.needsReview);
+  assert.equal(JSON.parse(readFileSync(computerFile, "utf8")).uncertain, false);
   assert.equal((await desk.evaluate(() => window.setup.state())).canImportEnvironmentKey, false);
   assert.equal(await desk.getByRole("button", { name: "Import GEMINI_API_KEY from .env.local" }).count(), 0);
   assert.deepEqual(await desk.evaluate(() => window.latham.runtime), { sandboxed: true, contextIsolated: true });
@@ -80,8 +111,22 @@ try {
   const walk = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]);
   assert.equal(walk(packageRoot).some(file => /(?:^|[\\/])(?:\.env(?:\..*)?|provider-key\.bin|managed-session\.bin(?:\.tmp)?|accounts\.sqlite.*|server\.cjs|integrity\.cjs|workflow-shortcuts\.bin|evaluation\.json(?:\.tmp)?|providers\.json|connection\.json|Latham.NativeFixture.exe)$/.test(file)), false);
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.DesktopAgent.exe")));
+  assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.ComputerAgent.exe")));
+  assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.ControlKey.exe")));
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.SpeechDetector.exe")));
   assert.ok(walk(packageRoot).some(file => file.endsWith("Latham.ImageOcr.exe")));
-  writeFileSync(join(root, `preview-acceptance-${browser}.json`), JSON.stringify({ at: new Date().toISOString(), version, browser, channel: "unsigned-developer-preview", passed: ["bundled_setup_guides", "managed_starts_signed_out", "packaged_managed_requires_https", "managed_service_and_secrets_not_bundled", "workflow_starts_idle", "packaged_workflow_search_filter", "encrypted_explicit_shortcut_and_deletion", "packaged_startup", "sandbox", "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent", "packaged_ocr_on_synthetic_image", "visual_consent_starts_off", "packaged_local_speech_detectors", "idle_wake_no_transcription", "microphone_off_on_start_and_stop", "extension_version_pairing", "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"] }, null, 2));
-  console.log("Windows portable preview startup, protected storage, packaged host/extension pairing and Stop passed.");
+  const passed = ["bundled_setup_guides", "packaged_universal_consent",
+    "packaged_universal_stop", "packaged_uncertainty_recovery", "managed_starts_signed_out",
+    "packaged_managed_requires_https", "managed_service_and_secrets_not_bundled", "workflow_starts_idle",
+    "packaged_workflow_search_filter", "encrypted_explicit_shortcut_and_deletion", "packaged_startup", "sandbox",
+    "dev_env_import_hidden", "protected_key_storage", "packaged_native_host", "packaged_desktop_agent",
+    "packaged_ocr_on_synthetic_image", "visual_consent_starts_off", "packaged_local_speech_detectors",
+    "idle_wake_no_transcription", "microphone_off_on_start_and_stop", "extension_version_pairing",
+    "verified_tab_operation", "acknowledged_stop", "no_user_secrets_or_native_fixture_in_package"];
+  const launchVerified = launched && launchMessage === "Calculator is open.";
+  if (launchVerified) passed.push("packaged_calculator_launch");
+  const failures = launchVerified ? [] : [{ check: "packaged_calculator_launch", message: launchMessage }];
+  writeFileSync(join(root, `preview-acceptance-${browser}.json`), JSON.stringify({ at: new Date().toISOString(), version, browser, channel: "unsigned-developer-preview", passed, failures }, null, 2));
+  assert.ok(launchVerified, launchMessage);
+  console.log("Windows preview startup, universal launch, Stop, recovery, protected storage, and host/extension pairing passed.");
 } finally { for (const worker of context?.serviceWorkers() ?? []) await worker.evaluate("port?.disconnect()").catch(() => {}); await context?.close(); await app?.close(); for (const { path, value } of registry) { try { if (value) execFileSync("reg.exe", ["ADD", path, "/ve", "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" }); else execFileSync("reg.exe", ["DELETE", path, "/f"], { stdio: "ignore" }); } catch {} } }

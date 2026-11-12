@@ -1,5 +1,96 @@
 # Evaluation and acceptance
 
+## Phase 10D app-denial follow-up — November 11, 2026
+
+The universal controller now checks inherited Notepad denial on planned
+launches and passes the effective app blocks to each native request. The native
+worker applies Calculator aliases to the Windows-hosted frame and accepts
+blocked names with an `.exe` suffix.
+
+`npm run check` passed with 156 unit tests, including planned launch denial
+before dispatch and denial changed during review. A native identity probe on an
+existing hosted Calculator window blocked `calculator`, `CalculatorApp.exe`,
+`calc`, and `applicationframehost.exe`. Empty and unrelated deny lists
+permitted the same window. The probe used the worker's policy check without
+activating Calculator, capturing contents, or dispatching input. The foreground
+observation and restoration regression is included in the native suite and
+still needs an interactive run.
+
+## Phase 10D Windows acceptance — November 11, 2026
+
+- **10D.1 startup and shutdown passed.** The plain Electron cold-start and tray
+  Settings regressions passed, including early startup and window geometry.
+  The native supervisor exit regression passed with Settings destroyed. The
+  first interactive run passed all nine targeted native checks, including
+  Notepad and Calculator launch and restore, fixture editing, and Stop during a
+  stalled native provider.
+- **10D.2, 10D.5, and 10D.6 still need a reliable foreground run.** The longer
+  runs could not consistently focus the WinForms or isolated Chrome window.
+  The final Calculator probe returned `computer_focus_denied`. Windows
+  reported `GameInputSvc` as the foreground process during diagnosis. The
+  desktop control tool reported “failed to activate captured window” on both
+  attempts. The browser fixture now checks Windows foreground before accessing
+  the test page. A new cross-app regression checks clarification, one review,
+  two verified actions in the synthetic editor, and a fresh Calculator
+  observation. It stopped at the fixture focus check on this run. Editing in
+  multiple ordinary Windows apps and the live Gemini planner rerun remain open.
+- **10D.3 and 10D.4 have synthetic audio evidence.** Companion tests passed
+  live captions, execution from final words only, and capture closing. Live
+  Gemini streaming passed with generated speech. In one simulated hands-free
+  session the installed Windows detectors recognized two distinct approvals and
+  “stop assistant” during a third pending operation. The test supplied generated
+  PCM and controlled command results. The companion recovery test verified
+  explicit reconciliation and zero replay. Physical microphone, hold-Ctrl,
+  spoken approval, and Stop still need hands-on acceptance.
+- **10D.7 has controlled privacy evidence.** First-run consent, no idle
+  microphone, remembered disable, launch denials, synthetic password masking,
+  and the unit tests for provider context and scope passed. The extension-free
+  Chrome deny rerun and a real secure or elevated window check remain open.
+- **10D.8 placement passed on both available displays.** Both were 1920×1080
+  at 100% scaling. The companion stayed within each work area at all four
+  corners, including on the monitor with negative desktop coordinates.
+  Simulated display recovery also passed. Native targeting on the secondary
+  monitor and mixed-DPI coverage remain open.
+- **10D.9 package built with one acceptance failure.** The unsigned Windows
+  archive and checksum manifest were generated. The packaged verifier passed
+  25 checks, including first-run consent, Stop, restart with simulated
+  uncertainty, blocked execution before recovery, and explicit recovery.
+  Packaged Calculator launch reported an uncertain result, so the verifier
+  recorded the failure and exited nonzero.
+
+`npm run check` passed type checking, 154 unit tests, and both builds.
+The 14 companion and compatibility integration checks passed. Local reports
+are in `.test-artifacts/` under `phase10-native-baseline.json`,
+`phase10-native-followup.json`, `phase10-handsfree-audio.json`,
+`phase10-companion-displays.json`, `phase10-companion-displays-run.json`, and
+`preview-acceptance-chrome.json`.
+
+## Phase 10D launch and shutdown follow-up — November 9, 2026
+
+The interactive baseline reproduced Calculator's unverified result. Its
+top-level window is owned by the system's ApplicationFrameHost. Minimizing that
+frame detaches Calculator's child window, which Windows reports as cloaked.
+The worker now selects the minimized frame by its fixed app ID, skips cloaked
+windows, and verifies Calculator's process app ID in the restored foreground
+frame. The broker rechecks any remembered window before acting.
+[Windows window attributes](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute)
+and [process app identity](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getapplicationusermodelid)
+document the APIs.
+
+The five launch cases passed twice on the interactive Windows desktop. They
+covered app denials, direct Notepad and Calculator requests through Electron
+without a provider key, and activation of the same background and minimized
+windows. In the broader run, the universal editing fixture did not acquire
+foreground focus, and the legacy editor and Stop cases failed during window
+discovery or editor focus. These runs used automation without microphone input.
+
+The broader tests also surfaced an Electron shutdown race when a late native
+supervisor exit tried to publish state after Settings had been destroyed. State
+publication now checks window lifetime and stops during quit. The focused
+shutdown regression was added after interactive testing was stopped.
+Physical voice, wider native-app and display checks, and packaged acceptance
+remain open.
+
 ## Gemini live speech instead of split recognizers — November 2, 2026
 
 The owner reported an incorrect Windows caption (“were no hard” for “open

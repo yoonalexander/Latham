@@ -6,10 +6,10 @@ import { emptyComputer, parseComputerAction, parseComputerOptions, isDirectCompu
 const observation = (): ComputerObservation => ({ hwnd: "123", pid: 10, started: "100", app: "fixture", title: "Synthetic window", revision: "first", imageHash: "", inputTick: 1, capturedAt: Date.now(), width: 600, height: 400, targets: [{ id: "edit", name: "Draft", role: "Edit", actions: ["type", "focus"] }, { id: "search", name: "Search", role: "Button", actions: ["click"] }], image: "" });
 const action = (kind: ComputerAction["kind"] = "done", fields: Partial<ComputerAction> = {}): ComputerAction => ({ kind, target: "", text: "", x: 0, y: 0, verifiedPrevious: true, reason: "Synthetic evidence", ...fields });
 const options = { allowed: true, images: false, browserAllowed: false, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] };
-function fixture() {
+function fixture(deniedNative = () => false) {
   const directory = mkdtempSync(resolve(".test-artifacts/computer-unit-"));
   const broker: ComputerBroker = { observe: vi.fn(async () => observation()), launch: vi.fn(async () => {}), act: vi.fn(async () => {}), restore: vi.fn(async () => {}), stop: vi.fn(async () => {}) };
-  const decide = vi.fn(async () => action()), changed = vi.fn(); const computer = new Computer(directory, broker, decide, changed, () => false);
+  const decide = vi.fn(async () => action()), changed = vi.fn(); const computer = new Computer(directory, broker, decide, changed, deniedNative);
   return { directory, broker, decide, changed, computer };
 }
 afterEach(() => vi.useRealTimers());
@@ -41,6 +41,53 @@ test("compound goals keep the normal observation path and explain oversized tree
   const f = fixture(); f.computer.configure(options); vi.mocked(f.broker.observe).mockRejectedValue(new Error("computer_tree_limit"));
   expect(await f.computer.run("open notepad and type hello")).toBe(false);
   expect(f.broker.launch).not.toHaveBeenCalled(); expect(f.computer.state.message).toContain("too many accessibility controls");
+});
+
+test("an app denial blocks both direct and planner-selected launches before dispatch", async () => {
+  for (const app of ["notepad", "calculator"] as const) {
+    const f = fixture(() => app === "notepad");
+    f.computer.configure({ ...options, deniedApps: app === "calculator" ? ["Calc.exe"] : [] });
+    expect(await f.computer.run(`open ${app}`)).toBe(false);
+    expect(f.broker.launch).not.toHaveBeenCalled();
+
+    f.decide.mockResolvedValueOnce(action("open", { text: app }));
+    const run = f.computer.run(`open ${app} and describe the window`);
+    try {
+      await vi.waitFor(() => expect(f.computer.state.phase).toBe("blocked"), { timeout: 500 });
+      expect(await run).toBe(false);
+      expect(f.computer.state.message).toContain("computer_app_denied");
+      expect(f.computer.state.pending).toBeNull();
+      expect(f.computer.state.needsReview).toBe(false);
+      expect(f.broker.restore).not.toHaveBeenCalled();
+      expect(f.broker.act).not.toHaveBeenCalled();
+    } finally { await f.computer.stop(); }
+  }
+});
+
+test("an inherited Notepad denial is rechecked after approval and forwarded for unrelated actions", async () => {
+  let denied = false;
+  const f = fixture(() => denied);
+  f.computer.configure(options);
+  f.decide.mockResolvedValueOnce(action("open", { text: "notepad" }));
+  const pending = f.computer.run("open Notepad and describe the window");
+  await vi.waitFor(() => expect(f.computer.state.pending).not.toBeNull());
+  denied = true;
+  f.computer.approve(f.computer.state.pending!.id, true);
+  expect(await pending).toBe(false);
+  expect(f.computer.state.message).toContain("computer_app_denied");
+  expect(f.broker.restore).not.toHaveBeenCalled();
+  expect(f.broker.act).not.toHaveBeenCalled();
+
+  f.decide.mockResolvedValueOnce(action("focus", { target: "edit" }));
+  const unrelated = f.computer.run("get the draft ready for editing");
+  await vi.waitFor(() => expect(f.computer.state.pending).not.toBeNull());
+  f.computer.approve(f.computer.state.pending!.id, true);
+  expect(await unrelated).toBe(true);
+  const scope = expect.objectContaining({ deniedApps: ["notepad"] });
+  expect(f.broker.observe).toHaveBeenLastCalledWith(false, false, ["notepad"], false, expect.any(AbortSignal));
+  expect(f.broker.restore).toHaveBeenCalledWith(expect.anything(), scope, expect.any(AbortSignal));
+  expect(f.broker.act).toHaveBeenCalledWith(expect.anything(), expect.anything(), scope, expect.any(AbortSignal));
+  expect(f.computer.state.deniedApps).toEqual([]);
 });
 test("universal capture starts without consent off and cannot be enabled by a model or malformed options", async () => {
   const f = fixture(); expect(f.computer.ready).toBe(false); await expect(f.computer.run("read this window")).rejects.toThrow("computer_setup_required"); expect(f.broker.observe).not.toHaveBeenCalled();
