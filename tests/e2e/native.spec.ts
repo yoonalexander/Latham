@@ -130,7 +130,7 @@ test("window movement does not redirect edits and the shared transcript inserts 
     await prepare(ui.desk); await f.send("move", { x: 200, y: 140 }); await f.send("scale"); await run(ui.desk, "inspect editor");
     await ui.desk.evaluate(async () => { const id = await window.setup.beginTurn(); const pcm = new Int16Array(16000); for (let n = 0; n < pcm.length; n++) pcm[n] = Math.sin(n * 0.1) * 3000; await window.setup.finishTurn(id, pcm.buffer); });
     expect((await ui.desk.evaluate(() => window.setup.state())).canInsertDesktopTranscript).toBe(true);
-    await ui.desk.getByText("Advanced settings", { exact: true }).click();
+    await ui.desk.getByRole("button", { name: "Advanced settings", exact: true }).click();
     await ui.desk.getByRole("button", { name: "Replace editor with transcript", exact: true }).click(); await expect.poll(() => f.state().text).toBe("native piano music");
     await f.send("focus_other"); await expect.poll(() => ui.desk.evaluate(async () => (await window.setup.state()).canInsertDesktopTranscript)).toBe(false);
     expect(await ui.desk.evaluate(async () => { try { await window.setup.desktopInsertTranscript("replace"); return false; } catch { return true; } })).toBe(true);

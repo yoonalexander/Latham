@@ -50,9 +50,9 @@ try {
   await recovery.getByRole("button", { name: "I've checked — continue", exact: true }).click();
   await wait(async () => !(await desk.evaluate(() => window.setup.state())).computer.needsReview);
   assert.equal(JSON.parse(readFileSync(computerFile, "utf8")).uncertain, false);
-  await desk.getByText("Advanced settings", { exact: true }).click();
   assert.equal((await desk.evaluate(() => window.setup.state())).canImportEnvironmentKey, false);
-  assert.equal(await desk.getByRole("button", { name: "Import GEMINI_API_KEY from .env.local" }).count(), 0);
+  await desk.getByRole("button", { name: "Voice", exact: true }).click();
+  assert.equal(await desk.getByText("Import GEMINI_API_KEY from .env.local", { exact: true }).count(), 0);
   assert.deepEqual(await desk.evaluate(() => window.latham.runtime), { sandboxed: true, contextIsolated: true });
   assert.equal((await desk.evaluate(() => window.setup.state())).handsfree.phase, "off");
   assert.equal((await desk.evaluate(() => window.setup.state())).visual.consent, false);

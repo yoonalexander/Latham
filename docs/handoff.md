@@ -24,12 +24,11 @@ in place of cloning. `npm run dev` rebuilds the app and helpers. `npm start`
 runs the existing build. Quit Latham from the tray before rebuilding so Windows
 releases the native executables.
 
-On first launch, choose **Enable Latham** and try **Open Notepad**. Enter your
-key and choose **Connect Gemini** for voice. The development key import is
-under **Advanced settings**. Create an ignored `.env.local` from
+On first launch, choose **Enable Latham** and try **Open Notepad**. Choose
+**Set up voice**, enter your key, and select **Connect Gemini**. The key import
+is under **Voice → Development setup**. Create an ignored `.env.local` from
 `.env.example`, set `GEMINI_API_KEY`, and use **Import GEMINI_API_KEY from
-.env.local** with Gemini selected. Advanced settings also contain window image
-and browser access controls.
+.env.local**. Open **App access** for window image and browser access controls.
 
 Set up the new Windows profile independently. Re-enter credentials and confirm
 permissions there. Windows protects saved keys with DPAPI, so copying the old

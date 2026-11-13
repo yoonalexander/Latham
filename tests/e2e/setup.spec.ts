@@ -24,19 +24,37 @@ test("quick setup connects Gemini and selects it for voice without opening advan
     const companion = app.context().pages().find(page => page.url() === "latham://companion/index.html")!;
     expect((await companion.evaluate(() => window.companion.state())).message).toBe("Choose Gemini or configure local speech in Settings.");
     await page.getByRole("button", { name: "Enable Latham", exact: true }).click();
+    await page.getByRole("button", { name: "Set up voice", exact: true }).click();
+    await expect(page.getByRole("main")).toBeFocused();
+    await expect(page.getByRole("button", { name: "Voice", exact: true })).toHaveAttribute("aria-current", "page");
     await page.getByLabel("Gemini API key", { exact: true }).fill("FAKE_SETUP_FLOW_KEY_123456789012345");
     await page.getByRole("button", { name: "Connect Gemini", exact: true }).click();
     await expect.poll(() => page.evaluate(async () => (await window.setup.state()).keyStored)).toBe(true);
     await expect.poll(() => page.evaluate(async () => (await window.setup.state()).settings.mode)).toBe("cloud");
     expect(JSON.parse(readFileSync(join(directory, "providers.json"), "utf8")).settings.mode).toBe("cloud");
+    await expect(page.getByRole("status").filter({ hasText: "Gemini configured" })).toBeVisible();
+    await page.getByRole("button", { name: "General", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Hold Ctrl to talk", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Current setup" })).toContainText("Gemini");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: ".test-artifacts/latham-system-settings.png" });
     await expect(page.getByLabel("Use local AI", { exact: true })).toBeHidden();
+    await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
+    await expect(page.getByRole("main")).toContainText("Ctrl + Alt + Space");
+    await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
     await page.evaluate(() => window.setup.selectCompanionTarget("chrome"));
     await page.evaluate(() => window.setup.talkFromCompanion());
     expect((await companion.evaluate(() => window.companion.state())).message).toBe("Connect Latham's browser extension in Settings.");
     await companion.locator("#notice").evaluate(element => element.classList.remove("visible"));
     await page.evaluate(() => window.setup.talkFromCompanion());
     await expect(companion.locator("#notice")).toHaveClass(/visible/);
+    await page.getByRole("button", { name: "Voice", exact: true }).click();
+    await page.getByRole("button", { name: "Change key", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save key", exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("button", { name: "Disconnect Gemini", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Connect Gemini", exact: true })).toBeVisible();
+    await expect.poll(() => page.evaluate(async () => (await window.setup.state()).keyStored)).toBe(false);
   } finally { await app.close(); }
 });
 
@@ -85,7 +103,7 @@ test("microphone capture is gated, buffers are bounded and Stop cancels a real c
     await expect.poll(() => app.context().pages().some(page => page.url() === "latham://app/index.html")).toBe(true);
     const page = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
     expect(await page.evaluate(async () => { try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(track => track.stop()); return false; } catch { return true; } })).toBe(true);
-    await page.getByText("Advanced settings", { exact: true }).click();
+    await page.getByRole("button", { name: "Advanced settings", exact: true }).click();
     const allowed = await page.evaluate(async () => { await window.setup.beginTurn(); try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); const track = stream.getAudioTracks()[0]!; const state = track.readyState; stream.getTracks().forEach(item => item.stop()); return state; } catch (error) { return (error as Error).name; } });
     expect(allowed).toBe("live");
     await page.evaluate(() => window.latham.stop()); await expect(page.getByTestId("voice-status")).toHaveText("Voice: idle");

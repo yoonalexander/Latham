@@ -25,7 +25,7 @@ test("managed account onboarding, DPAPI restart, explicit route, speech, Stop, u
     app = await _electron.launch({ args: [resolve("dist/main.cjs"), "--latham-test"], env: { ...env, LATHAM_TEST_DATA_DIR: data } });
     await expect.poll(() => app!.context().pages().some(page => page.url() === "latham://app/index.html")).toBe(true);
     const page = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
-    await page.getByText("Advanced settings", { exact: true }).click();
+    await page.getByRole("button", { name: "Advanced settings", exact: true }).click();
     return page;
   };
   try {

@@ -64,9 +64,19 @@ function App() {
   const run = (event: FormEvent): void => { event.preventDefault(); void act(() => window.latham.run(command)); };
   const result = state?.lastResult;
   return <div className="app-shell"><a className="skip-link" href="#assistant-setup" onClick={event => { event.preventDefault(); document.getElementById("assistant-setup")?.focus(); }}>Skip to assistant setup</a>
-    <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>SETTINGS</span></h1></div></div><div className="header-tools"><button onClick={() => void window.setup.showCompanion()}>Return to companion</button><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
-    {state && !state.stopShortcutRegistered && <p className="error" role="alert">Global stop shortcut unavailable. Use Stop or the tray menu.</p>}
-    {fixtureVisible && <main className="workspace">
+    <header className="app-header">
+      <div className="brand">
+        <span className="settings-wave" aria-hidden="true"><i /><i /><i /></span>
+        <h1>Latham <span>Settings</span></h1>
+      </div>
+      <div className="header-tools">
+        <button className="back-to-companion" onClick={() => void window.setup.showCompanion()}>Back to companion</button>
+        <button className="stop" aria-keyshortcuts="Control+Alt+." onClick={() => void act(() => window.latham.stop())}>Stop <kbd aria-hidden="true">Ctrl Alt .</kbd></button>
+      </div>
+    </header>
+    {state && !state.stopShortcutRegistered && <p className="settings-alert error" role="alert">Global stop shortcut unavailable. Use Stop or the tray menu.</p>}
+    {error && <p className="settings-alert error" role="alert">{error}</p>}
+    {fixtureVisible && <section className="workspace" aria-label="Fixture tools">
       <aside className="control-column">
         <section className="panel command-panel"><div className="section-kicker">01 / CONTROL</div><div className="section-title"><h2>Command desk</h2><span className={"status " + (state?.status ?? "paused")} role="status" data-testid="session-status">{state ? statusLabels[state.status] : "Loading"}</span></div>
           <p className="muted">Type an instruction. Latham checks the target, applies local policy, then verifies the effect.</p>
@@ -82,8 +92,6 @@ function App() {
           <button className="quiet" onClick={() => void act(() => window.latham.clearDiagnostics())}>Clear diagnostics</button>
         </section>
         <p className="scope-note">The fixture uses its own local permission. Voice and Chrome have separate setup below. Closing the window pauses all work and keeps the tray available.</p>
-        {state && !state.stopShortcutRegistered && <p className="error" role="alert">Global stop shortcut unavailable. Use Stop or the tray menu.</p>}
-        {error && <p className="error" role="alert">{error}</p>}
       </aside>
       <div className="fixture-column">
         <section className="panel fixture-panel"><div className="fixture-header"><div><div className="section-kicker">03 / SANDBOXED TEST SURFACE</div><h2>The fixture playground</h2></div><span className="origin-label">latham://fixture</span></div><div className="fixture-viewport" ref={viewport} aria-label="Local fixture browser surface" /><div className="fixture-footer"><span>Isolated page · no privileged bridge</span><span>Permissions {state?.permissionEpoch ?? 1} / Executor {state?.executorEpoch ?? 1}</span></div></section>
@@ -92,7 +100,7 @@ function App() {
           <section className="panel evidence-panel"><div className="section-title"><h2>Action trail</h2><span className="count">{state?.diagnostics.length ?? 0}</span></div><p className="mini">A bounded metadata trail, not an activity recording.</p><ol className="trail">{state?.diagnostics.slice(-5).reverse().map(item => <li key={item.sequence}><span>{item.event === "action" ? item.outcome?.replaceAll("_", " ") : item.event.replaceAll("_", " ")}</span><small>{item.reason ?? item.kind ?? "session"}{item.durationMs !== undefined ? " · " + item.durationMs + " ms" : ""}</small></li>)}</ol></section>
         </div>
       </div>
-    </main>}
+    </section>}
     <SetupPanel fixtureControls={<button onClick={() => {
       void window.latham.stop();
       setFixtureVisible(!fixtureVisible);

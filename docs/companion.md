@@ -91,8 +91,8 @@ only local cursor/display coordinates for its own placement, without screen capt
   release closes the detector with the microphone; use the hotkey or tray to
   stop processing after release.
 - Tray **Settings…**: stops current work and opens provider, microphone,
-  permissions, detailed results and advanced controls. **Return to companion**
-  hides settings and pauses work. The settings **Talk with companion** button
+  permissions, detailed results and advanced controls. **Back to companion**
+  hides settings and pauses work. The **Try listening** button in General
   starts the silence-ended alternative and hides settings once capture starts.
 - Tray **Command app**: Universal computer use (default), the optional browser
   extension, or an explicitly prepared Notepad editor. Selection does not grant
@@ -105,9 +105,10 @@ only local cursor/display coordinates for its own placement, without screen capt
   **Quit Latham** exits. Nothing automatically captures audio on launch/restart.
 
 Choose **Enable Latham** in Settings to permit active-app access. Try
-**Open Notepad**, or enter your key and choose **Connect Gemini** for voice.
-**Advanced settings** contains local Whisper, Ollama, optional managed speech,
-window images, and browser access. [Universal setup and permissions](universal-desktop.md)
+**Open Notepad**, or choose **Set up voice** and connect Gemini with your key.
+**App access** contains window images, browser access, and app blocks.
+**Advanced settings** contains local Whisper, Ollama setup, and optional
+managed speech. [Universal setup and permissions](universal-desktop.md)
 
 The optional older browser route still requires its connection and explicit
 site approvals; prepared Notepad keeps its field binding. **scroll down**,

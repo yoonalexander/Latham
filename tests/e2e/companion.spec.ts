@@ -61,9 +61,10 @@ test("one click enables app access without starting capture, and disable survive
     expect((await page.evaluate(() => window.setup.state())).computer).toMatchObject({ agreementAccepted: true, allowed: true, images: false, browserAllowed: false });
     expect((await overlay.evaluate(() => window.companion.state())).sessionId).toBeNull();
     await page.screenshot({ path: ".test-artifacts/computer-remembered-access.png" });
-    await page.getByText("Advanced settings", { exact: true }).click();
-    await expect(page.getByLabel("Also allow foreground-window images", { exact: false })).not.toBeChecked();
+    await page.getByRole("button", { name: "App access", exact: true }).click();
+    await expect(page.getByLabel("Allow window images", { exact: true })).not.toBeChecked();
     await expect(page.getByLabel("Include browser windows without the extension", { exact: true })).not.toBeChecked();
+    await page.getByText("Provider and app blocks", { exact: true }).click();
     await page.getByLabel("Blocked process names (comma separated)", { exact: true }).fill("notepad");
     await page.getByRole("button", { name: "Save universal access settings", exact: true }).click();
     await expect.poll(async () => (await page.evaluate(() => window.setup.state())).computer.deniedApps).toEqual(["notepad"]);

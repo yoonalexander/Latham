@@ -53,15 +53,15 @@ does not resume a task, microphone or observation.
 ## Use the preview
 
 1. Choose **Enable Latham** on first launch. **Open Notepad** runs a local
-   command immediately. Add a key and choose **Connect Gemini** to use voice.
-2. Use **Settings… → Advanced settings** for local speech, reasoning provider,
-   image and browser access, or app blocks. Speech and reasoning routes are
-   saved independently. Access choices and **Disable universal mode / Stop**
-   persist after restart.
+   command immediately. Choose **Set up voice** and connect Gemini with your key.
+2. Use **Settings… → App access** for images and browser access. Expand
+   **Provider and app blocks** to change the reasoning provider or block apps.
+   Use **Advanced settings** for local speech. Speech and reasoning routes are
+   saved independently. Access choices and explicit disable persist after restart.
 3. Return to the companion, click the ordinary app you intend to use, hold Ctrl,
    speak a short goal and release. Start with a disposable text field, for
    example “replace Draft with hello”, or “explain the current window”. A typed
-   **Run universal task** is available under **Advanced settings**. Select the
+   **Run universal task** is available under **App access → Typed commands and results**. Select the
    target window first.
 4. Simple explicit commands run directly, including “open Notepad” and a single
    uniquely named control operation. Longer or ambiguous action requests show

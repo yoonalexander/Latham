@@ -13,7 +13,7 @@ async function launch(directory?: string): Promise<Running> {
   running.add(application);
   await expect.poll(() => application.context().pages().some(item => item.url() === "latham://app/index.html")).toBe(true);
   const page = application.context().pages().find(item => item.url() === "latham://app/index.html")!;
-  await page.getByText("Advanced settings", { exact: true }).click();
+  await page.getByRole("button", { name: "Advanced settings", exact: true }).click();
   await page.getByRole("button", { name: "Show fixture tools", exact: true }).click();
   await expect(page.getByTestId("session-status")).toHaveText("Paused");
   const fixture = application.context().pages().find(item => item.url() === "latham://fixture/index.html");
@@ -107,7 +107,7 @@ test("Stop fences active/queued actions and replacement invalidates a captured t
   const pending = page.evaluate(() => window.latham.run("type MUST_NOT_LAND"));
   await expect(page.getByTestId("session-status")).toHaveText("Acting");
   const queued = page.evaluate(() => window.latham.run("type QUEUED_MUST_NOT_LAND"));
-  await page.getByRole("button", { name: /^■ Stop/ }).click();
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
   expect(await pending).toMatchObject({ outcome: "cancelled", dispatch: "not_dispatched" });
   expect(await queued).toMatchObject({ outcome: "cancelled", dispatch: "not_dispatched" });
   await expect(fixture.getByLabel("Draft", { exact: true })).toHaveValue("");

@@ -68,10 +68,11 @@ model download or browser extension is needed for the fixture. The narrow
 native relay uses Windows' existing .NET Framework compiler, without an SDK.
 
 On first launch, choose **Enable Latham** and try **Open Notepad**. To use your
-voice, enter your Gemini key, choose **Connect Gemini**, and hold **Ctrl**.
-Release Ctrl to run the command. **Ctrl+Alt+.** stops work. Use **Settings…**
-from the tray for **Advanced settings**, including local AI, window images,
-browser access, and app blocks. [Permissions and data use](docs/universal-desktop.md#before-you-download)
+voice, choose **Set up voice**, enter your Gemini key, and choose **Connect
+Gemini**. Hold **Ctrl** to talk and release it to run the command. **Ctrl+Alt+.**
+stops work. In the tray's **Settings…**, use **App access** for window images,
+browser access, and app blocks, or **Advanced settings** for local AI and the
+browser extension. [Permissions and data use](docs/universal-desktop.md#before-you-download)
 
 For the optional legacy Chrome adapter, configure AI, register/load/connect the extension, approve a site,
 then choose **Prepare Search dictation**. Hold to talk, review, and explicitly

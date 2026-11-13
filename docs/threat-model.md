@@ -8,7 +8,7 @@ complete independent security audit.
 [Phase 10](universal-desktop.md) has a separate main-owned Computer controller and
 disposable Windows worker. The explicit **Enable Latham** action precedes access.
 The portable quick start leaves window images and browser access off for new
-users. The download guide describes data use and Advanced settings exposes scope
+users. The download guide describes data use and App access exposes scope
 changes.
 The chosen foreground text/value, image and browser scopes and provider persist
 in version-2 computer.json with the agreement version, including an explicit disable.
