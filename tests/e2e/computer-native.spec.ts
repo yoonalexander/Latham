@@ -1,5 +1,5 @@
 import { test, expect, chromium, _electron } from "@playwright/test";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import { resolve } from "node:path";
@@ -73,10 +73,14 @@ for (const appName of ["Notepad", "Calculator"] as const) test(`Electron opens $
     await expect.poll(() => app.context().pages().some(page => page.url() === "latham://companion/index.html")).toBe(true);
     const settings = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
     expect((await settings.evaluate(() => window.setup.state())).keyStored).toBe(false);
-    await settings.evaluate(() => window.setup.computerConfigure({ allowed: true, images: false, browserAllowed: false, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] }));
-    const launched = await settings.evaluate(name => window.setup.computerRun(`open ${name}`), appName);
+    await settings.getByRole("button", { name: "Enable Latham", exact: true }).click();
+    if (appName === "Notepad") {
+      await settings.getByRole("button", { name: "Open Notepad", exact: true }).click();
+    } else {
+      expect(await settings.evaluate(() => window.setup.computerRun("open Calculator"))).toBe(true);
+    }
+    await expect.poll(async () => (await settings.evaluate(() => window.setup.state())).computer.message).toBe(`${appName} is open.`);
     const state = await settings.evaluate(() => window.setup.state());
-    expect(launched, state.computer.message).toBe(true);
     expect(state.computer).toMatchObject({ phase: "complete", message: `${appName} is open.`, needsReview: false });
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map(win => win.webContents.getURL()).sort())).toEqual(["latham://app/index.html", "latham://companion/index.html"]);
   } finally { await app.close(); }
@@ -270,8 +274,8 @@ test("a reviewed task verifies two native actions before switching to Calculator
     const other = observation.targets.find(target => target.name === "Other field")!;
     if (history.length === 0) return { ...result, kind: "type", target: draft.id, text: sample };
     expect(draft.value).toBe(sample);
-    if (history.length === 1) return { ...result, kind: "focus", target: other.id };
-    expect(other.focused).toBe(true);
+    if (history.length === 1) return { ...result, kind: "type", target: other.id, text: "Second verified edit" };
+    expect(other.value).toBe("Second verified edit");
     return { ...result, kind: "open", text: "calculator" };
   }, () => {}, () => false);
   try {
@@ -283,12 +287,12 @@ test("a reviewed task verifies two native actions before switching to Calculator
     expect(computer.state).toMatchObject({ steps: 0, pending: null, message: "Which field should I update?" });
     expect(report.text).toBe("");
 
-    const task = computer.run("Write the sample into Draft, focus Other field, and open Calculator.");
+    const task = computer.run("Write the sample into Draft, update Other field, and open Calculator.");
     await expect.poll(() => computer.state.pending?.scope).toBe("task");
     expect(report.text).toBe("");
     computer.approve(computer.state.pending!.id, true);
     const completed = await task;
-    expect(completed, computer.state.message).toBe(true);
+    expect(completed, `After ${computer.state.steps} verified actions: ${computer.state.message}`).toBe(true);
     expect(computer.state).toMatchObject({ steps: 3, pending: null, message: "The draft was updated and Calculator is open." });
     expect(report.text).toBe(sample);
   } finally { await computer.stop(); fixture.kill(); }
@@ -298,12 +302,16 @@ test("generic computer use works in an isolated Chrome window without an extensi
   test.setTimeout(45000); mkdirSync(".test-artifacts", { recursive: true });
   const browser = await chromium.launchPersistentContext(mkdtempSync(resolve(".test-artifacts/computer-chrome-")), { executablePath: resolve(".test-artifacts/chromium-runtime/latham-test-browser.exe"), headless: false, args: ["--force-renderer-accessibility"] });
   const title = "Latham synthetic computer-use page";
-  const page = await browser.newPage(); await page.setContent(`<title>${title}</title><label>Fixture search<input aria-label="Fixture search"></label><label>Password<input type="password" value="SYNTHETIC_PASSWORD_OMITTED"></label><p id="result">Ready</p>`); await page.bringToFront();
+  const page = browser.pages()[0] ?? await browser.newPage();
+  await page.setContent(`<title>${title}</title><label>Fixture search<input aria-label="Fixture search"></label><label>Password<input type="password" value="SYNTHETIC_PASSWORD_OMITTED"></label><p id="result">Ready</p>`);
+  await page.bringToFront();
   const broker = new WindowsComputer(resolve("dist/native/Latham.ComputerAgent.exe")), signal = new AbortController().signal;
   try {
     // Chrome adds a memory-usage suffix to tab accessibility names shortly after startup.
     await page.waitForTimeout(2500);
-    execFileSync(resolve("dist/native/Latham.NativeFixture.exe"), ["--focus-test-browser", title], { windowsHide: true, timeout: 5000, stdio: "pipe" });
+    await expect.poll(() => spawnSync(resolve("dist/native/Latham.NativeFixture.exe"), ["--focus-test-browser", title], { windowsHide: true, timeout: 1500 }).status, {
+      message: "Windows must focus the isolated browser",
+    }).toBe(0);
     const browserWindow = await broker.observe(false, true, [], false, signal);
     expect(browserWindow.title.includes(title), "Windows must focus the isolated browser").toBe(true);
     const observation = await broker.observe(true, true, [], false, signal);
@@ -313,8 +321,16 @@ test("generic computer use works in an isolated Chrome window without an extensi
     expect(JSON.stringify(observation.targets)).not.toContain("SYNTHETIC_PASSWORD_OMITTED");
     await broker.act(observation, { kind: "type", target: target!.id, text: "piano music", x: 0, y: 0, verifiedPrevious: true, reason: "Replace the synthetic search" }, { ...emptyComputer(), agreementAccepted: true, allowed: true, images: true, browserAllowed: true, selected: true }, signal);
     await expect(page.getByLabel("Fixture search")).toHaveValue("piano music");
+    await page.screenshot({ path: resolve(".test-artifacts/phase10-chrome-verified-edit.png") });
     await expect(broker.observe(false, false, [], false, signal)).rejects.toThrow("computer_browser_scope_denied");
-    await expect(broker.observe(false, true, [], true, signal)).rejects.toThrow("computer_browser_scope_denied");
+    const decide = () => { throw new Error("Revoked browser access must stop before reasoning"); };
+    const computer = new Computer(mkdtempSync(resolve(".test-artifacts/computer-chrome-revoke-")), broker, decide, () => {}, () => false);
+    computer.configure({ allowed: true, images: true, browserAllowed: true, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] });
+    computer.blockOrigin("https://fixture.example");
+    await expect.poll(() => computer.state.fenceConfirmed).toBe(true);
+    expect(await computer.run("Replace Fixture search with a new value")).toBe(false);
+    expect(computer.state.message).toContain("computer_browser_scope_denied");
+    await expect(page.getByLabel("Fixture search")).toHaveValue("piano music");
   } finally { await broker.stop(); await browser.close(); }
 });
 

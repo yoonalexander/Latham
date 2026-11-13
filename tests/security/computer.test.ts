@@ -43,6 +43,20 @@ test("compound goals keep the normal observation path and explain oversized tree
   expect(f.broker.launch).not.toHaveBeenCalled(); expect(f.computer.state.message).toContain("too many accessibility controls");
 });
 
+test("foreground failure explains what happened and retains recovery for an uncertain launch", async () => {
+  const f = fixture();
+  f.computer.configure(options);
+  vi.mocked(f.broker.launch).mockRejectedValueOnce(new Error("computer_result_unknown", { cause: "computer_focus_denied" }));
+  expect(await f.computer.run("open Calculator")).toBe(false);
+  expect(f.computer.state).toMatchObject({
+    phase: "blocked",
+    message: "Windows did not confirm that the intended window came to the front. Check the app, then choose I've checked — continue in Settings.",
+    needsReview: true,
+  });
+  await expect(f.computer.run("open Calculator")).rejects.toThrow("computer_setup_required");
+  expect(f.broker.launch).toHaveBeenCalledOnce();
+});
+
 test("an app denial blocks both direct and planner-selected launches before dispatch", async () => {
   for (const app of ["notepad", "calculator"] as const) {
     const f = fixture(() => app === "notepad");

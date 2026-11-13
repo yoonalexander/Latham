@@ -8,6 +8,7 @@ using System.Windows.Forms;
 sealed class NativeFixture : Form {
     delegate bool ChildWindowCallback(IntPtr window, IntPtr data);
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out int pid);
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, ChildWindowCallback callback, IntPtr data);
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int command);
@@ -67,6 +68,7 @@ sealed class NativeFixture : Form {
         }) { IsBackground = true }.Start();
     }
     static bool FocusWindow(IntPtr window) {
+        if (GetForegroundWindow() != window) SetForegroundWindow(window);
         if (GetForegroundWindow() != window) {
             try { System.Windows.Automation.AutomationElement.FromHandle(window).SetFocus(); }
             catch (InvalidOperationException) {}

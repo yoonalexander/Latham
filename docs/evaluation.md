@@ -1,5 +1,34 @@
 # Evaluation and acceptance
 
+## Phase 10D visual and browser checks — November 13, 2026
+
+**10D.5 passed.** The Windows worker edited the search field in a local
+synthetic page in an isolated Chrome for Testing window with no extension.
+The browser fixture selected and verified the foreground window before using
+the worker. The updated test passed twice. It verified the new field value,
+the password sentinel's absence from the observation, browser-scope denial,
+and an unchanged field when a recorded site revocation blocked the next task
+before reasoning. See `.test-artifacts/phase10-extension-free-current.json`
+and `.test-artifacts/phase10-chrome-verified-edit.png`.
+
+The companion regressions passed for first-run consent, uncertain-result
+recovery, idle capture, and live captions using synthetic speech. The Electron
+captures for agreement, recovery, and live captions were visually inspected.
+Direct desktop capture returned a mismatched surface for Calculator and could
+not capture the Settings window, so the visual evidence comes from the isolated
+Electron and browser test windows.
+
+The focused Windows rerun passed native fixture editing and the legacy editor
+consent and stalled-operation Stop checks. The reviewed cross-app scenario
+verified both edits, then failed to verify the Calculator handoff in two
+repeats. Direct Calculator launch also failed in both repeats. A native
+foreground denial now shows recovery instructions in Settings when the action
+result is uncertain. The added unit regression verifies that no retry occurs
+before reconciliation. `npm run check` passed with 157 tests and both builds.
+The rebuilt unsigned preview passed 25 packaged checks, with Calculator launch
+still failing at the worker deadline. Both archive checksums matched the
+manifest.
+
 ## Phase 10D app-denial follow-up — November 11, 2026
 
 The universal controller now checks inherited Notepad denial on planned

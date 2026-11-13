@@ -131,9 +131,6 @@ h2 {
   align-items: center;
   gap: 18px;
 }
-.companion-help { display: flex; align-items: center; gap: 20px; padding: 16px 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.companion-help button { flex-shrink: 0; }
-@media (max-width:700px) { .companion-help { flex-wrap: wrap; gap: 10px; } }
 .local-badge {
   font-size: 12px;
   color: #345a42;
@@ -497,14 +494,26 @@ input[type=range] {
   }
 }
 .setup-panel { padding:24px; flex-shrink:0; }
+.quick-start { max-width: 520px; }
+.quick-start h2 { margin: 0; font-size: 26px; }
+.quick-start p { line-height: 1.5; }
+.quick-start [role=status]:empty { display: none; }
+.quick-voice { margin-top: 20px; display: grid; gap: 10px; justify-items: start; }
+.quick-voice label { width: 100%; font-size: 13px; font-weight: 600; }
+.quick-voice input { display: block; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid #96aa9c; border-radius: 6px; background: var(--surface); color: var(--ink); }
+.quick-voice button { justify-self: start; }
+.quick-voice p { margin: 0; }
+.advanced-settings { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 14px; }
+.advanced-settings > summary { width: fit-content; cursor: pointer; font-size: 14px; font-weight: 600; }
+.advanced-settings-content { margin-top: 18px; }
+.computer-access-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 10px; }
 .setup-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; margin-top:18px; }
 .setup-group { min-width:0; display:flex; flex-direction:column; align-items:stretch; gap:10px; }
 .setup-group h3 { margin:0; font-size:16px; }
 .setup-group label { display:block; font-size:13px; }
 .setup-group input:not([type=radio]):not([type=checkbox]), .setup-group select, .setup-group textarea { display:block; width:100%; padding:9px; margin-top:5px; border:1px solid #96aa9c; border-radius:6px; background:#fffefa; color:#223d36; }
 .onboarding-agreement { margin: 16px 0; padding: 18px; border: 1px solid #a6b7a1; border-radius: 12px; background: #edf3e9; }
-.onboarding-agreement h4 { margin: 8px 0; font-size: 18px; }
-.onboarding-agreement li { margin: 10px 0; line-height: 1.5; }
+.onboarding-agreement h3 { margin: 0; font-size: 16px; }
 .setup-group input[type=radio], .setup-group input[type=checkbox] { margin-right:8px; }
 .setup-group ul { margin:0; padding-left:18px; font-size:13px; }
 .setup-group li { margin:6px 0; }

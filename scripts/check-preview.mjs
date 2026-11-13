@@ -29,7 +29,8 @@ try {
   await wait(() => app.context().pages().some(page => page.url() === "latham://companion/index.html"));
   const companion = app.context().pages().find(page => page.url() === "latham://companion/index.html");
   assert.equal((await companion.evaluate(() => window.companion.state())).sessionId, null);
-  await desk.evaluate(() => window.setup.computerConfigure({ allowed: true, images: false, browserAllowed: false, route: "cloud", model: "gemini-3.1-flash-lite", deniedApps: [] }));
+  await desk.getByRole("button", { name: "Enable Latham", exact: true }).click();
+  await wait(async () => (await desk.evaluate(() => window.setup.state())).computer.allowed);
   const launched = await desk.evaluate(() => window.setup.computerRun("open Calculator"));
   const launchMessage = (await desk.evaluate(() => window.setup.state())).computer.message;
   await desk.evaluate(() => window.latham.stop());
@@ -49,6 +50,7 @@ try {
   await recovery.getByRole("button", { name: "I've checked — continue", exact: true }).click();
   await wait(async () => !(await desk.evaluate(() => window.setup.state())).computer.needsReview);
   assert.equal(JSON.parse(readFileSync(computerFile, "utf8")).uncertain, false);
+  await desk.getByText("Advanced settings", { exact: true }).click();
   assert.equal((await desk.evaluate(() => window.setup.state())).canImportEnvironmentKey, false);
   assert.equal(await desk.getByRole("button", { name: "Import GEMINI_API_KEY from .env.local" }).count(), 0);
   assert.deepEqual(await desk.evaluate(() => window.latham.runtime), { sandboxed: true, contextIsolated: true });

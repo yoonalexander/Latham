@@ -12,7 +12,7 @@ function registryBackup(): () => void {
   });
   return () => { for (const { path, value } of values) { if (value) execFileSync("reg.exe", ["ADD", path, "/ve", "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" }); else { try { execFileSync("reg.exe", ["DELETE", path, "/f"], { stdio: "ignore" }); } catch { /* Already absent. */ } } } };
 }
-test("saving a Gemini key also saves the cloud provider chosen in settings", async () => {
+test("quick setup connects Gemini and selects it for voice without opening advanced settings", async () => {
   mkdirSync(".test-artifacts", { recursive: true });
   const directory = mkdtempSync(resolve(".test-artifacts/gemini-setup-"));
   const env = Object.fromEntries(Object.entries(process.env).filter((pair): pair is [string, string] => pair[1] !== undefined && pair[0] !== "ELECTRON_RUN_AS_NODE"));
@@ -23,12 +23,14 @@ test("saving a Gemini key also saves the cloud provider chosen in settings", asy
     await expect.poll(() => app.context().pages().some(page => page.url() === "latham://companion/index.html")).toBe(true);
     const companion = app.context().pages().find(page => page.url() === "latham://companion/index.html")!;
     expect((await companion.evaluate(() => window.companion.state())).message).toBe("Choose Gemini or configure local speech in Settings.");
-    await page.getByLabel("Use my API key (Gemini)", { exact: true }).check();
+    await page.getByRole("button", { name: "Enable Latham", exact: true }).click();
     await page.getByLabel("Gemini API key", { exact: true }).fill("FAKE_SETUP_FLOW_KEY_123456789012345");
-    await page.getByRole("button", { name: /Store key|Save Gemini setup/, exact: true }).click();
+    await page.getByRole("button", { name: "Connect Gemini", exact: true }).click();
     await expect.poll(() => page.evaluate(async () => (await window.setup.state()).keyStored)).toBe(true);
     await expect.poll(() => page.evaluate(async () => (await window.setup.state()).settings.mode)).toBe("cloud");
     expect(JSON.parse(readFileSync(join(directory, "providers.json"), "utf8")).settings.mode).toBe("cloud");
+    await expect(page.getByRole("heading", { name: "Hold Ctrl to talk", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Use local AI", { exact: true })).toBeHidden();
     await page.evaluate(() => window.setup.selectCompanionTarget("chrome"));
     await page.evaluate(() => window.setup.talkFromCompanion());
     expect((await companion.evaluate(() => window.companion.state())).message).toBe("Connect Latham's browser extension in Settings.");
@@ -83,6 +85,7 @@ test("microphone capture is gated, buffers are bounded and Stop cancels a real c
     await expect.poll(() => app.context().pages().some(page => page.url() === "latham://app/index.html")).toBe(true);
     const page = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
     expect(await page.evaluate(async () => { try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(track => track.stop()); return false; } catch { return true; } })).toBe(true);
+    await page.getByText("Advanced settings", { exact: true }).click();
     const allowed = await page.evaluate(async () => { await window.setup.beginTurn(); try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); const track = stream.getAudioTracks()[0]!; const state = track.readyState; stream.getTracks().forEach(item => item.stop()); return state; } catch (error) { return (error as Error).name; } });
     expect(allowed).toBe("live");
     await page.evaluate(() => window.latham.stop()); await expect(page.getByTestId("voice-status")).toHaveText("Voice: idle");

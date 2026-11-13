@@ -335,8 +335,8 @@ async function boot(): Promise<void> {
         : code === "voice_busy" ? "Finish or stop the current task first."
         : code === "prepare_editor" ? "Prepare Notepad in Settings first."
         : code === "computer_setup_required" ? idleNotice()
-        : /local_asr|local_model|english_model/.test(code) ? "Local speech is not configured. Select Gemini and save AI setup in Settings."
-        : /key/.test(code) ? "Save your Gemini key and AI setup in Settings."
+        : /local_asr|local_model|english_model/.test(code) ? "Connect Gemini in Settings, or configure local speech under Advanced settings."
+        : /key/.test(code) ? "Connect Gemini in Settings to use your voice."
         : /managed/.test(code) ? "Sign in to managed AI or select Gemini in Settings."
         : code === "chrome_reconciliation_required" && !chrome.connected ? "Connect Latham's browser extension in Settings."
         : code === "chrome_reconciliation_required" || code === "executor_reconciliation_required" ? "Inspect the previous app result in Settings before resuming."

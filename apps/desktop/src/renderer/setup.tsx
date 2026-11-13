@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { speechLanguages, type ProviderSettings, type SetupBridge, type SetupState } from "../../../../packages/contracts/src/setup";
 import { DesktopPanel } from "./desktop";
 import { HandsfreePanel } from "./handsfree";
@@ -6,12 +6,12 @@ import { VisualPanel } from "./visual";
 import { WorkflowPanel } from "./workflow";
 import { ManagedPanel } from "./managed";
 import { CompatibilityPanel } from "./compatibility";
-import { ComputerPanel } from "./computer";
+import { ComputerPanel, ComputerStart } from "./computer";
 import { browsers, type BrowserId } from "../../../../packages/contracts/src/compatibility";
 import { workflowActive } from "../../../../packages/contracts/src/workflow";
 declare global { interface Window { setup: SetupBridge } }
 type Recording = { id: number; sequence: number; stream?: MediaStream; context?: AudioContext; node?: ScriptProcessorNode; chunks: Int16Array[]; samples: number; timer?: ReturnType<typeof setTimeout> };
-export function SetupPanel() {
+export function SetupPanel({ fixtureControls }: { fixtureControls: ReactNode }) {
   const [state, setState] = useState<SetupState>();
   const [draft, setDraft] = useState<ProviderSettings>();
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -25,7 +25,7 @@ export function SetupPanel() {
   const act = async (operation: () => Promise<unknown>): Promise<void> => {
     setError(""); try { await operation(); } catch (error) {
       const code = error instanceof Error ? error.message : "";
-      setError(code.includes("inspect_previous_result_first") ? "Inspect and reconcile the previous browser or editor result before switching browsers." : code.includes("executor_fence_unconfirmed") ? "The previous browser has not confirmed Stop. Reconnect or reload it and confirm its paused state before switching." : "Setup could not complete. Check saved paths, AI access, the selected browser and permissions, then try again.");
+      setError(code.includes("invalid_key") ? "Enter a valid Gemini API key." : code.includes("inspect_previous_result_first") ? "Inspect the last browser or editor result before switching browsers." : code.includes("executor_fence_unconfirmed") ? "The browser has not confirmed Stop. Reconnect it and try again." : "Could not complete that step. Check your settings and try again.");
     }
   };
   useEffect(() => {
@@ -72,10 +72,18 @@ export function SetupPanel() {
       if (recording.current === current) { clean(); await window.setup.cancelTurn(); const name = (cause as Error).name; setError(name === "NotAllowedError" ? "Microphone permission denied. Enable it in Windows settings, then hold to talk again." : name === "NotFoundError" || name === "OverconstrainedError" ? "Selected microphone unavailable. Choose the system default or reconnect it." : "Microphone capture failed. No audio was transcribed."); }
     }
   };
-  if (!state || !draft) return <section className="panel setup-panel">Loading voice and Chrome setup…</section>;
+  if (!state || !draft) return <section className="panel setup-panel">Loading settings…</section>;
   const patch = (value: Partial<ProviderSettings>): void => setDraft({ ...draft, ...value });
-  return <section id="assistant-setup" tabIndex={-1} className="panel setup-panel" aria-label="Voice and browser setup">
-    {state.providerSettingsLocked && <p role="alert">AI/browser settings are unreadable or from a newer version. The file is locked against overwrite; quit and follow the Phase 9 recovery guide.</p>}<div className="section-kicker">WINDOWS PREVIEW / 0.9</div><h2>Voice, browsers & desktop</h2>
+  return <section id="assistant-setup" tabIndex={-1} className="panel setup-panel" aria-label="Latham settings">
+    {state.providerSettingsLocked && <p role="alert">Saved AI settings could not be read. See the Windows recovery guide.</p>}
+    <ComputerStart state={state} act={act} saveGemini={async key => {
+      await window.setup.key(key);
+      await window.setup.save({ ...state.settings, mode: "cloud" });
+    }} />
+    {(error || state.error) && <p className="error" role="alert">{error || state.error.replaceAll("_", " ")}</p>}
+    <details className="advanced-settings">
+      <summary>Advanced settings</summary>
+      <div className="advanced-settings-content">
     <fieldset className="manual-controls" disabled={workflowActive(state.workflow.phase) || state.handsfree.phase !== "off" || state.visual.busy}>
     <ComputerPanel state={state} act={act} />
     <div className="setup-grid">
@@ -127,6 +135,8 @@ export function SetupPanel() {
     <VisualPanel state={state} act={act} />
     <WorkflowPanel state={state} dirty={dirty} />
     <CompatibilityPanel state={state} act={act} />
-    {(error || state.error) && <p className="error" role="alert">{error || state.error.replaceAll("_", " ")}</p>}
+      {fixtureControls}
+      </div>
+    </details>
   </section>;
 }

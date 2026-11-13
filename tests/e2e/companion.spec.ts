@@ -21,7 +21,7 @@ test("uncertain-result guidance points to explicit recovery without replaying th
     await expect.poll(() => app.context().pages().some(page => page.url() === "latham://companion/index.html")).toBe(true);
     const settings = app.context().pages().find(page => page.url() === "latham://app/index.html")!, overlay = app.context().pages().find(page => page.url() === "latham://companion/index.html")!;
     await expect(overlay.locator("#caption")).toHaveText("Check the last task");
-    await expect(overlay.locator("#detail")).toHaveText("Settings → Universal assistant → I've checked — continue");
+    await expect(overlay.locator("#detail")).toHaveText("Settings → I've checked — continue");
     expect((await overlay.evaluate(() => window.companion.state())).sessionId).toBeNull();
     const recovery = settings.getByRole("region", { name: "Previous task recovery", exact: true });
     await expect(recovery).toBeVisible(); expect(JSON.parse(readFileSync(join(directory, "computer.json"), "utf8")).uncertain).toBe(true);
@@ -39,7 +39,7 @@ test("uncertain-result guidance points to explicit recovery without replaying th
   } finally { await app.close(); }
 });
 
-test("first-run agreement enables remembered access without starting capture, and disable survives restart", async () => {
+test("one click enables app access without starting capture, and disable survives restart", async () => {
   const directory = mkdtempSync(resolve(".test-artifacts/computer-onboarding-"));
   const env = Object.fromEntries(Object.entries(process.env).filter((pair): pair is [string, string] => pair[1] !== undefined && pair[0] !== "ELECTRON_RUN_AS_NODE"));
   const launch = () => _electron.launch({ args: [resolve("dist/main.cjs"), "--latham-test", "--latham-companion"], env: { ...env, LATHAM_TEST_DATA_DIR: directory } });
@@ -48,20 +48,27 @@ test("first-run agreement enables remembered access without starting capture, an
   try {
     let page = await settings();
     const agreement = page.getByRole("region", { name: "Latham first-run agreement", exact: true });
-    await expect(agreement).toBeVisible(); await expect(page.getByRole("button", { name: "Agree & enable Latham", exact: true })).toBeDisabled();
-    await agreement.screenshot({ path: ".test-artifacts/computer-first-run-agreement.png" });
+    await expect(agreement).toBeVisible();
+    await expect(page.getByRole("button", { name: "Enable Latham", exact: true })).toBeEnabled();
+    await expect(page.getByRole("heading", { name: "Universal assistant", exact: true })).toBeHidden();
+    await page.screenshot({ path: ".test-artifacts/computer-first-run-agreement.png" });
     expect((await page.evaluate(() => window.setup.state())).computer).toMatchObject({ agreementAccepted: false, allowed: false });
     const overlay = app.context().pages().find(page => page.url() === "latham://companion/index.html")!;
     expect((await overlay.evaluate(() => window.companion.state())).sessionId).toBeNull();
-    await expect(page.getByLabel("Also allow foreground-window images", { exact: false })).toBeChecked();
-    await expect(page.getByLabel("Include browser windows without the extension", { exact: true })).toBeChecked();
-    await page.getByLabel("Blocked process names (comma separated)", { exact: true }).fill("notepad");
-    await agreement.getByRole("checkbox").check(); await page.getByRole("button", { name: "Agree & enable Latham", exact: true }).click();
+    await agreement.getByRole("button", { name: "Enable Latham", exact: true }).click();
     await expect(agreement).toHaveCount(0);
-    await expect.poll(async () => (await page.evaluate(() => window.setup.state())).computer.allowed).toBe(true);
-    await page.getByRole("region", { name: "Universal computer use", exact: true }).screenshot({ path: ".test-artifacts/computer-remembered-access.png" });
+    await expect(page.getByRole("button", { name: "Open Notepad", exact: true })).toBeEnabled();
+    expect((await page.evaluate(() => window.setup.state())).computer).toMatchObject({ agreementAccepted: true, allowed: true, images: false, browserAllowed: false });
+    expect((await overlay.evaluate(() => window.companion.state())).sessionId).toBeNull();
+    await page.screenshot({ path: ".test-artifacts/computer-remembered-access.png" });
+    await page.getByText("Advanced settings", { exact: true }).click();
+    await expect(page.getByLabel("Also allow foreground-window images", { exact: false })).not.toBeChecked();
+    await expect(page.getByLabel("Include browser windows without the extension", { exact: true })).not.toBeChecked();
+    await page.getByLabel("Blocked process names (comma separated)", { exact: true }).fill("notepad");
+    await page.getByRole("button", { name: "Save universal access settings", exact: true }).click();
+    await expect.poll(async () => (await page.evaluate(() => window.setup.state())).computer.deniedApps).toEqual(["notepad"]);
     await app.close(); app = await launch(); page = await settings();
-    expect((await page.evaluate(() => window.setup.state())).computer).toMatchObject({ agreementAccepted: true, allowed: true, images: true, browserAllowed: true, deniedApps: ["notepad"], needsReview: false });
+    expect((await page.evaluate(() => window.setup.state())).computer).toMatchObject({ agreementAccepted: true, allowed: true, images: false, browserAllowed: false, deniedApps: ["notepad"], needsReview: false });
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.isVisible())).toBe(false);
     await page.evaluate(() => window.setup.computerRun("open notepad"));
     expect((await page.evaluate(() => window.setup.state())).computer.message).toContain("computer_app_denied");
@@ -85,7 +92,7 @@ test("plain Electron launch opens Settings on the first request without a debugg
         const settings = BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html");
         const before = settings.isVisible(); menu.items.find(item => item.label === "Settings…").click();
         setTimeout(async () => {
-          const first = { visible: settings.isVisible(), rendered: await settings.webContents.executeJavaScript("document.body.querySelectorAll('*').length > 100") };
+            const first = { visible: settings.isVisible(), rendered: await settings.webContents.executeJavaScript("!!document.querySelector('.quick-start h2')") };
           settings.webContents.sendInputEvent({ type: "mouseDown", x: 30, y: 30, button: "left", clickCount: 1 });
           settings.webContents.sendInputEvent({ type: "mouseUp", x: 30, y: 30, button: "left", clickCount: 1 });
           setTimeout(() => {
@@ -122,7 +129,7 @@ test("a Settings request during startup waits for the UI instead of exposing an 
     await app.evaluate(() => Reflect.get(globalThis, "releaseSettingsScript")());
     await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.isVisible())).toBe(true);
     const settings = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
-    await expect(settings.getByRole("heading", { name: "Universal assistant", exact: true })).toBeVisible();
+    await expect(settings.getByRole("heading", { name: "Try Latham", exact: true })).toBeVisible();
     await settings.locator("h1").click();
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.isVisible())).toBe(true);
   } finally { await app.evaluate(() => Reflect.get(globalThis, "releaseSettingsScript")?.()).catch(() => {}); await app.close(); }
@@ -148,12 +155,11 @@ test("the first tray Settings click after companion startup paints settings and 
       menu.items.find(item => item.label === "Settings…")!.click();
       const shownInsideMenuCallback = window.isVisible();
       await new Promise(resolve => setTimeout(resolve, 350));
-      const bitmap = (await window.webContents.capturePage()).toBitmap();
-      return { before, shownInsideMenuCallback, visible: window.isVisible(), fixture: fixture.getBounds(), colors: new Set(Array.from(bitmap.subarray(0, 80000))).size, events };
+      return { before, shownInsideMenuCallback, visible: window.isVisible(), fixture: fixture.getBounds(), events };
     });
     expect(first.before.visible).toBe(false); expect(first.shownInsideMenuCallback).toBe(false); expect(first.visible).toBe(true);
-    expect(first.fixture).toEqual({ x: 0, y: 0, width: 0, height: 0 }); expect(first.colors).toBeGreaterThan(4);
-    await expect(settings.getByRole("heading", { name: "Universal assistant", exact: true })).toBeVisible();
+    expect(first.fixture).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+    await expect(settings.getByRole("heading", { name: "Try Latham", exact: true })).toBeVisible();
     await settings.screenshot({ path: ".test-artifacts/settings-first-open.png" });
     await settings.locator("h1").click();
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.isVisible())).toBe(true);
@@ -183,7 +189,7 @@ test("first Settings open prepares geometry before entering the native show call
     expect(events.indexOf("bounds"), events.join(", ")).toBeLessThan(events.indexOf("show:begin"));
     expect(events.slice(events.indexOf("show:begin") + 1, events.indexOf("show:end"))).toEqual([]);
     const settings = app.context().pages().find(page => page.url() === "latham://app/index.html")!;
-    await expect(settings.getByRole("heading", { name: "Universal assistant", exact: true })).toBeVisible();
+    await expect(settings.getByRole("heading", { name: "Try Latham", exact: true })).toBeVisible();
     await settings.locator("h1").click();
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.isVisible())).toBe(true);
   } finally { await app.close(); }

@@ -67,15 +67,11 @@ official release distribution if it is not already installed. No provider key,
 model download or browser extension is needed for the fixture. The narrow
 native relay uses Windows' existing .NET Framework compiler, without an SDK.
 
-First launch opens setup automatically; later use **Settings…** from the tray.
-Save Gemini AI setup, then accept the
-**Universal assistant** one-time terms/permissions agreement. Access and provider
-choices are remembered across restarts; an explicit disable also stays off.
-Return to the companion and select the target app before holding Ctrl. Simple
-commands run directly; longer tasks ask beside the icon. **Ctrl+Alt+Enter** confirms
-and **Ctrl+Alt+.** stops. Images and browser-window inclusion are chosen during
-setup and can be changed later; storing a key alone grants no access. This development build is not a replacement
-signed/packaged release.
+On first launch, choose **Enable Latham** and try **Open Notepad**. To use your
+voice, enter your Gemini key, choose **Connect Gemini**, and hold **Ctrl**.
+Release Ctrl to run the command. **Ctrl+Alt+.** stops work. Use **Settings…**
+from the tray for **Advanced settings**, including local AI, window images,
+browser access, and app blocks. [Permissions and data use](docs/universal-desktop.md#before-you-download)
 
 For the optional legacy Chrome adapter, configure AI, register/load/connect the extension, approve a site,
 then choose **Prepare Search dictation**. Hold to talk, review, and explicitly

@@ -45,6 +45,7 @@ test("keyboard navigation, Escape, display recovery and explicit local task eval
     expect(await app.evaluate(({ screen, BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.getBounds(), area = screen.getDisplayMatching(bounds).workArea; return bounds.x >= area.x && bounds.y >= area.y && bounds.x + bounds.width <= area.x + area.width && bounds.y + bounds.height <= area.y + area.height; })).toBe(true);
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL() === "latham://app/index.html")!.setSize(680, 520));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByText("Advanced settings", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Compatibility and evaluation", exact: true });
     await panel.getByText("Record a task evaluation on this device", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "Save task evaluation", exact: true })).toBeDisabled();

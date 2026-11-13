@@ -16,8 +16,8 @@ An early startup click is kept pending and opens Settings once ready; no second
 click is required. A minimized Settings window is restored when requested.
 
 If Ctrl shows **Check the last task**, Latham has an unverified action from an
-earlier task. Check the app you were using, open tray **Settings… → Universal
-assistant**, and select **I've checked — continue** in the recovery card at the
+earlier task. Check the app you were using, open tray **Settings…**, and select
+**I've checked — continue** in the recovery card at the
 top. This enables a fresh command without replaying the old task. Agreement
 acceptance does not clear this separate recovery state. If the previous input
 worker has not stopped, the card explains why Continue is disabled.
@@ -104,12 +104,10 @@ only local cursor/display coordinates for its own placement, without screen capt
   right edge. **Show companion** restores it; **Hide companion** also stops work.
   **Quit Latham** exits. Nothing automatically captures audio on launch/restart.
 
-First open Settings and configure speech through Gemini, local Whisper or the
-separately configured managed route. Universal computer use additionally needs
-the one-time agreement and enabled foreground accessibility text/values and chosen
-images/browser inclusion. Its reasoning route is Gemini or local Ollama, with no
-managed-vision fallback. No extension is required for that engine. See
-[universal setup, evidence and limits](universal-desktop.md).
+Choose **Enable Latham** in Settings to permit active-app access. Try
+**Open Notepad**, or enter your key and choose **Connect Gemini** for voice.
+**Advanced settings** contains local Whisper, Ollama, optional managed speech,
+window images, and browser access. [Universal setup and permissions](universal-desktop.md)
 
 The optional older browser route still requires its connection and explicit
 site approvals; prepared Notepad keeps its field binding. **scroll down**,

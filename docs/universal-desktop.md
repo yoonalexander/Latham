@@ -35,22 +35,34 @@ reasoning provider persist across updates/restarts, including an explicit disabl
 Merely storing a provider key never accepts the agreement. Remembered access
 does not resume a task, microphone or observation.
 
+## Before you download
+
+- Latham listens when you hold Ctrl or start a voice session. Hands-free
+  listening is a separate choice. Stop with **Ctrl+Alt+.** or the tray menu.
+- Enabling Latham lets it read visible text and field values in the active
+  app and use ordinary controls when you ask. Window images and browser access
+  are optional and start off for new users.
+- With Gemini, Google processes your voice and the permitted app context for
+  AI tasks. With local Whisper and Ollama, processing stays on your computer.
+  The provider terms and quotas apply to the provider you choose.
+- Latham saves your settings, access choices, and any unresolved result.
+  Windows protects stored keys. Latham keeps no history of task text, images,
+  or recordings. Some actions ask for confirmation. Stop can interrupt work
+  after an action has already been issued, so check the result before retrying.
+
 ## Use the preview
 
-1. First launch opens Settings for one-time setup; later use tray **Settings…**.
-   Save Gemini AI setup with your existing key, or
-   configure the existing local speech setup. Computer reasoning and speech
-   routing are separate choices; neither silently changes the other.
-2. Under **Universal assistant**, read the Latham terms and permissions. Universal
-   access, foreground-window images and browser inclusion are selected by default;
-   change them or the provider if needed, check the agreement box, then choose
-   **Agree & enable Latham**. These choices are remembered. Later changes use
-   **Save universal access settings**; **Disable universal mode / Stop** stays off
-   after restart. Existing app/site blocks and uncertain outcomes are preserved.
+1. Choose **Enable Latham** on first launch. **Open Notepad** runs a local
+   command immediately. Add a key and choose **Connect Gemini** to use voice.
+2. Use **Settings… → Advanced settings** for local speech, reasoning provider,
+   image and browser access, or app blocks. Speech and reasoning routes are
+   saved independently. Access choices and **Disable universal mode / Stop**
+   persist after restart.
 3. Return to the companion, click the ordinary app you intend to use, hold Ctrl,
    speak a short goal and release. Start with a disposable text field, for
    example “replace Draft with hello”, or “explain the current window”. A typed
-   **Run universal task** is also available; select the target window first.
+   **Run universal task** is available under **Advanced settings**. Select the
+   target window first.
 4. Simple explicit commands run directly, including “open Notepad” and a single
    uniquely named control operation. Longer or ambiguous action requests show
    **Continue with this task?** beside the companion. Choose **Continue** or

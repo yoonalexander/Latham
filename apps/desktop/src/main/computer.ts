@@ -7,6 +7,20 @@ import { emptyComputer, computerAgreementVersion, parseComputerAction, parseComp
 import { boundedJson, cloudModel } from "../../../../packages/speech/src/providers";
 
 export interface ComputerBroker { observe(images: boolean, browserAllowed: boolean, deniedApps: string[], siteBlocked: boolean, signal: AbortSignal): Promise<ComputerObservation>; launch(app: "notepad" | "calculator", options: ComputerState, signal: AbortSignal): Promise<void>; act(observation: ComputerObservation, action: ComputerAction, options: ComputerState, signal: AbortSignal): Promise<void>; restore(observation: ComputerObservation, options: ComputerState, signal: AbortSignal): Promise<void>; stop(): Promise<void>; }
+
+function computerFailureMessage(error: unknown, signal: AbortSignal): string {
+  if (signal.aborted) return "Task stopped or timed out. No pending action will be replayed.";
+  const code = error instanceof Error ? error.message : "";
+  if (code === "computer_tree_limit") return "This window exposes too many accessibility controls for Latham to scan. Try a simpler window. Direct open Notepad and open Calculator commands are still available.";
+  if (code === "computer_result_unknown" && error instanceof Error && error.cause === "computer_focus_denied") {
+    return "Windows did not confirm that the intended window came to the front. Check the app, then choose I've checked — continue in Settings.";
+  }
+  if (code === "computer_focus_denied") {
+    return "Windows did not confirm that the intended window came to the front. Check the app, select its window, and start a new command when ready.";
+  }
+  return `Task blocked: ${/^[a-z_]+$/.test(code) ? code : "computer_operation_failed"}. Inspect the target app before retrying.`;
+}
+
 export class WindowsComputer implements ComputerBroker {
   private children = new Set<ChildProcessWithoutNullStreams>();
   private launchWindows: Partial<Record<"notepad" | "calculator", string>> = {};
@@ -24,7 +38,10 @@ export class WindowsComputer implements ComputerBroker {
         output += chunk; if (output.length > 3000000) { finish(new Error("computer_reply_limit")); return; }
         const end = output.indexOf("\n"); if (end < 0) return;
         try { const reply: unknown = JSON.parse(output.slice(0, end)); if (!record(reply) || !["verified", "blocked", "unknown"].includes(String(reply.outcome))) throw new Error();
-          if (reply.outcome !== "verified") finish(new Error(reply.outcome === "unknown" ? "computer_result_unknown" : typeof reply.reason === "string" && /^computer_[a-z_]+$/.test(reply.reason) ? reply.reason : "computer_app_denied")); else finish(undefined, reply);
+          const reason = typeof reply.reason === "string" && /^computer_[a-z_]+$/.test(reply.reason) ? reply.reason : "computer_app_denied";
+          if (reply.outcome === "unknown") finish(new Error("computer_result_unknown", { cause: reason }));
+          else if (reply.outcome === "blocked") finish(new Error(reason));
+          else finish(undefined, reply);
         } catch { finish(new Error("computer_invalid_reply")); }
       });
       child.stderr.resume(); child.stdin.on("error", () => finish(new Error("computer_worker_lost"))); child.once("error", () => finish(new Error("computer_worker_lost")));
@@ -179,7 +196,11 @@ export class Computer {
       }
       throw new Error("computer_step_budget");
     } catch (error) {
-      if (generation === this.generation) { this.state.phase = "blocked"; this.state.message = signal.aborted ? "Task stopped or timed out. No pending action will be replayed." : error instanceof Error && error.message === "computer_tree_limit" ? "This window exposes too many accessibility controls for Latham to scan. Try a simpler window. Direct open Notepad and open Calculator commands are still available." : `Task blocked: ${error instanceof Error && /^[a-z_]+$/.test(error.message) ? error.message : "computer_operation_failed"}. Inspect the target app before retrying.`; if (mutated) this.state.needsReview = true; }
+      if (generation === this.generation) {
+        this.state.phase = "blocked";
+        this.state.message = computerFailureMessage(error, signal);
+        if (mutated) this.state.needsReview = true;
+      }
       return false;
     } finally { if (generation === this.generation) { this.busy = false; this.state.pending = null; this.pendingImage = ""; this.approval = undefined; this.emit(); } }
   }

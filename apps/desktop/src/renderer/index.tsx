@@ -64,8 +64,7 @@ function App() {
   const run = (event: FormEvent): void => { event.preventDefault(); void act(() => window.latham.run(command)); };
   const result = state?.lastResult;
   return <div className="app-shell"><a className="skip-link" href="#assistant-setup" onClick={event => { event.preventDefault(); document.getElementById("assistant-setup")?.focus(); }}>Skip to assistant setup</a>
-    <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>SETTINGS</span></h1><p>Your companion lives beside the cursor.</p></div></div><div className="header-tools"><button onClick={() => void window.setup.showCompanion()}>Return to companion</button><button onClick={() => { void window.latham.stop(); setFixtureVisible(!fixtureVisible); }}>{fixtureVisible ? "Hide fixture tools" : "Show fixture tools"}</button><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
-    <div className="companion-help"><p>Hold <kbd>Ctrl</kbd> to speak one command, then release to process it with the mic off. Adding another key or clicking discards the recording, so normal Ctrl shortcuts still work. The command runs using your existing app permissions. <kbd>Ctrl + Alt + .</kbd> stops work at any time; <kbd>Ctrl + Alt + Space</kbd> or the tray starts a command that finishes after a pause.</p><button onClick={() => void window.setup.talkFromCompanion()}>Talk with companion</button></div>
+    <header className="app-header"><div className="brand"><div className="monogram" aria-hidden="true">L</div><div><h1>Latham<span>SETTINGS</span></h1></div></div><div className="header-tools"><button onClick={() => void window.setup.showCompanion()}>Return to companion</button><button className="stop" onClick={() => void act(() => window.latham.stop())}>■ Stop <kbd>Ctrl Alt .</kbd></button></div></header>
     {state && !state.stopShortcutRegistered && <p className="error" role="alert">Global stop shortcut unavailable. Use Stop or the tray menu.</p>}
     {fixtureVisible && <main className="workspace">
       <aside className="control-column">
@@ -94,7 +93,11 @@ function App() {
         </div>
       </div>
     </main>}
-    <SetupPanel />
+    <SetupPanel fixtureControls={<button onClick={() => {
+      void window.latham.stop();
+      setFixtureVisible(!fixtureVisible);
+      window.scrollTo(0, 0);
+    }}>{fixtureVisible ? "Hide fixture tools" : "Show fixture tools"}</button>} />
   </div>;
 }
 createRoot(document.getElementById("root")!).render(<App />);

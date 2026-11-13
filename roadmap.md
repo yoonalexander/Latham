@@ -246,7 +246,7 @@ every app works or that a Gemini text/ASR key check validates computer-use model
 - [ ] **10D.2 — Native window discovery and editing.** Resolve the known window discovery and focus failures in the universal and legacy editing tests. Verify that Latham finds, edits, and checks the result in multiple unrelated Windows apps. Include a changed-window or changed-field case that blocks the edit and a stalled native operation that can be stopped safely.
 - [ ] **10D.3 — Hold-Ctrl with a real microphone.** Check that live words appear while speaking, the microphone closes on release, and the final transcript runs the intended command once. Check cancellation while listening and record recognition problems observed with the available speakers and room conditions.
 - [ ] **10D.4 — Hands-free approval, Stop, and recovery.** Run repeated commands in an opt-in session. Verify that approval applies only to the visible proposal, spoken Stop interrupts active work, the independent Stop shortcut works during processing, and recovery does not replay a command.
-- [ ] **10D.5 — Chrome without the extension.** Complete and verify a permitted, low-consequence task in a real Chrome window using the Windows engine. Repeat with browser access revoked and verify that the operation is blocked.
+- [x] **10D.5 — Chrome without the extension.** The Windows engine edited and verified a field in an isolated Chrome for Testing window. With a site revocation recorded, the task was blocked before reasoning and the field retained its verified value. [November 13 results](docs/evaluation.md#phase-10d-visual-and-browser-checks--november-13-2026)
 - [ ] **10D.6 — Multi-step and cross-app tasks.** Verify a multi-step goal within one app and a goal spanning apps. Check that Latham clarifies ambiguous requests, asks for approval when required, and shows the verified result or a clear error.
 - [ ] **10D.7 — Consent and privacy.** Verify that idle capture stays off and that capture and provider transmission respect consent. Exercise app and site blocks, protected fields, and secure or elevated windows. App-denial unit tests and the hosted Calculator identity check passed. [App-denial follow-up](docs/evaluation.md#phase-10d-app-denial-follow-up--november-11-2026)
 - [ ] **10D.8 — Displays and scaling.** Verify companion positioning and action targeting on the available monitor layouts and DPI settings, including mixed-DPI setups where available. Record the configurations tested and any gaps.
@@ -267,9 +267,9 @@ The universal Windows development route is implemented alongside the older narro
 
 ## Next milestone
 
-**Resume the foreground checks with 10D.2.** The November 11 run verified
-startup and shutdown. Windows denied foreground activation during the longer
-native run, leaving native editing, extension-free Chrome, cross-app actions,
-and packaged launch open. The [Phase 10D checklist](#phase-10d-acceptance-checklist)
-and [November 11 results](docs/evaluation.md#phase-10d-windows-acceptance--november-11-2026)
-record the remaining physical voice, privacy, and display work.
+**Continue with native app coverage and the Calculator handoff.** Startup,
+shutdown, and extension-free Chrome have passed. Native fixture editing and
+stalled-operation Stop passed again. The cross-app run verified both edits and
+still needs to verify the Calculator handoff. Packaged Calculator launch and
+physical voice, privacy, and display acceptance remain open.
+[November 13 results](docs/evaluation.md#phase-10d-visual-and-browser-checks--november-13-2026)

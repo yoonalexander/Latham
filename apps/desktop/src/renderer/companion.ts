@@ -103,7 +103,7 @@ function update(next: CompanionState): void {
     if (next.recoveryRequired && !next.confirmation) {
       root.classList.remove("has-transcript"); notice.setAttribute("aria-live", "polite");
       caption.textContent = "Check the last task";
-      detail.textContent = "Settings → Universal assistant → I've checked — continue";
+      detail.textContent = "Settings → I've checked — continue";
     }
     if (next.confirmation) {
       root.classList.remove("has-transcript"); notice.setAttribute("aria-live", "polite");

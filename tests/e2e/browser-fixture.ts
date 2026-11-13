@@ -31,6 +31,7 @@ export async function setup(imageGrant = true, allSites = false, browser: "chrom
   try {
   await expect.poll(() => app.context().pages().some(page => page.url() === "latham://app/index.html")).toBe(true);
   const desk = app.context().pages().find(page => page.url() === "latham://app/index.html")!; if (browser === "edge") await desk.evaluate(() => window.setup.chooseBrowser("edge")); await desk.evaluate(() => window.setup.installHost());
+  await desk.getByText("Advanced settings", { exact: true }).click();
   // Install-time grants are an isolated fixture arrangement. Production optional prompts have separate native acceptance.
   const extension = mkdtempSync(resolve(".test-artifacts/page-extension-")); cpSync("dist/chrome-extension", extension, { recursive: true }); const manifest = JSON.parse(readFileSync(join(extension, "manifest.json"), "utf8")); manifest.host_permissions = manifest.optional_host_permissions.filter((origin: string) => imageGrant || !origin.includes("ytimg")); manifest.optional_host_permissions = manifest.optional_host_permissions.filter((origin: string) => !manifest.host_permissions.includes(origin)); writeFileSync(join(extension, "manifest.json"), JSON.stringify(manifest));
   profile = mkdtempSync(resolve(`.test-artifacts/page-${browser}-`));

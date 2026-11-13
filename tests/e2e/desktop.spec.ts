@@ -13,6 +13,7 @@ async function launch(directory?: string): Promise<Running> {
   running.add(application);
   await expect.poll(() => application.context().pages().some(item => item.url() === "latham://app/index.html")).toBe(true);
   const page = application.context().pages().find(item => item.url() === "latham://app/index.html")!;
+  await page.getByText("Advanced settings", { exact: true }).click();
   await page.getByRole("button", { name: "Show fixture tools", exact: true }).click();
   await expect(page.getByTestId("session-status")).toHaveText("Paused");
   const fixture = application.context().pages().find(item => item.url() === "latham://fixture/index.html");

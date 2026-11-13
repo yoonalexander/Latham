@@ -6,10 +6,13 @@ complete independent security audit.
 ## Universal Windows development route
 
 [Phase 10](universal-desktop.md) has a separate main-owned Computer controller and
-disposable Windows worker. First-run terms/permissions acceptance precedes access.
+disposable Windows worker. The explicit **Enable Latham** action precedes access.
+The portable quick start leaves window images and browser access off for new
+users. The download guide describes data use and Advanced settings exposes scope
+changes.
 The chosen foreground text/value, image and browser scopes and provider persist
 in version-2 computer.json with the agreement version, including an explicit disable.
-New installs and older version-1 state require the one-time agreement. Known
+New installs and older version-1 state require explicit enablement. Known
 denials and uncertainty survive migration. Malformed/future agreement state never
 auto-enables access. A speech key or extension grant supplies no agreement.
 No microphone, observation or task resumes on restart. No idle capture or

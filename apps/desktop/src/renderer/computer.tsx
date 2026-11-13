@@ -1,30 +1,69 @@
 import { useEffect, useState } from "react";
 import type { SetupState } from "../../../../packages/contracts/src/setup";
+type PanelProps = { state: SetupState; act(operation: () => Promise<unknown>): Promise<void> };
+
+export function ComputerStart({ state, act, saveGemini }: PanelProps & { saveGemini(key: string): Promise<void> }) {
+  const computer = state.computer;
+  const [key, setKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const busy = ["thinking", "observing", "acting", "review"].includes(computer.phase);
+  const canRun = computer.allowed && computer.fenceConfirmed && !computer.needsReview && !busy;
+  const { mode, whisperExecutable, whisperModel } = state.settings;
+  const needsVoiceSetup = mode === "cloud" ? !state.keyStored : mode === "local" ? !whisperExecutable || !whisperModel : !state.managed.signedIn;
+  const enable = (): void => {
+    void act(() => window.setup.computerConfigure({ allowed: true, images: false, browserAllowed: false, route: computer.route, model: computer.model, deniedApps: computer.deniedApps }));
+  };
+  return <section className="quick-start" aria-label="Universal computer use">
+    <h2>{computer.allowed ? needsVoiceSetup ? "Try Latham" : "Hold Ctrl to talk" : "Start using Latham"}</h2>
+    {computer.needsReview && !busy && <div className="onboarding-agreement" role="region" aria-label="Previous task recovery">
+      <h3>Check the app you were using</h3><p>Look at the app to see what changed before starting another command.</p>
+      {!computer.fenceConfirmed && <p role="status">Waiting for the previous input worker to stop.</p>}
+      <button disabled={!computer.fenceConfirmed} onClick={() => void act(() => window.setup.computerReconcile())}>I've checked — continue</button>
+    </div>}
+    {!computer.allowed ? <div role="region" aria-label="Latham first-run agreement">
+      <p>Let Latham read and control the active app when you ask. AI tasks share visible text and field values with {computer.route === "cloud" ? "Google Gemini" : "your local Ollama model"}.</p>
+      <button className="primary" disabled={busy || !computer.fenceConfirmed || computer.needsReview} onClick={enable}>Enable Latham</button>
+    </div> : <>
+      <p>{needsVoiceSetup ? "Open Notepad now, or connect Gemini to use your voice." : <>Hold <kbd>Ctrl</kbd>, say “open Notepad,” then release.</>}</p>
+      <div className="setup-buttons">
+        <button disabled={!canRun} onClick={() => void act(() => window.setup.computerRun("Open Notepad"))}>Open Notepad</button>
+        {!needsVoiceSetup && <button disabled={!canRun} onClick={() => void act(() => window.setup.talkFromCompanion())}>Talk with companion</button>}
+      </div>
+      {needsVoiceSetup && <form className="quick-voice" onSubmit={event => {
+        event.preventDefault();
+        if (!state.vaultAvailable || saving || !key.trim()) return;
+        setSaving(true);
+        void act(async () => { await saveGemini(key.trim()); setKey(""); }).finally(() => setSaving(false));
+      }}>
+        <label>Gemini API key<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label>
+        <button type="submit" className="primary" disabled={!state.vaultAvailable || saving || !key.trim()}>Connect Gemini</button>
+        <p className="mini">Google Gemini processes your voice. The key is stored by Windows.</p>
+      </form>}
+    </>}
+    <p role="status" data-testid="computer-status">{["complete", "blocked"].includes(computer.phase) ? computer.message : ""}</p>
+  </section>;
+}
+
 export function ComputerPanel({ state, act }: { state: SetupState; act(operation: () => Promise<unknown>): Promise<void> }) {
   const firstRun = !state.computer.agreementAccepted, savedDenials = state.computer.deniedApps.join(", ");
-  const [agreed, setAgreed] = useState(false), [allowed, setAllowed] = useState(firstRun || state.computer.allowed), [images, setImages] = useState(firstRun || state.computer.images), [browser, setBrowser] = useState(firstRun || state.computer.browserAllowed), [route, setRoute] = useState(state.computer.route), [model, setModel] = useState(state.computer.model), [denied, setDenied] = useState(savedDenials), [goal, setGoal] = useState("Explain the current window");
-  useEffect(() => { setAllowed(firstRun || state.computer.allowed); setImages(firstRun || state.computer.images); setBrowser(firstRun || state.computer.browserAllowed); setRoute(state.computer.route); setModel(state.computer.model); setDenied(savedDenials); }, [firstRun, state.computer.allowed, state.computer.images, state.computer.browserAllowed, state.computer.route, state.computer.model, savedDenials]);
+  const [allowed, setAllowed] = useState(state.computer.allowed), [images, setImages] = useState(state.computer.images), [browser, setBrowser] = useState(state.computer.browserAllowed), [route, setRoute] = useState(state.computer.route), [model, setModel] = useState(state.computer.model), [denied, setDenied] = useState(savedDenials), [goal, setGoal] = useState("Explain the current window");
+  useEffect(() => { setAllowed(state.computer.allowed); setImages(state.computer.images); setBrowser(state.computer.browserAllowed); setRoute(state.computer.route); setModel(state.computer.model); setDenied(savedDenials); }, [state.computer.allowed, state.computer.images, state.computer.browserAllowed, state.computer.route, state.computer.model, savedDenials]);
   const busy = state.computer.phase === "thinking" || state.computer.phase === "observing" || state.computer.phase === "acting" || state.computer.phase === "review";
-  return <section className="setup-group" aria-label="Universal computer use"><div className="section-kicker">COMPUTER ACCESS</div><h3>Universal assistant</h3><p>Use the same AI action loop across ordinary Windows apps. No browser extension is required in this mode. Simple commands such as “open Notepad” run directly. Longer tasks ask once beside Latham; image-based clicks ask for the chosen point. Sending, deletion, payments, credentials and security prompts remain blocked.</p>
-    {state.computer.needsReview && !busy && <div className="onboarding-agreement" role="region" aria-label="Previous task recovery"><h4>Check the app you were using</h4><p>Latham stopped before it could confirm the last action's result. Look at that app to see what changed, then continue below. This unlocks a new command; Latham will not repeat the old task.</p>
-      {!state.computer.fenceConfirmed && <p role="status">Waiting for the previous input worker to stop. Continue becomes available when it has stopped.</p>}
-      <button disabled={!state.computer.fenceConfirmed || busy} onClick={() => void act(() => window.setup.computerReconcile())}>I've checked — continue</button>
-    </div>}
-    {firstRun && <div className="onboarding-agreement" role="region" aria-label="Latham first-run agreement"><div className="section-kicker">ONE-TIME SETUP</div><h4>Agree once. Hold Ctrl whenever you need help.</h4><p>These terms enable the assistant on this device. Your choices below are remembered after updates and restarts, and can be changed or disabled here.</p>
-      <ul><li>Hold Ctrl to record one command; release to process it. No microphone or screen capture starts just because Latham opens. Continuous listening is a separate opt-in.</li><li>While carrying out your command, Latham can read the current app's accessibility text and field values, capture its visible window when images are enabled, and control ordinary apps and browsers.</li><li>Audio uses the speech provider saved in AI setup. Screen text, field values, your task and enabled window images use the computer-use provider below: Google Gemini with your key, or your installed local Ollama model. Current windows may contain private information.</li><li>AI can make mistakes. Longer tasks and image clicks may ask for confirmation. Ctrl+Alt+. stops work; it cannot undo an action already issued. Secure surfaces and consequential actions remain excluded.</li><li>Only access choices and minimal recovery state are saved here; task text, images and recordings are not kept as an activity history. Your selected provider's terms and quotas apply. Blocked apps and websites remain blocked.</li></ul>
-      <label><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /> I agree to these Latham terms and permissions.</label>
-    </div>}
+  return <section className="setup-group" aria-label="Computer access"><h3>Universal assistant</h3>
+    <fieldset className="computer-access-fields" disabled={firstRun || busy}>
     <label><input type="checkbox" checked={allowed} onChange={event => setAllowed(event.target.checked)} /> Enable universal assistant on this device (remember after restart)</label>
     <label><input type="checkbox" checked={images} onChange={event => setImages(event.target.checked)} /> Also allow foreground-window images (visible content, with detected password fields masked)</label>
     <label><input type="checkbox" checked={browser} onChange={event => setBrowser(event.target.checked)} /> Include browser windows without the extension</label>
     <label>Computer-use provider<select value={route} onChange={event => { setRoute(event.target.value as "cloud" | "local"); setModel(event.target.value === "cloud" ? "gemini-3.1-flash-lite" : state.settings.ollamaModel); }}><option value="cloud">My Gemini key</option><option value="local">Installed local Ollama model</option></select></label>
-    <p>{route === "cloud" ? "Your task, window labels, field values and enabled window images go to Google Gemini using your stored key. Provider quotas apply." : "Window context stays on the local Ollama loopback service. Images require a vision-capable installed model. No model download or cloud fallback."} Explicit app/site blocks still apply; any revoked-site block conservatively excludes browser windows in universal mode.</p>
+    <p className="mini">{route === "cloud" ? "Gemini receives your task, app text, field values, and any images you enable." : "Ollama processes app context locally. Images require a vision model."}</p>
     <label>Computer-use model<input value={model} readOnly={route === "cloud"} onChange={event => setModel(event.target.value)} maxLength={100} /></label>
     <label>Blocked process names (comma separated)<input value={denied} onChange={event => setDenied(event.target.value)} maxLength={1000} /></label>
-    <button disabled={busy || (firstRun && (!agreed || !allowed))} onClick={() => void act(() => window.setup.computerConfigure({ allowed, images, browserAllowed: browser, route, model, deniedApps: denied.split(",").map(value => value.trim()).filter(Boolean) }))}>{firstRun ? "Agree & enable Latham" : "Save universal access settings"}</button>
-    <button onClick={() => void act(() => window.setup.computerDisable())}>Disable universal mode / Stop</button>
-    <p role="status" data-testid="computer-status">{state.computer.phase} · {state.computer.message}</p><p>Hold Ctrl, speak, then release to start one goal. When a question appears beside Latham, choose Continue or Cancel. Ctrl+Alt+Enter also confirms; an active hands-free session accepts “approve action”. Ctrl+Alt+. stops independently.</p>
+    <div className="setup-buttons">
+      <button onClick={() => void act(() => window.setup.computerConfigure({ allowed, images, browserAllowed: browser, route, model, deniedApps: denied.split(",").map(value => value.trim()).filter(Boolean) }))}>Save universal access settings</button>
+      <button onClick={() => void act(() => window.setup.computerDisable())}>Disable universal mode / Stop</button>
+    </div>
     <label>Universal task<input value={goal} maxLength={2000} onChange={event => setGoal(event.target.value)} /></label><button disabled={!state.computer.allowed || busy || state.computer.needsReview || !state.computer.fenceConfirmed} onClick={() => void act(() => window.setup.computerRun(goal))}>Run universal task</button><button onClick={() => void act(() => window.setup.computerReview())}>Show action / result</button>
     {state.computer.deniedOrigins.map(origin => <p key={origin}>Blocked website: {origin} <button disabled={busy} onClick={() => void act(() => window.setup.computerUnblock(origin))}>Explicitly clear this site block</button></p>)}
+    </fieldset>
   </section>;
 }

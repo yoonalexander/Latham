@@ -6,6 +6,9 @@ not close it. Keep the name Latham and preserve local/user-key modes.
 
 - [ ] Select distribution/contribution terms, verify ownership/notices and
   branding, and establish support/privacy contacts.
+- [ ] Put the full terms and data-use notice on the download page and in the
+  installer. Record any installer consent on the device so Settings can open
+  ready for a command with the chosen access.
 - [ ] Review managed-provider eligibility/regions/age, free/paid terms and
   retention for the actual audience; publish the resulting privacy notice.
 - [ ] Provision hosting/domain/TLS, secret management/rotation and a reviewed
