@@ -97,9 +97,9 @@ function update(next: CompanionState): void {
     const speech = next.speechPreview, showSpeech = !!speech.text;
     notice.setAttribute("aria-live", showSpeech && speech.status !== "final" ? "off" : "polite");
     root.classList.toggle("has-transcript", showSpeech);
-    caption.textContent = showSpeech ? speech.text : next.phase === "processing" ? "On it…" : next.phase === "listening" ? next.holdToTalk ? "Listening · hold Ctrl" : "Listening · one command" : next.message;
+    caption.textContent = showSpeech ? speech.text : next.phase === "processing" ? "On it…" : next.phase === "listening" ? next.holdToTalk ? "Listening · hold both buttons" : "Listening · one command" : next.message;
     caption.scrollTop = caption.scrollHeight;
-    detail.textContent = showSpeech ? speech.status === "final" ? "Heard · final transcript" : speech.status === "processing" ? "Finishing transcript…" : "Live transcript · may change" : speech.status === "unavailable" ? "Speech recognizer unavailable · check AI setup" : next.phase === "idle" ? next.controlHoldReady ? "Hold Ctrl to talk · tray for settings" : next.talkShortcutRegistered ? "Ctrl hold unavailable · Ctrl + Alt + Space to talk" : "Talk shortcuts unavailable · use the tray" : next.holdToTalk && next.phase === "listening" ? "Release Ctrl to finish · Ctrl + Alt + . to stop" : "Ctrl + Alt + . to stop";
+    detail.textContent = showSpeech ? speech.status === "final" ? "Heard · final transcript" : speech.status === "processing" ? "Finishing transcript…" : "Live transcript · may change" : speech.status === "unavailable" ? "Speech recognizer unavailable · check AI setup" : next.phase === "idle" ? next.controlHoldReady ? "Hold left + right mouse buttons to talk" : next.talkShortcutRegistered ? "Mouse hold unavailable · Ctrl + Alt + Space to talk" : "Talk shortcuts unavailable · use the tray" : next.holdToTalk && next.phase === "listening" ? "Release either button to finish · Ctrl + Alt + . to stop" : "Ctrl + Alt + . to stop";
     if (next.recoveryRequired && !next.confirmation) {
       root.classList.remove("has-transcript"); notice.setAttribute("aria-live", "polite");
       caption.textContent = "Check the last task";

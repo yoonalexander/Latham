@@ -203,7 +203,7 @@ async function boot(): Promise<void> {
   ipcMain.handle("setup:computer-configure", async (event, input: unknown) => { guard(event); stopAll(); await waitFence(() => computer.state.fenceConfirmed && desktop.state.fenceConfirmed && (!chrome.connected || chrome.fenceConfirmed)); computer.configure(input); if (computer.state.allowed) companionTarget = "computer"; setupSend(); });
   ipcMain.handle("setup:computer-disable", async event => { guard(event); stopAll(); await waitFence(() => computer.state.fenceConfirmed); computer.configure({ allowed: false, images: false, browserAllowed: false, route: computer.state.route, model: computer.state.model, deniedApps: computer.state.deniedApps }); setupSend(); });
   ipcMain.handle("setup:computer-review", event => { guard(event); companionNoticeId++; companion?.show(); companion?.send(); });
-  ipcMain.handle("setup:computer-reconcile", event => { guard(event); computer.reconcile(); companionNotice = "Previous result checked. Hold Ctrl for a new command."; handsfree.state.message = companionNotice; companionNoticeId++; setupSend(); });
+  ipcMain.handle("setup:computer-reconcile", event => { guard(event); computer.reconcile(); companionNotice = "Previous result checked. Hold both mouse buttons for a new command."; handsfree.state.message = companionNotice; companionNoticeId++; setupSend(); });
   ipcMain.handle("setup:computer-unblock", (event, origin: unknown) => { guard(event); computer.unblockOrigin(origin); });
   ipcMain.handle("setup:computer-run", async (event, goal: unknown) => { guard(event); await useComputer(); voice.cancel(); const task = computer.run(goal); win.hide(); return task; });
   ipcMain.handle("setup:companion-target", (event, target: unknown) => { guard(event); if (!["computer", "chrome", "desktop"].includes(String(target))) throw new Error("invalid_target"); stopAll(); companionTarget = target as HandsfreeTarget; setupSend(); });
@@ -348,7 +348,7 @@ async function boot(): Promise<void> {
   controlHold = new ControlHold({
     start: stillHeld => talk("hold", stillHeld),
     release: id => handsfree.release(id),
-    cancel: id => { if (id === handsfree.state.id) handsfree.end("Ctrl shortcut or input changed. Recording discarded; microphone off."); }
+    cancel: id => { if (id === handsfree.state.id) handsfree.end("Mouse hold interrupted. Recording discarded; microphone off."); }
   });
   let settingsMounted = (): void => {};
   const settingsReady = new Promise<void>(resolve => { settingsMounted = resolve; });
@@ -373,7 +373,7 @@ async function boot(): Promise<void> {
     bitmap[offset] = 240; bitmap[offset + 1] = 237; bitmap[offset + 2] = 228; bitmap[offset + 3] = bar ? 255 : 0;
   }
   tray = new Tray(nativeImage.createFromBitmap(bitmap, { width: 24, height: 24 }));
-  tray.setToolTip("Latham · Hold Ctrl to talk · Ctrl+Alt+. to stop");
+  tray.setToolTip("Latham · Hold both mouse buttons to talk · Ctrl+Alt+. to stop");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Talk · one command", accelerator: "CommandOrControl+Alt+Space", click: () => void talk() },
     { label: "Stop", accelerator: shortcut, click: stopAll },
@@ -408,7 +408,7 @@ async function boot(): Promise<void> {
   companion.show();
   const closeControl = watchControl(join(__dirname, "native/Latham.ControlKey.exe"), controlHold, ready => {
     controlHoldReady = ready;
-    if (!ready && handsfree.holdToTalk) handsfree.end("Ctrl listener unavailable. Work cancelled; microphone off.");
+    if (!ready && handsfree.holdToTalk) handsfree.end("Mouse hold unavailable. Work cancelled; microphone off.");
     companion!.send();
   });
   app.on("before-quit", closeControl);

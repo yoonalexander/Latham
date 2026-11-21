@@ -73,13 +73,12 @@ only local cursor/display coordinates for its own placement, without screen capt
 
 ## Controls and setup
 
-- **Hold Ctrl**: after 250 ms alone, Latham starts capture. Speak when the
-  microphone is ready, then release to close capture and process one command.
-  Pauses while holding do not submit early. Either Ctrl key works; if both are
-  held, release both. Quick taps, additional keys, mouse clicks/wheels and a
-  missed release discard the recording. This preserves ordinary Ctrl shortcuts
-  and selections. Holding while a command is processing does not queue another.
-  Capture cancels at 15 seconds rather than submitting automatically.
+- **Hold the left and right mouse buttons together** for 250 ms to start capture.
+  Speak when the microphone is ready, then release either button to process one
+  command. The app under the cursor still receives the clicks and may react to
+  them. Quick taps, key presses, additional mouse buttons, scrolling and a
+  missed release discard the recording. Holding during processing cannot queue
+  another command. Capture cancels at 15 seconds.
 - **Ctrl+Alt+Space** or tray **Talk · one command**: an alternative that authorizes one spoken command.
   Speak, then pause. About 0.8 seconds of silence ends the utterance. The existing
   provider transcribes it, the approved target executes/verifies it, then capture
@@ -87,8 +86,8 @@ only local cursor/display coordinates for its own placement, without screen capt
   during capture or processing stops the current turn instead.
 - **Ctrl+Alt+.**, tray **Stop**, or the settings Stop button: cancel independently
   of the microphone, renderer and model. The existing English local
-  **stop assistant** detector also stays active while capture is open. Ctrl
-  release closes the detector with the microphone; use the hotkey or tray to
+  **stop assistant** detector also stays active while capture is open. Releasing
+  either button closes the detector with the microphone. Use the hotkey or tray to
   stop processing after release.
 - Tray **Settings…**: stops current work and opens provider, microphone,
   permissions, detailed results and advanced controls. **Back to companion**
@@ -142,10 +141,10 @@ reports a failed Stop registration.
 
 ## Implementation and evidence
 
-The native Ctrl helper passes through keyboard/mouse events and reports only
+The native mouse helper passes through keyboard/mouse events and reports only
 fixed gesture/health states. It never transmits characters, key codes or pointer
-coordinates. Injected keystrokes cannot activate it; startup with Ctrl already
-held requires a fresh press. Main debounces gestures, cancels late activation
+coordinates. Injected clicks cannot activate or submit a turn. Startup with a
+mouse button already held requires a fresh chord. Main debounces gestures, cancels late activation
 after release, and closes held turns on helper failure/health loss. The helper
 exits when its parent pipe closes. No npm dependency or driver is added.
 
@@ -184,7 +183,7 @@ movement, reversal before completion, boundary jitter and reduced-motion behavio
 Corner proximity is checked after the short transition settles. These checks use
 the real Electron window/compositor with controlled cursor positions.
 
-Ctrl push-to-talk passes the full **121-test** type/unit/build check, including
+The previous Ctrl push-to-talk passed the full **121-test** type/unit/build check, including
 quick taps/chords, repeated Ctrl events, release, pending activation cancellation,
 silent holds, release-only transcription, the 15-second cap, late-reply Stop,
 malformed helper events, health loss and helper exits.

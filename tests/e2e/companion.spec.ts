@@ -35,7 +35,7 @@ test("uncertain-result guidance points to explicit recovery without replaying th
     expect(JSON.parse(readFileSync(join(directory, "computer.json"), "utf8")).uncertain).toBe(false);
     expect(await app.evaluate(() => Reflect.get(globalThis, "recoveryWorkerCalls"))).toBe(0);
     expect((await overlay.evaluate(() => window.companion.state())).recoveryRequired).toBe(false);
-    await expect(overlay.locator("#caption")).toHaveText("Previous result checked. Hold Ctrl for a new command.");
+    await expect(overlay.locator("#caption")).toHaveText("Previous result checked. Hold both mouse buttons for a new command.");
   } finally { await app.close(); }
 });
 
@@ -196,7 +196,7 @@ test("first Settings open prepares geometry before entering the native show call
   } finally { await app.close(); }
 });
 
-test("Windows Ctrl helper installs hooks, reports only fixed gesture states and exits when its parent pipe closes", async () => {
+test("Windows mouse hold helper installs hooks, reports only fixed gesture states and exits when its parent pipe closes", async () => {
   const helper = spawn(resolve("dist/native/Latham.ControlKey.exe"), [], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
   const states: unknown[] = []; let buffer = "", exit: number | null | undefined;
   helper.stdout.setEncoding("utf8"); helper.stdout.on("data", (chunk: string) => {

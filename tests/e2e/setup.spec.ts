@@ -34,7 +34,7 @@ test("quick setup connects Gemini and selects it for voice without opening advan
     expect(JSON.parse(readFileSync(join(directory, "providers.json"), "utf8")).settings.mode).toBe("cloud");
     await expect(page.getByRole("status").filter({ hasText: "Gemini configured" })).toBeVisible();
     await page.getByRole("button", { name: "General", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Hold Ctrl to talk", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Hold both mouse buttons to talk", exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "Current setup" })).toContainText("Gemini");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: ".test-artifacts/latham-system-settings.png" });

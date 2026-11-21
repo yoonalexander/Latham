@@ -32,11 +32,11 @@ for that process. Main rejects late events and preview failure does not cancel
 the independent fixed Stop grammar or final ASR. No audio/text files or network
 calls are used. See [live words](../../docs/companion.md#live-words).
 
-`ControlKey.cs` is the independent Ctrl push-to-talk gesture helper. Local
-keyboard/mouse hooks pass through input and report only fixed Ctrl gesture and
-health states, never key codes, characters or pointer positions. Injected Ctrl
-cannot activate it; other keys/clicks/wheels cancel the gesture. It exits on
-parent-pipe closure. Main applies the hold delay, capture deadline and cancellation
+`ControlKey.cs` is the independent mouse push-to-talk gesture helper. Local
+keyboard/mouse hooks pass through input and report only fixed gesture and
+health states, never key codes, characters or pointer positions. Injected mouse
+clicks cannot activate or submit a turn. Key presses, extra mouse buttons and
+scrolling cancel the gesture. The helper exits on parent-pipe closure. Main applies the hold delay, capture deadline and cancellation
 fence. It has no microphone, network, execution or injection API. See
 [companion controls](../../docs/companion.md).
 

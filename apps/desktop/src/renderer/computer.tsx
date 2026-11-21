@@ -11,7 +11,7 @@ export function ComputerStart({ state, act, voiceReady, showVoice }: PanelProps 
   };
   return <section className="quick-start" aria-label="Universal computer use">
     {computer.allowed && <p className="assistant-enabled">Assistant enabled</p>}
-    <h2>{computer.allowed ? voiceReady ? "Hold Ctrl to talk" : "Try Latham" : "Start using Latham"}</h2>
+    <h2>{computer.allowed ? voiceReady ? "Hold both mouse buttons to talk" : "Try Latham" : "Start using Latham"}</h2>
     {computer.needsReview && !busy && <div className="onboarding-agreement" role="region" aria-label="Previous task recovery">
       <h3>Check the app you were using</h3><p>Look at the app to see what changed before starting another command.</p>
       {!computer.fenceConfirmed && <p role="status">Waiting for the previous input worker to stop.</p>}
@@ -21,7 +21,7 @@ export function ComputerStart({ state, act, voiceReady, showVoice }: PanelProps 
       <p>Let Latham read and control the active app when you ask. AI tasks share visible text and field values with {computer.route === "cloud" ? "Google Gemini" : "your local Ollama model"}.</p>
       <button className="primary" disabled={busy || !computer.fenceConfirmed || computer.needsReview} onClick={enable}>Enable Latham</button>
     </div> : <>
-      <p>{voiceReady ? <>Hold <kbd>Ctrl</kbd>, say “open Notepad,” then release.</> : "Open Notepad now, or connect a voice provider to speak your commands."}</p>
+      <p>{voiceReady ? <>Hold the left and right mouse buttons, say “open Notepad,” then release either button.</> : "Open Notepad now, or connect a voice provider to speak your commands."}</p>
       <div className="setup-buttons">
         {voiceReady && <button className="primary" disabled={!canRun} onClick={() => void act(() => window.setup.talkFromCompanion())}>Try listening</button>}
         <button disabled={!canRun} onClick={() => void act(() => window.setup.computerRun("Open Notepad"))}>Open Notepad</button>

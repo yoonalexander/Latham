@@ -37,7 +37,7 @@ does not resume a task, microphone or observation.
 
 ## Before you download
 
-- Latham listens when you hold Ctrl or start a voice session. Hands-free
+- Latham listens when you hold both mouse buttons or start a voice session. Hands-free
   listening is a separate choice. Stop with **Ctrl+Alt+.** or the tray menu.
 - Enabling Latham lets it read visible text and field values in the active
   app and use ordinary controls when you ask. Window images and browser access
@@ -58,7 +58,7 @@ does not resume a task, microphone or observation.
    **Provider and app blocks** to change the reasoning provider or block apps.
    Use **Advanced settings** for local speech. Speech and reasoning routes are
    saved independently. Access choices and explicit disable persist after restart.
-3. Return to the companion, click the ordinary app you intend to use, hold Ctrl,
+3. Return to the companion, click the ordinary app you intend to use, hold both mouse buttons,
    speak a short goal and release. Start with a disposable text field, for
    example “replace Draft with hello”, or “explain the current window”. A typed
    **Run universal task** is available under **App access → Typed commands and results**. Select the
@@ -73,8 +73,9 @@ does not resume a task, microphone or observation.
 5. For repeated hands-free commands, explicitly enable **Universal computer use**
    in the hands-free panel. While that session is active, “approve action” can
    approve the displayed proposal; “stop assistant” cancels. Keep the settings
-   capture window visible for this existing hands-free mode. Hold-Ctrl releases
-   the microphone before processing, so spoken approval is unavailable then.
+   capture window visible for this hands-free mode. In push-to-talk mode,
+   releasing either mouse button closes the microphone before processing, so use
+   the on-screen or keyboard confirmation when prompted.
 
 No background screenshots, transcript/image history or model downloads are
 enabled. The tray's **Show task status** resurfaces the companion's status.
@@ -157,7 +158,7 @@ normal Windows focus API and completes the edit. The actual Windows recognizer
 recognizes synthetic approval audio with bounded timestamps. These are controlled
 tests, not human-microphone or broad application studies.
 
-10D remains open for physical hold-Ctrl speech and hands-free approval/Stop in
+10D remains open for physical mouse push-to-talk speech and hands-free approval/Stop in
 this new route, multiple unrelated real native apps and multi-step cross-app
 goals, coordinate/scroll/key behavior across diverse apps, physical mixed-DPI
 displays and a newly packaged build. Existing narrow-adapter acceptance does not
@@ -165,7 +166,7 @@ close these gates. OS focus refusal still causes a blocker, never a bypass.
 
 ## Shared computer-use loop
 
-1. **Activate and understand.** Reuse hold-Ctrl voice capture and explicit
+1. **Activate and understand.** Reuse mouse push-to-talk voice capture and explicit
    hands-free sessions. Transcribe through the selected provider. A browser
    connection must not gate universal voice activation or screen questions.
 2. **Observe.** Identify the current permitted foreground app/window or selected

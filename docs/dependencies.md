@@ -100,10 +100,10 @@ Clicky and Capri were read as interaction references; no reference implementatio
 or assets are included. [Companion controls and references](companion.md) records
 the inspiration and Electron APIs used.
 
-Ctrl push-to-talk adds independently authored C# Win32 hooks and a bounded
+Mouse push-to-talk uses independently authored C# Win32 hooks and a bounded
 TypeScript gesture controller. It reuses the existing .NET Framework compiler
 and Windows Forms message loop, without a new npm package, driver or reference-app
-code. Only fixed Ctrl gesture/health states leave the helper. Microsoft API
+code. Only fixed gesture/health states leave the helper. Microsoft API
 references and acceptance limits are recorded in [companion controls](companion.md).
 
 Phase 10 adds no npm package, model download or reference implementation. Its

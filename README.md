@@ -69,7 +69,7 @@ native relay uses Windows' existing .NET Framework compiler, without an SDK.
 
 On first launch, choose **Enable Latham** and try **Open Notepad**. To use your
 voice, choose **Set up voice**, enter your Gemini key, and choose **Connect
-Gemini**. Hold **Ctrl** to talk and release it to run the command. **Ctrl+Alt+.**
+Gemini**. Hold **left and right mouse buttons** together to talk, then release either to run the command. **Ctrl+Alt+.**
 stops work. In the tray's **Settings…**, use **App access** for window images,
 browser access, and app blocks, or **Advanced settings** for local AI and the
 browser extension. [Permissions and data use](docs/universal-desktop.md#before-you-download)

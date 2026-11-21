@@ -105,7 +105,7 @@ export class Computer {
         if ((value.agreementVersion !== 0 && value.agreementVersion !== computerAgreementVersion) || !record(value.options)) throw new Error();
         const options = parseComputerOptions({ ...value.options, deniedApps: value.deniedApps });
         if (options.allowed && value.agreementVersion !== computerAgreementVersion) throw new Error();
-        Object.assign(this.state, options, { agreementAccepted: value.agreementVersion === computerAgreementVersion, selected: options.allowed, phase: options.allowed ? "ready" : "off", message: options.allowed ? "Latham is ready. Hold Ctrl to talk." : "Universal mode is off. Enable it in Settings." });
+        Object.assign(this.state, options, { agreementAccepted: value.agreementVersion === computerAgreementVersion, selected: options.allowed, phase: options.allowed ? "ready" : "off", message: options.allowed ? "Latham is ready. Hold both mouse buttons to talk." : "Universal mode is off. Enable it in Settings." });
       }
     } catch { this.state.needsReview = existsSync(this.path); }
   }
@@ -128,7 +128,7 @@ export class Computer {
     try { await this.broker.stop(); if (generation === this.generation) this.state.fenceConfirmed = true; } catch { this.state.needsReview = true; }
     if (generation === this.generation) { if (result) Object.assign(this.state, result); this.emit(); }
   }
-  reconcile(): void { if (this.busy || !this.state.fenceConfirmed) throw new Error("computer_fence_unconfirmed"); this.persist(false); this.state.needsReview = false; this.state.phase = this.state.allowed ? "ready" : "off"; this.state.message = "Previous result checked. Select the target app and hold Ctrl for a new command."; this.emit(); }
+  reconcile(): void { if (this.busy || !this.state.fenceConfirmed) throw new Error("computer_fence_unconfirmed"); this.persist(false); this.state.needsReview = false; this.state.phase = this.state.allowed ? "ready" : "off"; this.state.message = "Previous result checked. Select the target app and hold both mouse buttons for a new command."; this.emit(); }
   blockOrigin(origin: string): void { if (!/^https?:\/\//.test(origin)) throw new Error("invalid_origin"); void this.stop(); this.state.deniedOrigins = [...new Set([...this.state.deniedOrigins, origin])].slice(0, 100); this.persist(this.state.needsReview); }
   unblockOrigin(origin: unknown): void { if (this.busy || typeof origin !== "string") throw new Error("invalid_origin"); this.state.deniedOrigins = this.state.deniedOrigins.filter(value => value !== origin); this.persist(this.state.needsReview); this.emit(); }
   approve(id: unknown, approved: boolean): void { if (typeof id !== "string" || id !== this.state.pending?.id || !this.approval) throw new Error("stale_computer_approval"); const resolve = this.approval; this.approval = undefined; this.state.pending = null; this.pendingImage = ""; this.emit(); resolve(approved); }

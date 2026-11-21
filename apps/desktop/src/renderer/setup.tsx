@@ -204,7 +204,7 @@ export function SetupPanel({ fixtureControls }: { fixtureControls: ReactNode }) 
       <h2>Shortcuts</h2>
       <div className="settings-card">
         <dl className="settings-rows">
-          <div><dt>Talk while pressed</dt><dd><kbd>Hold Ctrl</kbd></dd></div>
+          <div><dt>Talk while pressed</dt><dd><kbd>Hold left + right mouse buttons</kbd></dd></div>
           <div><dt>Talk for one command</dt><dd><kbd>Ctrl + Alt + Space</kbd></dd></div>
           <div><dt>Stop</dt><dd><kbd>Ctrl + Alt + .</kbd></dd></div>
           <div><dt>Confirm a pending action</dt><dd><kbd>Ctrl + Alt + Enter</kbd></dd></div>

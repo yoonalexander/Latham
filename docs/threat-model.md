@@ -135,12 +135,13 @@ Stop, failure, invalidation, hiding/crashing the primary companion or changing
 displays cancels work. Late replies cannot authorize another command. Nothing
 grants a new website or broadens supported actions. See [companion](companion.md).
 
-Holding a physical Ctrl alone for 250 ms is an explicit push-to-talk activation.
+Holding both physical mouse buttons for 250 ms is an explicit push-to-talk activation.
 The native helper emits only fixed gesture/health states and forwards input;
-injected presses cannot activate capture. Chords, clicks/wheels, quick taps,
-missed releases, helper loss and the 15-second capture cap discard work. Main
+injected button events cannot activate capture or submit a recording. Key presses,
+additional mouse buttons, scrolling, quick taps, missed releases, helper loss and
+the 15-second capture cap discard work. Main
 invalidates pending preparation on release; a late open is cancelled. Release
-closes capture/local detectors and processes only the bounded current utterance.
+of either mouse button closes capture/local detectors and processes only the bounded current utterance.
 The processing session retains its cancellation fence without an audio heartbeat;
 it cannot acquire the microphone again. Spoken Stop ends with capture, while the
 native Stop shortcut and tray remain available. No character/keycode logging,

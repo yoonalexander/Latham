@@ -39,7 +39,7 @@ and model. Local reasoning uses a separately configured loopback Ollama model.
 
 ## Smoke test and continue
 
-1. In an ordinary Windows app, hold **Ctrl**, say “open Notepad”, and release.
+1. In an ordinary Windows app, hold both **left and right mouse buttons**, say “open Notepad”, and release either button.
    Check that words appear while you speak and that Notepad comes to the front.
    Minimize Notepad and repeat. Try “open Calculator” too. Those two standalone
    commands are the current direct launch allowlist.
@@ -84,7 +84,7 @@ editing and shutdown checks.
 
 | Area | Entry points |
 | --- | --- |
-| Companion and hold Ctrl | `apps/desktop/src/main/companion.ts`, `control-hold.ts`, `services/windows-helper/ControlKey.cs` |
+| Companion and mouse push-to-talk | `apps/desktop/src/main/companion.ts`, `control-hold.ts`, `services/windows-helper/ControlKey.cs` |
 | Speech capture and streaming | `apps/desktop/src/main/voice.ts`, `speech-preview.ts`, `packages/speech/src/live-transcribe.ts` |
 | Universal task policy and Windows actions | `apps/desktop/src/main/computer.ts`, `services/windows-helper/ComputerAgent.cs` |
 | Restore and verify opened windows | `services/windows-helper/AppWindow.cs`, shared by the universal and legacy Notepad helpers |

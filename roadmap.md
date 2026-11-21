@@ -23,7 +23,7 @@ The primary UI is now a small cursor-following companion with short–long–sho
 bars, input-driven microphone feedback and orbiting processing dots. Setup and
 advanced controls are a separate window. Each companion activation authorizes
 one command; continuous hands-free remains a separate opt-in.
-The companion also supports holding physical Ctrl to listen and releasing to
+The companion also supports holding both mouse buttons to listen and releasing either button to
 process with the microphone off; ordinary Ctrl chords discard capture. See
 [controls, implementation and acceptance](docs/companion.md). This UI refinement
 does not change the capability/release gates below.
@@ -244,7 +244,7 @@ every app works or that a Gemini text/ASR key check validates computer-use model
 
 - [x] **10D.1 — Windows startup and shutdown.** The cold-start tray Settings checks passed, including the first request during startup. The native supervisor exit regression passed after Settings was destroyed. [November 11 results](docs/evaluation.md#phase-10d-windows-acceptance--november-11-2026)
 - [ ] **10D.2 — Native window discovery and editing.** Resolve the known window discovery and focus failures in the universal and legacy editing tests. Verify that Latham finds, edits, and checks the result in multiple unrelated Windows apps. Include a changed-window or changed-field case that blocks the edit and a stalled native operation that can be stopped safely.
-- [ ] **10D.3 — Hold-Ctrl with a real microphone.** Check that live words appear while speaking, the microphone closes on release, and the final transcript runs the intended command once. Check cancellation while listening and record recognition problems observed with the available speakers and room conditions.
+- [ ] **10D.3 — Mouse push-to-talk with a real microphone.** Check that live words appear while speaking, the microphone closes on release, and the final transcript runs the intended command once. Check cancellation while listening and record recognition problems observed with the available speakers and room conditions.
 - [ ] **10D.4 — Hands-free approval, Stop, and recovery.** Run repeated commands in an opt-in session. Verify that approval applies only to the visible proposal, spoken Stop interrupts active work, the independent Stop shortcut works during processing, and recovery does not replay a command.
 - [x] **10D.5 — Chrome without the extension.** The Windows engine edited and verified a field in an isolated Chrome for Testing window. With a site revocation recorded, the task was blocked before reasoning and the field retained its verified value. [November 13 results](docs/evaluation.md#phase-10d-visual-and-browser-checks--november-13-2026)
 - [ ] **10D.6 — Multi-step and cross-app tasks.** Verify a multi-step goal within one app and a goal spanning apps. Check that Latham clarifies ambiguous requests, asks for approval when required, and shows the verified result or a clear error.
